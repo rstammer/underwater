@@ -10,8 +10,10 @@ class LittleBass
     {
       x: @game_state.player_x,
       y: @game_state.player_y,
-      w: 32,
-      h: 16,
+      w: 32 * 2,
+      h: 16 * 2,
+      anchor_x: 0.5,
+      anchor_y: 0.5,
       path: "sprites/fishes/bass1_32_16/Red.png",
       source_x: 32 * @sprite_index,
       source_y: 16 * (@sprite_index / 8).floor,
@@ -49,15 +51,19 @@ def tick(args)
   sprite_index ||= 0
 
   if args.inputs.left
-    args.state.player_x -= 10
+    args.state.player_x -= 2
   elsif args.inputs.right
-    args.state.player_x += 10
+    args.state.player_x += 2
   end
 
   if args.inputs.up
-    args.state.player_y += 10
+    args.state.player_y += 2
   elsif args.inputs.down
-    args.state.player_y -= 10
+    args.state.player_y -= 2
+  end
+
+  if !args.inputs.up && args.state.player_y >= 1
+    args.state.player_y -= 0.15
   end
 
   args.outputs.sprites << LittleBass.new(args.state, sprite_index).render
