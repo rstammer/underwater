@@ -1,17 +1,18 @@
 ANIMATION_START_TICK = 0
 
 class LittleBass
-  def initialize(game_state, sprite_index)
+  def initialize(current_args, sprite_index)
     @sprite_index = sprite_index
-    @game_state = game_state
+    @current_args = current_args
   end
 
   def render
     {
-      x: @game_state.player_x,
-      y: @game_state.player_y,
+      x: @current_args.state.player_x,
+      y: @current_args.state.player_y,
       w: 32 * 2,
       h: 16 * 2,
+      angle: @current_args.state.angle,
       anchor_x: 0.5,
       anchor_y: 0.5,
       path: "sprites/fishes/bass1_32_16/Red.png",
@@ -66,6 +67,14 @@ def tick(args)
     args.state.player_y -= 0.15
   end
 
-  args.outputs.sprites << LittleBass.new(args.state, sprite_index).render
+  if args.inputs.up
+    args.state.angle += 0.5
+  elsif args.inputs.down
+    args.state.angle -= 0.5
+  else
+    args.state.angle = 0
+  end
+
+  args.outputs.sprites << LittleBass.new(args, sprite_index).render
   args.outputs.solids << default_background(args.grid)
 end
