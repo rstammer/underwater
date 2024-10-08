@@ -12,7 +12,7 @@ class LittleBass
       y: @current_args.state.player_y,
       w: 32 * 2,
       h: 16 * 2,
-      flip_horizontally: @current_args.inputs.left,
+      flip_horizontally: @current_args.state.direction == :left,
       angle: @current_args.state.angle,
       anchor_x: 0.5,
       anchor_y: 0.5,
@@ -53,9 +53,11 @@ def tick(args)
   sprite_index ||= 0
 
   if args.inputs.left
+    args.state.direction = :left
     args.state.player_x -= 2
   elsif args.inputs.right
     args.state.player_x += 2
+    args.state.direction = :right
   end
 
   if args.inputs.up
@@ -68,12 +70,26 @@ def tick(args)
     args.state.player_y -= 0.15
   end
 
-  if args.inputs.up
-    args.state.angle += 0.5
-  elsif args.inputs.down
-    args.state.angle -= 0.5
+  if args.state.player_y <= 1
+    args.state.player_y = 1
+  end
+
+  if args.state.direction == :right
+    if args.inputs.up
+      args.state.angle += 0.5
+    elsif args.inputs.down
+      args.state.angle -= 0.5
+    else
+      args.state.angle = 0
+    end
   else
-    args.state.angle = 0
+    if args.inputs.up
+      args.state.angle -= 0.5
+    elsif args.inputs.down
+      args.state.angle += 0.5
+    else
+      args.state.angle = 0
+    end
   end
 
   args.outputs.sprites << LittleBass.new(args, sprite_index).render
