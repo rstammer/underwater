@@ -25,29 +25,6 @@ class LittleBass
   end
 end
 
-class Weed
-  def initialize(current_args, x, y, sprite_index)
-    @sprite_index = sprite_index
-    @current_args = current_args
-    @x = x
-    @y = y
-  end
-
-  def to_h
-    {
-      x: @x,
-      y: @y,
-      w: 4 * 10,
-      h: 32 * 10,
-      path: "sprites/other/weed.png",
-      source_x: 4 * @sprite_index,
-      source_y: 32 * (@sprite_index / 8).floor,
-      source_w: 4,
-      source_h: 32
-    }
-  end
-end
-
 class SandTile
   COLORS = [
     [242, 208, 169],
@@ -67,9 +44,9 @@ class SandTile
       y: @y,
       w: 8,
       h: 12 + rand(4),
-      r: @r + rand(10),
-      g: @g + rand(10),
-      b: @b + rand(10),
+      r: @r + (-1)**rand(2) + rand(25),
+      g: @g + (-1)**rand(2) + rand(25),
+      b: @b + (-1)**rand(2) + rand(25),
     }
   end
 end
@@ -89,16 +66,25 @@ end
 def ground(args)
   @ground ||=
     (1..10_000).map do |n|
-      SandTile.new(args.grid, 4*n % args.grid.w, -1 + rand(22)).to_h
+      SandTile.new(args.grid, 2*n % args.grid.w, -2 + rand(22)).to_h
     end
 end
 
-def weed(args, sprite_index)
-   @weed ||=
-    (1..25).map do |n|
-      Weed.new(args.grid, 10*n % args.grid.w, -1 + rand(22), sprite_index).to_h
+def water(args, grid_size)
+  @water ||=
+    (1..grid_size).map do |n|
+      {
+        x: 0,
+        y: n*args.grid.h / grid_size,
+        w: args.grid.w,
+        h: args.grid.h / grid_size,
+        r: rand(25),
+        g: rand(25),
+        b: n*args.grid.h / grid_size
+      }
     end
 end
+
 
 def tick(args)
   args.state.player_x ||= 120
@@ -157,7 +143,7 @@ def tick(args)
   end
 
   args.outputs.solids << default_background(args.grid)
+  args.outputs.solids << water(args, 60)
   args.outputs.solids << ground(args)
-  args.outputs.sprites << weed(args, sprite_index)
   args.outputs.sprites << LittleBass.new(args, sprite_index).render
 end
