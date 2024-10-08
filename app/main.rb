@@ -12,6 +12,7 @@ class LittleBass
       y: @current_args.state.player_y,
       w: 32 * 2,
       h: 16 * 2,
+      flip_horizontally: @current_args.inputs.left,
       angle: @current_args.state.angle,
       anchor_x: 0.5,
       anchor_y: 0.5,
