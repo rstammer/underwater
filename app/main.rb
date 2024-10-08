@@ -25,6 +25,29 @@ class LittleBass
   end
 end
 
+class Weed
+  def initialize(current_args, x, y, sprite_index)
+    @sprite_index = sprite_index
+    @current_args = current_args
+    @x = x
+    @y = y
+  end
+
+  def to_h
+    {
+      x: @x,
+      y: @y,
+      w: 4 * 10,
+      h: 32 * 10,
+      path: "sprites/other/weed.png",
+      source_x: 4 * @sprite_index,
+      source_y: 32 * (@sprite_index / 8).floor,
+      source_w: 4,
+      source_h: 32
+    }
+  end
+end
+
 class SandTile
   COLORS = [
     [242, 208, 169],
@@ -67,6 +90,13 @@ def ground(args)
   @ground ||=
     (1..10_000).map do |n|
       SandTile.new(args.grid, 4*n % args.grid.w, -1 + rand(22)).to_h
+    end
+end
+
+def weed(args, sprite_index)
+   @weed ||=
+    (1..25).map do |n|
+      Weed.new(args.grid, 10*n % args.grid.w, -1 + rand(22), sprite_index).to_h
     end
 end
 
@@ -126,7 +156,8 @@ def tick(args)
     end
   end
 
-  args.outputs.sprites << LittleBass.new(args, sprite_index).render
   args.outputs.solids << default_background(args.grid)
   args.outputs.solids << ground(args)
+  args.outputs.sprites << weed(args, sprite_index)
+  args.outputs.sprites << LittleBass.new(args, sprite_index).render
 end
