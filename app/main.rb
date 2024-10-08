@@ -25,6 +25,32 @@ class LittleBass
   end
 end
 
+class SandTile
+  COLORS = [
+    [242, 208, 169],
+    [238, 200, 143],
+    [225, 188, 109]
+  ]
+  def initialize(grid, x, y)
+    @grid = grid
+    @x = x
+    @y = y
+    @r, @g, @b = COLORS.sample
+  end
+
+  def to_h
+    {
+      x: @x,
+      y: @y,
+      w: 8,
+      h: 12 + rand(4),
+      r: @r + rand(10),
+      g: @g + rand(10),
+      b: @b + rand(10),
+    }
+  end
+end
+
 def default_background(grid)
   {
     x: 0,
@@ -37,10 +63,16 @@ def default_background(grid)
   }
 end
 
+def ground(args)
+  @ground ||=
+    (1..10_000).map do |n|
+      SandTile.new(args.grid, 4*n % args.grid.w, -1 + rand(22)).to_h
+    end
+end
+
 def tick(args)
   args.state.player_x ||= 120
   args.state.player_y ||= 280
-
   start_animation_on_tick = 60
 
   sprite_index =
@@ -57,6 +89,8 @@ def tick(args)
     args.state.player_x -= 2
   elsif args.inputs.right
     args.state.player_x += 2
+    args.state.direction = :right
+  else
     args.state.direction = :right
   end
 
@@ -94,4 +128,5 @@ def tick(args)
 
   args.outputs.sprites << LittleBass.new(args, sprite_index).render
   args.outputs.solids << default_background(args.grid)
+  args.outputs.solids << ground(args)
 end
