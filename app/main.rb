@@ -1,10 +1,13 @@
 ANIMATION_START_TICK = 0
+SCREEN_WIDTH = 640
+SCREEN_HEIGHT = 720
 
 class DarkShark
   PATH = "sprites/animals/dark_shark_32_32/shark.png"
   WIDTH = 32
   HEIGHT = 32
   SPRITES_PER_ROW = 8
+  SCALE_FACTOR = 4
 
   def initialize(current_args, sprite_index)
     @sprite_index = sprite_index
@@ -13,10 +16,10 @@ class DarkShark
 
   def to_h
     {
-      x: 400,
-      y: 100,
-      w: WIDTH * 4,
-      h: HEIGHT * 4,
+      x: @current_args.state.dark_shark.x,
+      y: @current_args.state.dark_shark.y,
+      w: WIDTH * SCALE_FACTOR,
+      h: HEIGHT * SCALE_FACTOR,
       angle: 0,
       path: PATH,
       source_x: WIDTH * @sprite_index,
@@ -126,11 +129,12 @@ def water(args, grid_size)
   end
 end
 
-
 def tick(args)
+  start_animation_on_tick = 60
   args.state.player_x ||= 120
   args.state.player_y ||= 280
-  start_animation_on_tick = 60
+  args.state.dark_shark.x ||= 300
+  args.state.dark_shark.y ||= 300
 
   sprite_index =
     start_animation_on_tick.frame_index(
@@ -183,6 +187,11 @@ def tick(args)
     end
   end
 
+  # Shark movement
+  args.state.dark_shark.x = (args.state.dark_shark.x + 0.5) % SCREEN_WIDTH
+  args.state.dark_shark.y = args.state.dark_shark.y + ((-1)**rand(10)10 rand(10)) if args.tick_count % 40 == 0
+
+  # Rener screen
   args.outputs.solids << default_background(args.grid)
   args.outputs.solids << water(args, 60)
   args.outputs.solids << ground(args)
