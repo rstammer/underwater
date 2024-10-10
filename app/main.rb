@@ -1,26 +1,58 @@
 ANIMATION_START_TICK = 0
 
-class LittleBass
+class DarkShark
+  PATH = "sprites/animals/dark_shark_32_32/shark.png"
+  WIDTH = 32
+  HEIGHT = 32
+  SPRITES_PER_ROW = 8
+
   def initialize(current_args, sprite_index)
     @sprite_index = sprite_index
     @current_args = current_args
   end
 
-  def render
+  def to_h
+    {
+      x: 400,
+      y: 100,
+      w: WIDTH * 4,
+      h: HEIGHT * 4,
+      angle: 0,
+      path: PATH,
+      source_x: WIDTH * @sprite_index,
+      source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor,
+      source_w: WIDTH,
+      source_h: HEIGHT
+    }
+  end
+end
+
+class LittleBass
+  PATH = "sprites/animals/bass1_32_16/Red.png"
+  WIDTH = 32
+  HEIGHT = 16
+  SPRITES_PER_ROW = 8
+
+  def initialize(current_args, sprite_index)
+    @sprite_index = sprite_index
+    @current_args = current_args
+  end
+
+  def to_h
     {
       x: @current_args.state.player_x,
       y: @current_args.state.player_y,
-      w: 32 * 2,
-      h: 16 * 2,
+      w: WIDTH * 2,
+      h: HEIGHT * 2,
       flip_horizontally: @current_args.state.direction == :left,
       angle: @current_args.state.angle,
       anchor_x: 0.5,
       anchor_y: 0.5,
-      path: "sprites/fishes/bass1_32_16/Red.png",
-      source_x: 32 * @sprite_index,
-      source_y: 16 * (@sprite_index / 8).floor,
-      source_w: 32,
-      source_h: 16
+      path: PATH,
+      source_x: WIDTH * @sprite_index,
+      source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor,
+      source_w: WIDTH,
+      source_h: HEIGHT
     }
   end
 end
@@ -154,5 +186,6 @@ def tick(args)
   args.outputs.solids << default_background(args.grid)
   args.outputs.solids << water(args, 60)
   args.outputs.solids << ground(args)
-  args.outputs.sprites << LittleBass.new(args, sprite_index).render
+  args.outputs.sprites << LittleBass.new(args, sprite_index).to_h
+  args.outputs.sprites << DarkShark.new(args, sprite_index).to_h
 end
