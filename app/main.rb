@@ -129,13 +129,23 @@ def water(args, grid_size)
   end
 end
 
-def tick(args)
-  start_animation_on_tick = 60
-  args.state.player_x ||= 120
-  args.state.player_y ||= 280
-  args.state.dark_shark.x ||= 300
-  args.state.dark_shark.y ||= 300
+def initialize_game(args)
+  args.state.angle = 0
+  args.state.player_x = 120
+  args.state.player_y = 280
+  args.state.player_state = nil
+  args.state.direction = :right
+  args.state.dark_shark.x = 300
+  args.state.dark_shark.y = 300
+  args.state.player_state = :alive
+  args.state.initialized = true
+end
 
+def tick(args)
+  initialize_game(args) unless args.state.initialized
+
+  # Make sprites animated
+  start_animation_on_tick = 60
   sprite_index =
     start_animation_on_tick.frame_index(
       count: 8, # how many sprites?
