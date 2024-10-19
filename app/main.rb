@@ -129,6 +129,13 @@ def water(args, grid_size)
   end
 end
 
+def fire_input?(args)
+  args.inputs.keyboard.key_down.space ||
+  args.inputs.keyboard.key_down.z ||
+    args.inputs.keyboard.key_down.j ||
+    args.inputs.controller_one.key_down.a
+end
+
 def initialize_game(args)
   args.state.angle = 0
   args.state.player_x = 120
@@ -138,23 +145,12 @@ def initialize_game(args)
   args.state.dark_shark.x = 300
   args.state.dark_shark.y = 300
   args.state.player_state = :alive
+  args.state.scene = "underwater-start"
+  args.state.game_scene = "title"
   args.state.initialized = true
 end
 
-def tick(args)
-  initialize_game(args) unless args.state.initialized
-
-  # Make sprites animated
-  start_animation_on_tick = 60
-  sprite_index =
-    start_animation_on_tick.frame_index(
-      count: 8, # how many sprites?
-      hold_for: 16, # how long to hold each sprite?
-      repeat: true # should it repeat?
-    )
-
-  sprite_index ||= 0
-
+def active_tick(args)
   if args.inputs.left
     args.state.direction = :left
     args.state.player_x -= 2
@@ -201,10 +197,71 @@ def tick(args)
   args.state.dark_shark.x = (args.state.dark_shark.x + 0.5) % SCREEN_WIDTH
   args.state.dark_shark.y = args.state.dark_shark.y + ((-1)**rand(10) * rand(10)) if args.tick_count % 40 == 0
 
-  # Rener screen
+  # Render screen
   args.outputs.solids << default_background(args.grid)
   args.outputs.solids << water(args, 60)
   args.outputs.solids << ground(args)
-  args.outputs.sprites << LittleBass.new(args, sprite_index).to_h
-  args.outputs.sprites << DarkShark.new(args, sprite_index).to_h
+  args.outputs.sprites << @little_bass.to_h
+  args.outputs.sprites << @dark_shark.to_h
+end
+
+def game_over_tick(args)
+end
+
+def title_tick(args)
+  if fire_input?(args)
+    args.state.game_scene = "active"
+    return
+  end
+
+  labels = []
+  labels << {
+    x: 40,
+    y: args.grid.h - 40,
+    text: "Underwater",
+    size_enum: 6,
+  }
+  labels << {
+    x: 40,
+    y: args.grid.h - 88,
+    text: "Try to survive!",
+  }
+  labels << {
+    x: 40,
+    y: args.grid.h - 120,
+    text: "by Robin Stammer",
+  }
+  labels << {
+    x: 40,
+    y: 120,
+    text: "Arrows or WASD to move | gamepad works too",
+  }
+  labels << {
+    x: 40,
+    y: 80,
+    text: "Press space to start",
+    size_enum: 2,
+  }
+  args.outputs.labels << labels
+end
+
+def tick(args)
+  initialize_game(args) unless args.state.initialized
+
+  # Make sprites animated
+  start_animation_on_tick = 60
+  sprite_index =
+    start_animation_on_tick.frame_index(
+      count: 8, # how many sprites?
+      hold_for: 16, # how long to hold each sprite?
+      repeat: true # should it repeat?
+    )
+
+  sprite_index ||= 0
+
+  # Update characters
+  @little_bass = LittleBass.new(args, sprite_index)
+  @dark_shark = DarkShark.new(args, sprite_index)
+
+  send("#{args.state.game_scene}_tick", args)
 end
