@@ -1,90 +1,13 @@
+require 'title.rb'
+require 'game_over.rb'
+require 'little_bass.rb'
+require 'dark_shark.rb'
+require 'sand_tile.rb'
+require 'water.rb'
+
 ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 640
 SCREEN_HEIGHT = 720
-
-class DarkShark
-  PATH = "sprites/animals/dark_shark_32_32/shark.png"
-  WIDTH = 32
-  HEIGHT = 32
-  SPRITES_PER_ROW = 8
-  SCALE_FACTOR = 4
-
-  def initialize(current_args, sprite_index)
-    @sprite_index = sprite_index
-    @current_args = current_args
-  end
-
-  def to_h
-    {
-      x: @current_args.state.dark_shark.x,
-      y: @current_args.state.dark_shark.y,
-      w: WIDTH * SCALE_FACTOR,
-      h: HEIGHT * SCALE_FACTOR,
-      angle: 0,
-      path: PATH,
-      source_x: WIDTH * @sprite_index,
-      source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor,
-      source_w: WIDTH,
-      source_h: HEIGHT
-    }
-  end
-end
-
-class LittleBass
-  PATH = "sprites/animals/bass1_32_16/Red.png"
-  WIDTH = 32
-  HEIGHT = 16
-  SPRITES_PER_ROW = 8
-
-  def initialize(current_args, sprite_index)
-    @sprite_index = sprite_index
-    @current_args = current_args
-  end
-
-  def to_h
-    {
-      x: @current_args.state.player_x,
-      y: @current_args.state.player_y,
-      w: WIDTH * 2,
-      h: HEIGHT * 2,
-      flip_horizontally: @current_args.state.direction == :left,
-      angle: @current_args.state.angle,
-      anchor_x: 0.5,
-      anchor_y: 0.5,
-      path: PATH,
-      source_x: WIDTH * @sprite_index,
-      source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor,
-      source_w: WIDTH,
-      source_h: HEIGHT
-    }
-  end
-end
-
-class SandTile
-  COLORS = [
-    [242, 208, 169],
-    [238, 200, 143],
-    [225, 188, 109]
-  ]
-  def initialize(grid, x, y)
-    @grid = grid
-    @x = x
-    @y = y
-    @r, @g, @b = COLORS.sample
-  end
-
-  def to_h
-    {
-      x: @x,
-      y: @y,
-      w: 8,
-      h: 12 + rand(4),
-      r: @r + (-1)**rand(2) + rand(25),
-      g: @g + (-1)**rand(2) + rand(25),
-      b: @b + (-1)**rand(2) + rand(25),
-    }
-  end
-end
 
 def default_background(grid)
   {
@@ -103,30 +26,6 @@ def ground(args)
     (1..10_000).map do |n|
       SandTile.new(args.grid, 2*n % args.grid.w, -2 + rand(22)).to_h
     end
-end
-
-def deepness_factors
-  @deepness_factors ||= (6..10).to_a.map{ |n| n / 10 }
-end
-
-def water(args, grid_size)
-  if args.state.tick_count % 122 != 0
-    @water
-  else
-    deepness_factor = deepness_factors.sample
-    @water =
-      (1..grid_size).map do |n|
-        {
-          x: 0,
-          y: n*args.grid.h / grid_size,
-          w: args.grid.w,
-          h: args.grid.h / grid_size,
-          r: 0 + rand(25),
-          g: 0 + rand(25),
-          b: 15 + deepness_factor * n*args.grid.h / grid_size
-        }
-      end
-  end
 end
 
 def fire_input?(args)
@@ -208,55 +107,6 @@ def active_tick(args)
   args.outputs.solids << ground(args)
   args.outputs.sprites << @little_bass.to_h
   args.outputs.sprites << @dark_shark.to_h
-end
-
-def game_over_tick(args)
-end
-
-def title_tick(args)
-  if fire_input?(args)
-    args.state.game_scene = "active"
-    return
-  end
-
-  labels = []
-  labels << {
-    x: 40,
-    y: args.grid.h - 40,
-    r: 0,
-    g: 0,
-    b: 0,
-    text: "Underwater",
-    size_enum: 20,
-  }
-  labels << {
-    x: 40,
-    y: args.grid.h - 128,
-    text: "Just try to survive :)",
-  }
-  labels << {
-    x: 40,
-    y: 120,
-    text: "Arrows or WASD to move | ESC for pause | gamepad works, too",
-  }
-  labels << {
-    x: 40,
-    y: 80,
-    text: "Press space to start",
-    size_enum: 2,
-  }
-
-  args.outputs.solids << {
-    x: 0,
-    y: 0,
-    w: args.grid.w,
-    h: args.grid.h,
-    r: 48,
-    g: 95,
-    b: 177,
-  }
-
-  args.outputs.labels << labels
 end
 
 def tick(args)
