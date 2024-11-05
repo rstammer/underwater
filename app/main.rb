@@ -112,7 +112,10 @@ def active_tick(args)
 
   # Shark movement
   args.state.dark_shark.x = (args.state.dark_shark.x + DarkShark::SPEED) % SCREEN_WIDTH
-  args.state.dark_shark.y = args.state.dark_shark.y + ((-1)**rand(10) * rand(10)) if args.tick_count % 40 == 0
+
+  if args.tick_count % 30 == 0
+    args.state.dark_shark.y = (args.state.dark_shark.y + ((-1)**rand(10) * rand(30))) % SCREEN_WIDTH
+  end
 
   # Render screen
   args.outputs.solids << default_background(args.grid)
