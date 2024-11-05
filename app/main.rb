@@ -169,7 +169,7 @@ def tick(args)
 
   # Update characters
   # @little_bass.tick(args, sprite_index)
-  @dark_shark.tick(args sprite_index)
+  @dark_shark.tick(args, sprite_index)
   @diver.tick(args, sprite_index)
 
   @weeds.each do |weed|
@@ -180,7 +180,7 @@ def tick(args)
     scalar.tick(args, sprite_index)
   end
 
-  if @little_bass.to_h.intersect_rect?(@dark_shark.to_h)
+  if @diver.to_h.intersect_rect?(@dark_shark.to_h)
     args.state.game_scene = "game_over"
   end
 
