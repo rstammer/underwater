@@ -7,7 +7,7 @@ require 'water.rb'
 require 'weed.rb'
 
 ANIMATION_START_TICK = 0
-SCREEN_WIDTH = 640
+SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 
 def default_background(grid)
@@ -130,8 +130,12 @@ def tick(args)
   unless args.state.initialized
     initialize_game(args)
 
-    @weeds = (1..200).map do |n|
-      Weed.new(args, sprite_index, x: 10+rand(35)+10*n, y: 6+rand(8), size: rand(3))
+    @weeds = (1..300).map do |n|
+      x = 10+rand(35)+10*n % SCREEN_WIDTH
+      y = 6 + rand(10)
+      size = rand(4)
+
+      Weed.new(args, sprite_index, x: x, y: y, size: size)
     end
   end
 
