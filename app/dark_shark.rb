@@ -4,7 +4,7 @@ class DarkShark
   HEIGHT = 32
   SPRITES_PER_ROW = 8
   SCALE_FACTOR = 4
-  SPEED = 2.5
+  SPEED = 3.5
 
   def initialize(current_args, sprite_index)
     @sprite_index = sprite_index
