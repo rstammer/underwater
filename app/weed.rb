@@ -9,7 +9,7 @@ class Weed
     @current_args = current_args
     @x = x
     @y = y
-    @size = 2
+    @size = size
   end
 
   def tick(current_args, sprite_index)

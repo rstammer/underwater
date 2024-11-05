@@ -110,7 +110,7 @@ def active_tick(args)
   end
 
   # Shark movement
-  args.state.dark_shark.x = (args.state.dark_shark.x + 0.5) % SCREEN_WIDTH
+  args.state.dark_shark.x = (args.state.dark_shark.x + DarkShark::SPEED) % SCREEN_WIDTH
   args.state.dark_shark.y = args.state.dark_shark.y + ((-1)**rand(10) * rand(10)) if args.tick_count % 40 == 0
 
   # Render screen
@@ -130,10 +130,10 @@ def tick(args)
   unless args.state.initialized
     initialize_game(args)
 
-    @weeds = (1..300).map do |n|
-      x = 10+rand(35)+10*n % SCREEN_WIDTH
+    @weeds = (1..250).map do |n|
+      x = rand(65) + 10*n % SCREEN_WIDTH
       y = 6 + rand(10)
-      size = rand(4)
+      size = 3 + rand(2)
 
       Weed.new(args, sprite_index, x: x, y: y, size: size)
     end
