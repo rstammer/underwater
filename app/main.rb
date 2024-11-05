@@ -4,6 +4,7 @@ require 'little_bass.rb'
 require 'dark_shark.rb'
 require 'sand_tile.rb'
 require 'water.rb'
+require 'weed.rb'
 
 ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 640
@@ -118,10 +119,22 @@ def active_tick(args)
   args.outputs.solids << ground(args)
   args.outputs.sprites << @little_bass.to_h
   args.outputs.sprites << @dark_shark.to_h
+  @weeds.each do |weed|
+    args.outputs.sprites << weed.to_h
+  end
 end
 
 def tick(args)
-  initialize_game(args) unless args.state.initialized
+  sprite_index ||= 0
+
+  unless args.state.initialized
+    initialize_game(args)
+
+    @weeds = (1..200).map do |n|
+      Weed.new(args, sprite_index, x: 10+rand(35)+10*n, y: 6+rand(8), size: rand(3))
+    end
+  end
+
 
   # Make sprites animated
   start_animation_on_tick = 60
@@ -130,14 +143,16 @@ def tick(args)
       count: 8, # how many sprites?
       hold_for: 16, # how long to hold each sprite?
       repeat: true # should it repeat?
-    )
+    ) || 0
 
-  sprite_index ||= 0
 
   # Update characters
   @little_bass = LittleBass.new(args, sprite_index)
   @dark_shark = DarkShark.new(args, sprite_index)
 
+  @weeds.each do |weed|
+    weed.tick(args, sprite_index)
+  end
 
   if @little_bass.to_h.intersect_rect?(@dark_shark.to_h)
     args.state.game_scene = "game_over"
