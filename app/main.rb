@@ -11,6 +11,20 @@ ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 
+def initialize_game(args)
+  args.state.angle = 0
+  args.state.player_x = 120
+  args.state.player_y = 280
+  args.state.player_state = nil
+  args.state.direction = :right
+  args.state.dark_shark.x = -300
+  args.state.dark_shark.y = 300
+  args.state.player_state = :alive
+  args.state.scene = "underwater-start"
+  args.state.game_scene = "title"
+  args.state.initialized = true
+end
+
 def default_background(grid)
   {
     x: 0,
@@ -35,20 +49,6 @@ def fire_input?(args)
   args.inputs.keyboard.key_down.z ||
     args.inputs.keyboard.key_down.j ||
     args.inputs.controller_one.key_down.a
-end
-
-def initialize_game(args)
-  args.state.angle = 0
-  args.state.player_x = 120
-  args.state.player_y = 280
-  args.state.player_state = nil
-  args.state.direction = :right
-  args.state.dark_shark.x = 300
-  args.state.dark_shark.y = 300
-  args.state.player_state = :alive
-  args.state.scene = "underwater-start"
-  args.state.game_scene = "title"
-  args.state.initialized = true
 end
 
 def reset_game(args)
@@ -128,12 +128,7 @@ def active_tick(args)
   args.outputs.solids << ground(args)
   args.outputs.sprites << @little_bass.to_h
   args.outputs.sprites << @dark_shark.to_h
-  @scalars.each do |scalar|
-    args.outputs.sprites << scalar.to_h
-  end
-  @weeds.each do |weed|
-    args.outputs.sprites << weed.to_h
-  end
+  args.outputs.sprites << (@scalars.map(&:to_h) + @weeds.map(&:to_h)).flatten
 end
 
 def tick(args)
