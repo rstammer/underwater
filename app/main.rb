@@ -143,15 +143,14 @@ def tick(args)
       SloppyScalar.new(args, sprite_index, x: x, y: y)
     end
 
-    @weeds = (1..250).map do |n|
+    @weeds = (1..150).map do |n|
       x = rand(65) + 10*n % SCREEN_WIDTH
-      y = 6 + rand(10)
-      size = 3 + rand(2)
+      y = 10 + rand(20)
+      size = 3 + rand(4)
 
       Weed.new(args, sprite_index, x: x, y: y, size: size)
     end
   end
-
 
   # Make sprites animated
   start_animation_on_tick = 60
