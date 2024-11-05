@@ -5,6 +5,7 @@ require 'dark_shark.rb'
 require 'sand_tile.rb'
 require 'water.rb'
 require 'weed.rb'
+require 'sloppy_scalar.rb'
 
 ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
@@ -122,6 +123,9 @@ def active_tick(args)
   @weeds.each do |weed|
     args.outputs.sprites << weed.to_h
   end
+  @scalars.each do |scalar|
+    args.outputs.sprites << scalar.to_h
+  end
 end
 
 def tick(args)
@@ -129,6 +133,12 @@ def tick(args)
 
   unless args.state.initialized
     initialize_game(args)
+
+    @scalars = (1..20).map do |n|
+      x = rand(1280)
+      y = 75 + rand(200)
+      SloppyScalar.new(args, sprite_index, x: x, y: y)
+    end
 
     @weeds = (1..250).map do |n|
       x = rand(65) + 10*n % SCREEN_WIDTH
@@ -149,13 +159,16 @@ def tick(args)
       repeat: true # should it repeat?
     ) || 0
 
-
   # Update characters
   @little_bass = LittleBass.new(args, sprite_index)
   @dark_shark = DarkShark.new(args, sprite_index)
 
   @weeds.each do |weed|
     weed.tick(args, sprite_index)
+  end
+
+  @scalars.each do |scalar|
+    scalar.tick(args, sprite_index)
   end
 
   if @little_bass.to_h.intersect_rect?(@dark_shark.to_h)
