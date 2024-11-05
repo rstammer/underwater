@@ -49,6 +49,17 @@ def initialize_game(args)
   args.state.initialized = true
 end
 
+def reset_game(args)
+  args.state.angle = 0
+  args.state.player_x = 120
+  args.state.player_y = 280
+  args.state.player_state = nil
+  args.state.direction = :right
+  args.state.dark_shark.x = 300
+  args.state.dark_shark.y = 300
+  args.state.player_state = :alive
+end
+
 def active_tick(args)
   if args.inputs.keyboard.key_down.escape
     args.state.game_scene = "title"
@@ -126,6 +137,11 @@ def tick(args)
   # Update characters
   @little_bass = LittleBass.new(args, sprite_index)
   @dark_shark = DarkShark.new(args, sprite_index)
+
+
+  if @little_bass.to_h.intersect_rect?(@dark_shark.to_h)
+    args.state.game_scene = "game_over"
+  end
 
   send("#{args.state.game_scene}_tick", args)
 end
