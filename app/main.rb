@@ -1,11 +1,11 @@
-require 'title.rb'
-require 'game_over.rb'
-require 'little_bass.rb'
-require 'dark_shark.rb'
-require 'sand_tile.rb'
-require 'water.rb'
-require 'weed.rb'
-require 'sloppy_scalar.rb'
+require "app/title.rb"
+require "app/game_over.rb"
+require "app/little_bass.rb"
+require "app/dark_shark.rb"
+require "app/sand_tile.rb"
+require "app/water.rb"
+require "app/weed.rb"
+require "app/sloppy_scalar.rb"
 
 ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
