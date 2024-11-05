@@ -9,10 +9,15 @@ class LittleBass
     @current_args = current_args
   end
 
+  def tick(current_args, sprite_index)
+    @sprite_index = sprite_index
+    @current_args = current_args
+  end
+
   def to_h
     {
-      x: @current_args.state.player_x,
-      y: @current_args.state.player_y,
+      x: @current_args.state.player_x - 10,
+      y: @current_args.state.player_y - 5,
       w: WIDTH * 2,
       h: HEIGHT * 2,
       flip_horizontally: @current_args.state.direction == :left,

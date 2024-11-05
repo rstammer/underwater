@@ -6,6 +6,7 @@ require "app/sand_tile.rb"
 require "app/water.rb"
 require "app/weed.rb"
 require "app/sloppy_scalar.rb"
+require "app/diver.rb"
 
 ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
@@ -126,7 +127,8 @@ def active_tick(args)
   args.outputs.solids << default_background(args.grid)
   args.outputs.solids << water(args, 60)
   args.outputs.solids << ground(args)
-  args.outputs.sprites << @little_bass.to_h
+  args.outputs.sprites << @diver.to_h
+  # args.outputs.sprites << @little_bass.to_h
   args.outputs.sprites << @dark_shark.to_h
   args.outputs.sprites << (@scalars.map(&:to_h) + @weeds.map(&:to_h)).flatten
 end
@@ -136,6 +138,10 @@ def tick(args)
 
   unless args.state.initialized
     initialize_game(args)
+
+    @diver = Diver.new(args, sprite_index)
+    # @little_bass = LittleBass.new(args, sprite_index)
+    @dark_shark = DarkShark.new(args, sprite_index)
 
     @scalars = (1..20).map do |n|
       x = rand(1280)
@@ -162,8 +168,9 @@ def tick(args)
     ) || 0
 
   # Update characters
-  @little_bass = LittleBass.new(args, sprite_index)
-  @dark_shark = DarkShark.new(args, sprite_index)
+  # @little_bass.tick(args, sprite_index)
+  @dark_shark.tick(args sprite_index)
+  @diver.tick(args, sprite_index)
 
   @weeds.each do |weed|
     weed.tick(args, sprite_index)

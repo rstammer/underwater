@@ -11,6 +11,11 @@ class DarkShark
     @current_args = current_args
   end
 
+  def tick(current_args, sprite_index)
+    @sprite_index = sprite_index
+    @current_args = current_args
+  end
+
   def to_h
     {
       x: @current_args.state.dark_shark.x,
