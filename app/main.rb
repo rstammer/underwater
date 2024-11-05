@@ -123,11 +123,11 @@ def active_tick(args)
   args.outputs.solids << ground(args)
   args.outputs.sprites << @little_bass.to_h
   args.outputs.sprites << @dark_shark.to_h
-  @weeds.each do |weed|
-    args.outputs.sprites << weed.to_h
-  end
   @scalars.each do |scalar|
     args.outputs.sprites << scalar.to_h
+  end
+  @weeds.each do |weed|
+    args.outputs.sprites << weed.to_h
   end
 end
 
