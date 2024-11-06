@@ -12,10 +12,10 @@ ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 
-def initialize_game(args)
+def initialize_game(args, sprite_index)
   args.state.angle = 0
-  args.state.player_x = 120
-  args.state.player_y = 280
+  args.state.player_x = 20
+  args.state.player_y = 710
   args.state.player_state = nil
   args.state.direction = :right
   args.state.dark_shark.x = -300
@@ -24,6 +24,24 @@ def initialize_game(args)
   args.state.scene = "underwater-start"
   args.state.game_scene = "title"
   args.state.initialized = true
+
+
+  @diver = Diver.new(args, sprite_index)
+  @dark_shark = DarkShark.new(args, sprite_index)
+
+  @scalars = (1..20).map do |n|
+    x = rand(1280)
+    y = 75 + rand(200)
+    SloppyScalar.new(args, sprite_index, x: x, y: y)
+  end
+
+  @weeds = (1..150).map do |n|
+    x = rand(65) + 10*n % SCREEN_WIDTH
+    y = 10 + rand(20)
+    size = 3 + rand(4)
+
+    Weed.new(args, sprite_index, x: x, y: y, size: size)
+  end
 end
 
 def default_background(grid)
@@ -54,8 +72,8 @@ end
 
 def reset_game(args)
   args.state.angle = 0
-  args.state.player_x = 120
-  args.state.player_y = 280
+  args.state.player_x = 20
+  args.state.player_y = 710
   args.state.player_state = nil
   args.state.direction = :right
   args.state.dark_shark.x = 300
@@ -133,32 +151,24 @@ def active_tick(args)
   args.outputs.sprites << (@scalars.map(&:to_h) + @weeds.map(&:to_h)).flatten
 end
 
+def update_characters(args, sprite_index)
+  @dark_shark.tick(args, sprite_index)
+  @diver.tick(args, sprite_index)
+  @weeds.each do |weed|
+    weed.tick(args, sprite_index)
+  end
+  @scalars.each do |scalar|
+    scalar.tick(args, sprite_index)
+  end
+  if @diver.to_h.intersect_rect?(@dark_shark.to_h)
+    args.state.game_scene = "game_over"
+  end
+end
+
 def tick(args)
   sprite_index ||= 0
+  initialize_game(args, sprite_index) unless args.state.initialized
 
-  unless args.state.initialized
-    initialize_game(args)
-
-    @diver = Diver.new(args, sprite_index)
-    # @little_bass = LittleBass.new(args, sprite_index)
-    @dark_shark = DarkShark.new(args, sprite_index)
-
-    @scalars = (1..20).map do |n|
-      x = rand(1280)
-      y = 75 + rand(200)
-      SloppyScalar.new(args, sprite_index, x: x, y: y)
-    end
-
-    @weeds = (1..150).map do |n|
-      x = rand(65) + 10*n % SCREEN_WIDTH
-      y = 10 + rand(20)
-      size = 3 + rand(4)
-
-      Weed.new(args, sprite_index, x: x, y: y, size: size)
-    end
-  end
-
-  # Make sprites animated
   start_animation_on_tick = 60
   sprite_index =
     start_animation_on_tick.frame_index(
@@ -167,22 +177,6 @@ def tick(args)
       repeat: true # should it repeat?
     ) || 0
 
-  # Update characters
-  # @little_bass.tick(args, sprite_index)
-  @dark_shark.tick(args, sprite_index)
-  @diver.tick(args, sprite_index)
-
-  @weeds.each do |weed|
-    weed.tick(args, sprite_index)
-  end
-
-  @scalars.each do |scalar|
-    scalar.tick(args, sprite_index)
-  end
-
-  if @diver.to_h.intersect_rect?(@dark_shark.to_h)
-    args.state.game_scene = "game_over"
-  end
-
+  update_characters(args, sprite_index)
   send("#{args.state.game_scene}_tick", args)
 end
