@@ -94,17 +94,17 @@ def active_tick(args)
   end
 
   if args.state.direction == :right
-    if args.inputs.up
+    if args.inputs.up && (args.inputs.left || args.inputs.right)
       args.state.angle += 0.5
-    elsif args.inputs.down
+    elsif args.inputs.down && (args.inputs.left || args.inputs.right)
       args.state.angle -= 0.5
     else
       args.state.angle = 0
     end
   else
-    if args.inputs.up
+    if args.inputs.up && (args.inputs.left || args.inputs.right)
       args.state.angle -= 0.5
-    elsif args.inputs.down
+    elsif args.inputs.down && (args.inputs.left || args.inputs.right)
       args.state.angle += 0.5
     else
       args.state.angle = 0

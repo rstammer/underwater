@@ -1,5 +1,5 @@
 class Diver
-  PATH = "sprites/diver.png"
+  PATH = "sprites/diver_v2.png"
   WIDTH = 32
   HEIGHT = 32
   SPRITES_PER_ROW = 12
@@ -14,6 +14,10 @@ class Diver
     @current_args = current_args
   end
 
+  def movement?
+    @current_args.inputs.left || @current_args.inputs.right || @current_args.inputs.down
+  end
+
   def to_h
     {
       x: @current_args.state.player_x,
@@ -26,7 +30,7 @@ class Diver
       anchor_y: 0.5,
       path: PATH,
       source_x: WIDTH * @sprite_index,
-      source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor,
+      source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor + (movement? ? 0 : HEIGHT),
       source_w: WIDTH,
       source_h: HEIGHT
     }
