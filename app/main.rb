@@ -25,7 +25,6 @@ def initialize_game(args, sprite_index)
   args.state.game_scene = "title"
   args.state.initialized = true
 
-
   @diver = Diver.new(args, sprite_index)
   @dark_shark = DarkShark.new(args, sprite_index)
 
@@ -78,7 +77,7 @@ end
 def fog_of_war(args)
   (0..32).map do |x|
     (0..18).map do |y|
-      if (args.state.player_x - x*40).abs > 180 || (args.state.player_y - y*40).abs > 180
+      if Math.sqrt((args.state.player_x - x*40)**2 + (args.state.player_y - y*40)**2) > 220
         fog_square(40*x, 40*y, 40, 40)
       end
     end
@@ -168,7 +167,6 @@ def active_tick(args)
   args.outputs.solids << water(args, 60)
   args.outputs.solids << ground(args)
   args.outputs.sprites << @diver.to_h
-  # args.outputs.sprites << @little_bass.to_h
   args.outputs.sprites << @dark_shark.to_h
   args.outputs.sprites << (@scalars.map(&:to_h) + @weeds.map(&:to_h)).flatten
   args.outputs.primitives << fog_of_war(args)
@@ -177,12 +175,15 @@ end
 def update_characters(args, sprite_index)
   @dark_shark.tick(args, sprite_index)
   @diver.tick(args, sprite_index)
+
   @weeds.each do |weed|
     weed.tick(args, sprite_index)
   end
+
   @scalars.each do |scalar|
     scalar.tick(args, sprite_index)
   end
+
   if @diver.to_h.intersect_rect?(@dark_shark.to_h)
     args.state.game_scene = "game_over"
   end
