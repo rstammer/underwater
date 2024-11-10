@@ -63,6 +63,28 @@ def ground(args)
     end
 end
 
+def fog_square(x, y, w, h)
+  {
+    x: x,
+    y: y,
+    w: w,
+    h: h,
+    r: 8,
+    g: 5,
+    b: 77,
+  }
+end
+
+def fog_of_war(args)
+  (0..32).map do |x|
+    (0..18).map do |y|
+      if (args.state.player_x - x*40).abs > 180 || (args.state.player_y - y*40).abs > 180
+        fog_square(40*x, 40*y, 40, 40)
+      end
+    end
+  end.flatten.compact.map(&:solid)
+end
+
 def fire_input?(args)
   args.inputs.keyboard.key_down.space ||
   args.inputs.keyboard.key_down.z ||
@@ -149,6 +171,7 @@ def active_tick(args)
   # args.outputs.sprites << @little_bass.to_h
   args.outputs.sprites << @dark_shark.to_h
   args.outputs.sprites << (@scalars.map(&:to_h) + @weeds.map(&:to_h)).flatten
+  args.outputs.primitives << fog_of_war(args)
 end
 
 def update_characters(args, sprite_index)
