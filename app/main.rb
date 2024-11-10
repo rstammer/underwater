@@ -14,7 +14,7 @@ SCREEN_HEIGHT = 720
 
 def initialize_game(args, sprite_index)
   args.state.angle = 0
-  args.state.player_x = 20
+  args.state.player_x = 600
   args.state.player_y = 710
   args.state.player_state = nil
   args.state.direction = :right

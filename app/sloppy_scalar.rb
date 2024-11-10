@@ -29,12 +29,16 @@ class SloppyScalar
     BASE_PATH + @color.to_s + ".png"
   end
 
+  def size
+    @size ||= [1, 1, 1, 2].sample
+  end
+
   def to_h
     {
       x: @x,
       y: @y,
-      w: WIDTH * 2,
-      h: HEIGHT * 2,
+      w: WIDTH * size,
+      h: HEIGHT * size,
       path: path,
       source_x: WIDTH * @sprite_index,
       source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor,
