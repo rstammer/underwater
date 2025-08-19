@@ -12,3 +12,11 @@ I used in my game, like
 
 * [SpearFishing by Szym](https://nszym.itch.io/spearfishing-assets-pack)
 * [PixelArt Diver by Daniel Kole](https://dkproductions.itch.io/pixel-art-diver)
+### How to run locally for development
+
+For production we're building OS-specific binaries, but for 
+development, if you have dragonruby locally, then:
+
+```sh
+exec ./dragonruby app
+```
