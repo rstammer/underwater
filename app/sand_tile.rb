@@ -4,6 +4,7 @@ class SandTile
     [238, 200, 143],
     [225, 188, 109]
   ]
+  
   def initialize(grid, x, y)
     @grid = grid
     @x = x

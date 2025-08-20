@@ -7,10 +7,12 @@ require "app/water.rb"
 require "app/weed.rb"
 require "app/sloppy_scalar.rb"
 require "app/diver.rb"
+require "app/fog_of_war.rb"
 
 ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
+FOG_OF_WAR = true
 
 def initialize_game(args, sprite_index)
   args.state.angle = 0
@@ -31,6 +33,7 @@ def initialize_game(args, sprite_index)
   @scalars = (1..20).map do |n|
     x = rand(1280)
     y = 75 + rand(200)
+
     SloppyScalar.new(args, sprite_index, x: x, y: y)
   end
 
@@ -41,6 +44,8 @@ def initialize_game(args, sprite_index)
 
     Weed.new(args, sprite_index, x: x, y: y, size: size)
   end
+
+  @fog = FogOfWar.new
 end
 
 def default_background(grid)
@@ -60,28 +65,6 @@ def ground(args)
     (1..10_000).map do |n|
       SandTile.new(args.grid, 2*n % args.grid.w, -2 + rand(22)).to_h
     end
-end
-
-def fog_square(x, y, w, h)
-  {
-    x: x,
-    y: y,
-    w: w,
-    h: h,
-    r: 8,
-    g: 5,
-    b: 77,
-  }
-end
-
-def fog_of_war(args)
-  (0..32).map do |x|
-    (0..18).map do |y|
-      if Math.sqrt((args.state.player_x - x*40)**2 + (args.state.player_y - y*40)**2) > 220
-        fog_square(40*x, 40*y, 40, 40)
-      end
-    end
-  end.flatten.compact.map(&:solid)
 end
 
 def fire_input?(args)
@@ -169,7 +152,7 @@ def active_tick(args)
   args.outputs.sprites << @diver.to_h
   args.outputs.sprites << @dark_shark.to_h
   args.outputs.sprites << (@scalars.map(&:to_h) + @weeds.map(&:to_h)).flatten
-  args.outputs.primitives << fog_of_war(args)
+  args.outputs.primitives << @fog.create(args) if !!FOG_OF_WAR
 end
 
 def update_characters(args, sprite_index)
