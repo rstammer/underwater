@@ -1,13 +1,15 @@
-require "app/title.rb"
-require "app/game_over.rb"
-require "app/little_bass.rb"
-require "app/dark_shark.rb"
-require "app/sand_tile.rb"
-require "app/water.rb"
-require "app/weed.rb"
-require "app/sloppy_scalar.rb"
-require "app/diver.rb"
-require "app/fog_of_war.rb"
+require "app/scenes/title.rb"
+require "app/scenes/game_over.rb"
+
+require "app/entities/little_bass.rb"
+require "app/entities/dark_shark.rb"
+require "app/entities/sloppy_scalar.rb"
+require "app/entities/diver.rb"
+
+require "app/world/sand_tile.rb"
+require "app/world/water.rb"
+require "app/world/weed.rb"
+require "app/world/fog_of_war.rb"
 
 ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
