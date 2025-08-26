@@ -1,6 +1,6 @@
 def title_tick(args)
   if fire_input?(args)
-    args.state.game_scene = "active"
+    args.state.game_scene = "area1"
     return
   end
 
