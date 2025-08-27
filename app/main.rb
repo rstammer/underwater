@@ -89,7 +89,6 @@ def reset_game(args)
   args.state.player_state = :alive
 end
 
-
 def update_characters(args, sprite_index)
   @dark_shark.tick(args, sprite_index)
   @diver.tick(args, sprite_index)
@@ -107,6 +106,67 @@ def update_characters(args, sprite_index)
   end
 end
 
+def basic_movements_per_tick(args)
+  if args.inputs.keyboard.key_down.escape
+    args.state.game_scene = "title"
+    return
+  end
+
+  if args.inputs.left
+    args.state.direction = :left
+    args.state.player_x -= 2
+  elsif args.inputs.right
+    args.state.player_x += 2
+    args.state.direction = :right
+  else
+    args.state.direction = :right
+  end
+
+  if args.inputs.up
+    args.state.player_y += 2
+  elsif args.inputs.down
+    args.state.player_y -= 2
+  end
+
+  if !args.inputs.up && args.state.player_y >= 1
+    args.state.player_y -= 0.15
+  end
+
+  if args.state.player_y <= 1
+    args.state.player_y = 1
+  end
+
+  if args.state.direction == :right
+    if args.inputs.up && (args.inputs.left || args.inputs.right)
+      args.state.angle += 0.5
+    elsif args.inputs.down && (args.inputs.left || args.inputs.right)
+      args.state.angle -= 0.5
+    else
+      args.state.angle = 0
+    end
+  else
+    if args.inputs.up && (args.inputs.left || args.inputs.right)
+      args.state.angle -= 0.5
+    elsif args.inputs.down && (args.inputs.left || args.inputs.right)
+      args.state.angle += 0.5
+    else
+      args.state.angle = 0
+    end
+  end
+
+  # Shark movement
+  if args.state.dark_shark.x > SCREEN_WIDTH
+    args.state.dark_shark.x = -300
+    args.state.dark_shark.y = rand(SCREEN_HEIGHT)
+  else
+    args.state.dark_shark.x = (args.state.dark_shark.x + DarkShark::SPEED)
+  end
+
+  if args.tick_count % 30 == 0
+    args.state.dark_shark.y = (args.state.dark_shark.y + ((-1)**rand(10) * rand(30))) % SCREEN_WIDTH
+  end
+end
+
 def tick(args)
   sprite_index ||= 0
   initialize_game(args, sprite_index) unless args.state.initialized
@@ -120,5 +180,6 @@ def tick(args)
     ) || 0
 
   update_characters(args, sprite_index)
+  basic_movements_per_tick(args)
   send("#{args.state.game_scene}_tick", args)
 end
