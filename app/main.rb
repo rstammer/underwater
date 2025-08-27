@@ -20,7 +20,7 @@ FOG_OF_WAR = true
 
 def initialize_game(args, sprite_index)
   args.state.angle = 0
-  args.state.player_x = 600
+  args.state.player_x = Diver::START_X
   args.state.player_y = 710
   args.state.player_state = nil
   args.state.direction = :right
@@ -114,18 +114,18 @@ def basic_movements_per_tick(args)
 
   if args.inputs.left
     args.state.direction = :left
-    args.state.player_x -= 2
+    args.state.player_x -= Diver::SPEED
   elsif args.inputs.right
-    args.state.player_x += 2
+    args.state.player_x += Diver::SPEED
     args.state.direction = :right
   else
     args.state.direction = :right
   end
 
   if args.inputs.up
-    args.state.player_y += 2
+    args.state.player_y += Diver::SPEED
   elsif args.inputs.down
-    args.state.player_y -= 2
+    args.state.player_y -= Diver::SPEED
   end
 
   if !args.inputs.up && args.state.player_y >= 1
@@ -167,6 +167,18 @@ def basic_movements_per_tick(args)
   end
 end
 
+def update_scene(args)
+  return if ["title", "game_over"].include?(args.state.game_scene)
+
+  args.state.game_scene = 
+    if @diver.global_position_x < 1281 
+      "area1"
+    else
+      "area2"
+    end
+end
+
+
 def tick(args)
   sprite_index ||= 0
   initialize_game(args, sprite_index) unless args.state.initialized
@@ -179,6 +191,7 @@ def tick(args)
       repeat: true # should it repeat?
     ) || 0
 
+  update_scene(args)
   update_characters(args, sprite_index)
   basic_movements_per_tick(args)
   send("#{args.state.game_scene}_tick", args)

@@ -3,15 +3,28 @@ class Diver
   WIDTH = 32
   HEIGHT = 32
   SPRITES_PER_ROW = 12
+  START_X = 600
+  SPEED = 2
+
+  attr_reader :global_position_x
 
   def initialize(current_args, sprite_index)
     @sprite_index = sprite_index
     @current_args = current_args
+    @global_position_x = 600
   end
 
   def tick(current_args, sprite_index)
     @sprite_index = sprite_index
     @current_args = current_args
+    
+    if movement?
+      if @current_args.state.direction == :right 
+        @global_position_x += SPEED
+      elsif @current_args.state.direction == :left
+        @global_position_x -= SPEED
+      end
+    end
   end
 
   def movement?
@@ -20,7 +33,7 @@ class Diver
 
   def to_h
     {
-      x: @current_args.state.player_x,
+      x: @current_args.state.player_x % 1280,
       y: @current_args.state.player_y,
       w: WIDTH * 2,
       h: HEIGHT * 2,
@@ -36,4 +49,3 @@ class Diver
     }
   end
 end
-
