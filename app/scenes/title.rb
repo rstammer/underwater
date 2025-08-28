@@ -17,7 +17,7 @@ def title_tick(args)
   labels << {
     x: 40,
     y: args.grid.h - 128,
-    text: "Just try to survive :)",
+    text: "Explore the underwater world and survive!",
   }
   labels << {
     x: 40,

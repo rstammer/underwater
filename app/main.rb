@@ -19,6 +19,7 @@ ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 FOG_OF_WAR = true
+DEBUG = false
 
 def initialize_game(args, sprite_index)
   args.state.angle = 0
