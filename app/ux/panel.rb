@@ -20,7 +20,7 @@ class Panel
         x: 140,
         y: 720 - 10,
         anchor_y: 100,
-        text: "x: #{@current_args.state.player_x} (#{@diver.global_position_x})",
+        text: "x: #{@current_args.state.player_x} (#{@diver.to_h[:x]})",
         r: 200,
         g: 100,
         b: 100

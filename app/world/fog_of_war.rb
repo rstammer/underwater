@@ -1,4 +1,8 @@
 class FogOfWar
+  def initialize(diver)
+    @diver = diver
+  end
+
   def fog_square(x, y, w, h)
     {
       x: x,
@@ -11,10 +15,10 @@ class FogOfWar
     }
   end
 
-  def create(args)
+  def to_a
     (0..32).map do |x|
       (0..18).map do |y|
-        if Math.sqrt((args.state.player_x - x*40)**2 + (args.state.player_y - y*40)**2) > 220
+        if Math.sqrt((@diver.to_h[:x] - x*40)**2 + (@diver.to_h[:y] - y*40)**2) > 220
           fog_square(40*x, 40*y, 40, 40)
         end
       end

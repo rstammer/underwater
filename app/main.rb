@@ -50,8 +50,6 @@ def initialize_game(args, sprite_index)
 
     Weed.new(args, sprite_index, x: x, y: y, size: size)
   end
-
-  @fog = FogOfWar.new
 end
 
 def default_background(grid)
@@ -192,6 +190,15 @@ def game_paused?(args)
   ["title", "game_over"].include?(args.state.game_scene)
 end
 
+def render_diver(args)
+  args.outputs.sprites << @diver.to_h
+  if !!FOG_OF_WAR 
+    FogOfWar.new(@diver).to_a.each do |fog|
+      args.outputs.primitives << fog
+    end
+  end
+end
+
 def tick(args)
   sprite_index ||= 0
   initialize_game(args, sprite_index) unless args.state.initialized
@@ -209,4 +216,5 @@ def tick(args)
   basic_movements_per_tick(args)
   render_panel(args)
   send("#{args.state.game_scene}_tick", args)
+  render_diver(args) unless game_paused?(args)
 end
