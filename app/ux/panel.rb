@@ -35,9 +35,9 @@ class Panel
       y: 720 - 10,
       anchor_y: 100,
       text: SCENE_TITLES[@current_args.state.game_scene],
-      r: 200,
-      g: 100,
-      b: 100
+      r: 20,
+      g: 40,
+      b: 110
     }
   end
 end
