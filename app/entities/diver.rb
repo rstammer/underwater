@@ -18,13 +18,17 @@ class Diver
     @sprite_index = sprite_index
     @current_args = current_args
     
-    if movement?
+    if horizontal_movement?
       if @current_args.state.direction == :right 
         @global_position_x += SPEED
       elsif @current_args.state.direction == :left
         @global_position_x -= SPEED
       end
     end
+  end
+  
+  def horizontal_movement?
+    @current_args.inputs.left || @current_args.inputs.right
   end
 
   def movement?

@@ -1,3 +1,5 @@
+require "app/ux/panel.rb"
+
 require "app/scenes/title.rb"
 require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
@@ -168,7 +170,7 @@ def basic_movements_per_tick(args)
 end
 
 def update_scene(args)
-  return if ["title", "game_over"].include?(args.state.game_scene)
+  return if game_paused?(args)
 
   args.state.game_scene = 
     if @diver.global_position_x < 1281 
@@ -178,6 +180,17 @@ def update_scene(args)
     end
 end
 
+def render_panel(args)
+  return if game_paused?(args)
+
+  Panel.new(args, @diver).to_a.each do |item|
+    args.outputs.labels << item 
+  end 
+end
+
+def game_paused?(args)
+  ["title", "game_over"].include?(args.state.game_scene)
+end
 
 def tick(args)
   sprite_index ||= 0
@@ -194,5 +207,6 @@ def tick(args)
   update_scene(args)
   update_characters(args, sprite_index)
   basic_movements_per_tick(args)
+  render_panel(args)
   send("#{args.state.game_scene}_tick", args)
 end
