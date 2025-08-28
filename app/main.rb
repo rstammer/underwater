@@ -36,9 +36,9 @@ def initialize_game(args, sprite_index)
   @diver = Diver.new(args, sprite_index)
   @dark_shark = DarkShark.new(args, sprite_index)
 
-  @scalars = (1..20).map do |n|
+  @scalars = (1..30).map do |n|
     x = rand(1280)
-    y = 75 + rand(200)
+    y = 75 + rand(400)
 
     SloppyScalar.new(args, sprite_index, x: x, y: y)
   end
@@ -152,18 +152,6 @@ def basic_movements_per_tick(args)
     else
       args.state.angle = 0
     end
-  end
-
-  # Shark movement
-  if args.state.dark_shark.x > SCREEN_WIDTH
-    args.state.dark_shark.x = -300
-    args.state.dark_shark.y = rand(SCREEN_HEIGHT)
-  else
-    args.state.dark_shark.x = (args.state.dark_shark.x + DarkShark::SPEED)
-  end
-
-  if args.tick_count % 30 == 0
-    args.state.dark_shark.y = (args.state.dark_shark.y + ((-1)**rand(10) * rand(30))) % SCREEN_WIDTH
   end
 end
 
