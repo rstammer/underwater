@@ -21,3 +21,7 @@ VERSION.txt
 CHANGELOG-CURR.txt
 CHANGELOG-PREV.txt
 dragonruby-controller.png
+
+# Engine docs/eula (not part of the game)
+README.txt
+eula.txt

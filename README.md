@@ -24,5 +24,5 @@ For production we're building OS-specific binaries, but for
 development, if you have dragonruby locally, then:
 
 ```sh
-./dragonruby app
+./dragonruby .
 ```
