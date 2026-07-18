@@ -50,6 +50,27 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sounds/` — Audio
 
+## Tests
+
+DragonRuby bringt ein **eigenes Unit-Test-Framework** mit (kein Minitest/RSpec —
+das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
+`def test_x(args, assert)` und `assert.equal!` / `assert.true!` / `assert.false!` /
+`assert.not_equal!`. Sie laufen headless **in der echten Runtime**, d. h. `args`,
+`attr_dr` und der Hash-Dot-Access funktionieren.
+
+```sh
+bin/test                      # ganze Suite (tests/all_tests.rb)
+bin/test tests/diver_tests.rb # einzelne Datei
+```
+
+- Tests liegen in `tests/`; `tests/all_tests.rb` `require`t alle Dateien.
+- `bin/test` parst den Output und liefert einen **echten Exit-Code** (DRs `--test`
+  gibt immer 0 zurück, auch bei Fehlschlag → CI-untauglich ohne Wrapper).
+- Entities/World/UX werden mit einem echten `args` bzw. Stubs unit-getestet;
+  `Game` wird integrativ getestet (`Game.new` + `game.args = args`).
+- **TDD ab jetzt:** erst der fehlschlagende Test, dann Implementierung
+  (RED → GREEN → REFACTOR), wie im restlichen stammerdev-Workspace.
+
 ## Konventionen
 
 - Code/Commits in English (wie im gesamten stammerdev-Workspace) — **keine

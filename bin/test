@@ -1,0 +1,35 @@
+#!/bin/sh
+# Run the DragonRuby unit tests headless and derive a real exit code.
+#
+# DragonRuby's --test runner always exits 0, so CI can't rely on it. This
+# wrapper parses the output: any failed test, "No tests were found", or a
+# missing summary line is treated as a failure (exit 1).
+#
+# Usage: bin/test [tests/some_file.rb]   (defaults to the whole suite)
+cd "$(dirname "$0")/.." || exit 1
+
+out=$(./dragonruby . --test "${1:-tests/all_tests.rb}" 2>&1)
+
+# Show just the test-relevant lines (the engine log is very noisy).
+echo "$out" | grep -E 'Running:|Passed\.|Failed\.|test\(s\)|No tests were found|EXCEPTION|Error' \
+  | sed 's/^- \[Game\] //'
+
+if echo "$out" | grep -q 'No tests were found'; then
+  echo "bin/test: FAIL — no tests were found" >&2
+  exit 1
+fi
+
+failed=$(echo "$out" | grep -oE '[0-9]+ test\(s\) failed' | grep -oE '^[0-9]+' | tail -1)
+if [ -n "$failed" ] && [ "$failed" -gt 0 ]; then
+  echo "bin/test: FAIL — $failed test(s) failed" >&2
+  exit 1
+fi
+
+if ! echo "$out" | grep -qE '[0-9]+ test\(s\) passed'; then
+  echo "bin/test: FAIL — no test summary found (did the runtime crash?)" >&2
+  echo "$out" | tail -20 >&2
+  exit 1
+fi
+
+echo "bin/test: OK"
+exit 0

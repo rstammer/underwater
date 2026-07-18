@@ -10,4 +10,5 @@
 ## Cleanup (in Arbeit, Branch `cleanup/idiomatic-refactor`)
 - [x] Stage 1: Restart-/Idle-Bugs, toter Code, tick_count
 - [x] Stage 2: State nach args.state, Diver-Split-Brain
-- [ ] Stage 3: module Main + Game-Klasse, Performance (path: :solid / render_target)
+- [x] Stage 3: Game-Klasse (attr_dr) + boot/reset, Performance (path: :solid)
+- [x] Testsuite (DragonRuby `--test`, `bin/test`, `tests/`)
