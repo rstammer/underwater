@@ -1,9 +1,9 @@
 # underwater — 🐠 DragonRuby-Spiel
 
-Robins erstes Spiel mit **DragonRuby GTK** — ein 2D-Pixel-Art-Spiel, in dem ein
-Taucher die Unterwasserwelt erkundet. Pet-Projekt aus Spaß am Game-Dev-Lernen.
+Ein 2D-Pixel-Art-Spiel mit **DragonRuby GTK**, in dem ein Taucher die
+Unterwasserwelt erkundet. Erstes DragonRuby-Spiel, aus Spaß am Game-Dev-Lernen.
 
-Repo: https://github.com/rstammer/underwater · Status: 🟢 active (nicht deployed)
+Repo: https://github.com/rstammer/underwater
 
 ## Lokales Setup (Engine)
 
@@ -68,13 +68,12 @@ bin/test tests/diver_tests.rb # einzelne Datei
   gibt immer 0 zurück, auch bei Fehlschlag → CI-untauglich ohne Wrapper).
 - Entities/World/UX werden mit einem echten `args` bzw. Stubs unit-getestet;
   `Game` wird integrativ getestet (`Game.new` + `game.args = args`).
-- **TDD ab jetzt:** erst der fehlschlagende Test, dann Implementierung
-  (RED → GREEN → REFACTOR), wie im restlichen stammerdev-Workspace.
+- **TDD:** erst der fehlschlagende Test, dann Implementierung
+  (RED → GREEN → REFACTOR).
 
 ## Konventionen
 
-- Code/Commits in English (wie im gesamten stammerdev-Workspace) — **keine
-  AI-Referenzen in Commits** (siehe Root-`CLAUDE.md`)
+- Code und Commit-Nachrichten in English
 - Requires in `main.rb` immer relativ zum Game-Root mit `app/`-Prefix,
   z. B. `require "app/scenes/title.rb"`
 - **Kein bare Top-Level-`@ivar`** — State gehört in `args.state` (DR-Doku:
