@@ -31,7 +31,7 @@ def title_tick(args)
     size_enum: 2,
   }
 
-  args.outputs.solids << {
+  args.outputs.sprites << {
     x: 0,
     y: 0,
     w: args.grid.w,
@@ -39,6 +39,7 @@ def title_tick(args)
     r: 48,
     g: 95,
     b: 177,
+    path: :solid,
   }
 
   args.outputs.labels << labels

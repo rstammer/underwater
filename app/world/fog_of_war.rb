@@ -12,6 +12,7 @@ class FogOfWar
       r: 8,
       g: 5,
       b: 77,
+      path: :solid,
     }
   end
 
@@ -22,6 +23,6 @@ class FogOfWar
           fog_square(40*x, 40*y, 40, 40)
         end
       end
-    end.flatten.compact.map(&:solid)
+    end.flatten.compact
   end
 end

@@ -11,9 +11,9 @@ def area2_tick(args)
     args.state.dark_shark.y = (args.state.dark_shark.y + ((-1)**rand(10) * rand(30))) % SCREEN_WIDTH
   end
 
-  args.outputs.solids << default_background(args.grid)
-  args.outputs.solids << water(args, 60)
-  args.outputs.solids << ground(args)
+  args.outputs.sprites << default_background(args.grid)
+  args.outputs.sprites << water(args, 60)
+  args.outputs.sprites << ground(args)
   args.outputs.sprites << args.state.shark.to_h
   args.outputs.sprites << (args.state.scalars.map(&:to_h) + args.state.weeds.map(&:to_h)).flatten
 end

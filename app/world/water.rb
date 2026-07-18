@@ -19,7 +19,8 @@ def water(args, grid_size)
           h: args.grid.h / grid_size,
           r: 0 + rand(25),
           g: 0 + rand(25),
-          b: 15 + deepness_factor * n*args.grid.h / grid_size
+          b: 15 + deepness_factor * n*args.grid.h / grid_size,
+          path: :solid,
         }
       end
   end

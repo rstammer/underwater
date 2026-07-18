@@ -62,6 +62,7 @@ def default_background(grid)
     r: 48,
     g: 95,
     b: 177,
+    path: :solid,
   }
 end
 
@@ -182,9 +183,7 @@ end
 def render_diver(args)
   args.outputs.sprites << args.state.diver.to_h
   if !!FOG_OF_WAR
-    FogOfWar.new(args.state.diver).to_a.each do |fog|
-      args.outputs.primitives << fog
-    end
+    args.outputs.sprites << FogOfWar.new(args.state.diver).to_a
   end
 end
 

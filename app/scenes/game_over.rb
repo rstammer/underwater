@@ -27,7 +27,7 @@ def game_over_tick(args)
     size_enum: 2,
   }
 
-  args.outputs.solids << {
+  args.outputs.sprites << {
     x: 0,
     y: 0,
     w: args.grid.w,
@@ -35,6 +35,7 @@ def game_over_tick(args)
     r: 156,
     g: 44,
     b: 40,
+    path: :solid,
   }
 
   args.outputs.labels << labels

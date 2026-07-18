@@ -1,6 +1,6 @@
 def area1_tick(args)
-  args.outputs.solids << default_background(args.grid)
-  args.outputs.solids << water(args, 60)
-  args.outputs.solids << ground(args)
+  args.outputs.sprites << default_background(args.grid)
+  args.outputs.sprites << water(args, 60)
+  args.outputs.sprites << ground(args)
 end
 

@@ -21,6 +21,7 @@ class SandTile
       r: @r + (-1)**rand(2) + rand(25),
       g: @g + (-1)**rand(2) + rand(25),
       b: @b + (-1)**rand(2) + rand(25),
+      path: :solid,
     }
   end
 end
