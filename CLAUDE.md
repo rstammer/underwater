@@ -32,18 +32,32 @@ Aus dem `underwater/`-Ordner heraus. Der Game-Ordner-Root ist das Repo-Root
 (enthält `app/`); DragonRuby lädt `app/main.rb` als Entry-Point.
 (Das `./dragonruby app` in der README.md ist veraltet — `.` ist korrekt.)
 
-## Struktur
+## Architektur
 
-- `app/main.rb` — Entry-Point, lädt alle Requires & steuert den Scene-Wechsel
-- `app/scenes/` — `title`, `area1`, `area2`, `game_over`
-- `app/entities/` — `diver` (Spieler), `little_bass`, `dark_shark`, `sloppy_scalar`
-- `app/world/` — `water`, `sand_tile`, `weed`, `fog_of_war`
-- `app/ux/` — `panel` (HUD/UI)
-- `sprites/` — Pixel-Art-Assets (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
+Das gesamte Spiel lebt in **`class Game` mit `attr_dr`** (in `app/main.rb`).
+`attr_dr` liefert `state`/`inputs`/`outputs`/`grid`/`args`, ohne `args`
+durchzureichen. Top-Level nur `boot`/`tick`/`reset`, die an ein `$game`-
+Singleton delegieren; `boot` initialisiert `args.state = {}` (kein nil-Auto-
+Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
+
+- `app/main.rb` — `class Game` (Loop + Helfer) + `boot`/`tick`/`reset`
+- `app/scenes/` — `title`/`area1`/`area2`/`game_over`, **reopenen `class Game`**
+  und definieren `<scene>_tick`; Dispatch via `send("#{state.game_scene}_tick")`
+- `app/entities/` — `diver` (Spieler), `dark_shark`, `sloppy_scalar` — eigene
+  Klassen, bekommen `args` übergeben, lesen Position aus `state`
+- `app/world/` — `water` (reopenet `Game`), `sand_tile`, `weed`, `fog_of_war`
+- `app/ux/` — `panel` (HUD/UI), eigenständige Klasse
+- `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sounds/` — Audio
 
 ## Konventionen
 
-- Code/Commits in English (wie im gesamten stammerdev-Workspace)
+- Code/Commits in English (wie im gesamten stammerdev-Workspace) — **keine
+  AI-Referenzen in Commits** (siehe Root-`CLAUDE.md`)
 - Requires in `main.rb` immer relativ zum Game-Root mit `app/`-Prefix,
   z. B. `require "app/scenes/title.rb"`
+- **Kein bare Top-Level-`@ivar`** — State gehört in `args.state` (DR-Doku:
+  Ivars verschmutzen den globalen Object-Space)
+- **`args.state`-Property-Namen ≠ Methodennamen** — `state.water` würde sonst
+  die Methode `water` aufrufen; daher `water_bands`/`ground_tiles`/`deepness_values`
+- Massen-Rechtecke als `path: :solid`-Sprites rendern, nicht `outputs.solids`
