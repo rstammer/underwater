@@ -20,189 +20,196 @@ SCREEN_HEIGHT = 720
 FOG_OF_WAR = true
 DEBUG = false
 
-def initialize_game(args, sprite_index)
-  args.state.angle = 0
-  args.state.player_x = Diver::START_X
-  args.state.player_y = 710
-  args.state.player_state = nil
-  args.state.direction = :right
-  args.state.dark_shark.x = -300
-  args.state.dark_shark.y = 300
-  args.state.player_state = :alive
-  args.state.scene = "underwater-start"
-  args.state.game_scene = "title"
-  args.state.diver_global_x = Diver::START_X
-  args.state.initialized = true
+# The whole game lives in this class so we don't pollute the global object
+# space. attr_dr gives us state/inputs/outputs/grid/args without threading
+# args through every method. Scene ticks reopen this class in app/scenes/*.
+class Game
+  attr_dr
 
-  args.state.diver = Diver.new(args, sprite_index)
-  args.state.shark = DarkShark.new(args, sprite_index)
+  def tick
+    initialize_game(0) unless state.initialized
 
-  args.state.scalars = (1..30).map do |n|
-    x = rand(1280)
-    y = 75 + rand(400)
+    sprite_index = 60.frame_index(
+      count: 8,     # how many sprites?
+      hold_for: 16, # how long to hold each sprite?
+      repeat: true  # should it repeat?
+    ) || 0
 
-    SloppyScalar.new(args, sprite_index, x: x, y: y)
+    update_scene
+    update_characters(sprite_index)
+    basic_movements_per_tick
+    render_panel
+    send("#{state.game_scene}_tick")
+    render_diver unless game_paused?
   end
 
-  args.state.weeds = (1..150).map do |n|
-    x = rand(65) + 10*n % SCREEN_WIDTH
-    y = 10 + rand(20)
-    size = 3 + rand(4)
+  def initialize_game(sprite_index)
+    state.angle = 0
+    state.player_x = Diver::START_X
+    state.player_y = 710
+    state.player_state = :alive
+    state.direction = :right
+    state.dark_shark = { x: -300, y: 300 }
+    state.scene = "underwater-start"
+    state.game_scene = "title"
+    state.diver_global_x = Diver::START_X
+    state.initialized = true
 
-    Weed.new(args, sprite_index, x: x, y: y, size: size)
-  end
-end
+    state.diver = Diver.new(args, sprite_index)
+    state.shark = DarkShark.new(args, sprite_index)
 
-def default_background(grid)
-  {
-    x: 0,
-    y: 0,
-    w: grid.w,
-    h: grid.h,
-    r: 48,
-    g: 95,
-    b: 177,
-    path: :solid,
-  }
-end
-
-def ground(args)
-  args.state.ground_tiles ||=
-    (1..10_000).map do |n|
-      SandTile.new(args.grid, 2*n % args.grid.w, -2 + rand(22)).to_h
+    state.scalars = (1..30).map do |n|
+      SloppyScalar.new(args, sprite_index, x: rand(1280), y: 75 + rand(400))
     end
-end
 
-def fire_input?(args)
-  args.inputs.keyboard.key_down.space ||
-  args.inputs.keyboard.key_down.z ||
-    args.inputs.keyboard.key_down.j ||
-    args.inputs.controller_one.key_down.a
-end
-
-def reset_game(args)
-  args.state.angle = 0
-  args.state.player_x = 20
-  args.state.player_y = 710
-  args.state.player_state = nil
-  args.state.direction = :right
-  args.state.dark_shark.x = 300
-  args.state.dark_shark.y = 300
-  args.state.player_state = :alive
-  args.state.diver_global_x = Diver::START_X # otherwise restart stays in area2 with the shark
-end
-
-def update_characters(args, sprite_index)
-  args.state.shark.tick(args, sprite_index)
-  args.state.diver.tick(args, sprite_index)
-
-  args.state.weeds.each do |weed|
-    weed.tick(args, sprite_index)
+    state.weeds = (1..150).map do |n|
+      Weed.new(args, sprite_index,
+               x: rand(65) + 10 * n % SCREEN_WIDTH,
+               y: 10 + rand(20),
+               size: 3 + rand(4))
+    end
   end
 
-  args.state.scalars.each do |scalar|
-    scalar.tick(args, sprite_index)
+  def default_background
+    {
+      x: 0,
+      y: 0,
+      w: grid.w,
+      h: grid.h,
+      r: 48,
+      g: 95,
+      b: 177,
+      path: :solid,
+    }
   end
 
-  if args.state.diver.to_h.intersect_rect?(args.state.shark.to_h)
-    args.state.game_scene = "game_over"
-  end
-end
-
-def basic_movements_per_tick(args)
-  if args.inputs.keyboard.key_down.escape
-    args.state.game_scene = "title"
-    return
+  def ground
+    state.ground_tiles ||=
+      (1..10_000).map do |n|
+        SandTile.new(grid, 2 * n % grid.w, -2 + rand(22)).to_h
+      end
   end
 
-  if args.inputs.left
-    args.state.direction = :left
-    args.state.player_x -= Diver::SPEED
-  elsif args.inputs.right
-    args.state.player_x += Diver::SPEED
-    args.state.direction = :right
-  end
-  # no else: keep facing the last direction while idle
-
-  if args.inputs.up
-    args.state.player_y += Diver::SPEED
-  elsif args.inputs.down
-    args.state.player_y -= Diver::SPEED
+  def fire_input?
+    inputs.keyboard.key_down.space ||
+      inputs.keyboard.key_down.z ||
+      inputs.keyboard.key_down.j ||
+      inputs.controller_one.key_down.a
   end
 
-  if !args.inputs.up && args.state.player_y >= 1
-    args.state.player_y -= 0.15
+  def reset_game
+    state.angle = 0
+    state.player_x = 20
+    state.player_y = 710
+    state.player_state = :alive
+    state.direction = :right
+    state.dark_shark = { x: 300, y: 300 }
+    state.diver_global_x = Diver::START_X # otherwise restart stays in area2 with the shark
   end
 
-  if args.state.player_y <= 1
-    args.state.player_y = 1
+  def update_characters(sprite_index)
+    state.shark.tick(args, sprite_index)
+    state.diver.tick(args, sprite_index)
+
+    state.weeds.each { |weed| weed.tick(args, sprite_index) }
+    state.scalars.each { |scalar| scalar.tick(args, sprite_index) }
+
+    if state.diver.to_h.intersect_rect?(state.shark.to_h)
+      state.game_scene = "game_over"
+    end
   end
 
-  if args.state.direction == :right
-    if args.inputs.up && (args.inputs.left || args.inputs.right)
-      args.state.angle += 0.5
-    elsif args.inputs.down && (args.inputs.left || args.inputs.right)
-      args.state.angle -= 0.5
+  def basic_movements_per_tick
+    if inputs.keyboard.key_down.escape
+      state.game_scene = "title"
+      return
+    end
+
+    if inputs.left
+      state.direction = :left
+      state.player_x -= Diver::SPEED
+    elsif inputs.right
+      state.player_x += Diver::SPEED
+      state.direction = :right
+    end
+    # no else: keep facing the last direction while idle
+
+    if inputs.up
+      state.player_y += Diver::SPEED
+    elsif inputs.down
+      state.player_y -= Diver::SPEED
+    end
+
+    if !inputs.up && state.player_y >= 1
+      state.player_y -= 0.15
+    end
+
+    if state.player_y <= 1
+      state.player_y = 1
+    end
+
+    if state.direction == :right
+      if inputs.up && (inputs.left || inputs.right)
+        state.angle += 0.5
+      elsif inputs.down && (inputs.left || inputs.right)
+        state.angle -= 0.5
+      else
+        state.angle = 0
+      end
     else
-      args.state.angle = 0
+      if inputs.up && (inputs.left || inputs.right)
+        state.angle -= 0.5
+      elsif inputs.down && (inputs.left || inputs.right)
+        state.angle += 0.5
+      else
+        state.angle = 0
+      end
     end
-  else
-    if args.inputs.up && (args.inputs.left || args.inputs.right)
-      args.state.angle -= 0.5
-    elsif args.inputs.down && (args.inputs.left || args.inputs.right)
-      args.state.angle += 0.5
-    else
-      args.state.angle = 0
+  end
+
+  def update_scene
+    return if game_paused?
+
+    state.game_scene =
+      if state.diver.global_position_x < 1281
+        "area1"
+      else
+        "area2"
+      end
+  end
+
+  def render_panel
+    return if game_paused?
+
+    Panel.new(args, state.diver).to_a.each do |item|
+      outputs.labels << item
+    end
+  end
+
+  def game_paused?
+    ["title", "game_over"].include?(state.game_scene)
+  end
+
+  def render_diver
+    outputs.sprites << state.diver.to_h
+    if !!FOG_OF_WAR
+      outputs.sprites << FogOfWar.new(state.diver).to_a
     end
   end
 end
 
-def update_scene(args)
-  return if game_paused?(args)
-
-  args.state.game_scene =
-    if args.state.diver.global_position_x < 1281
-      "area1"
-    else
-      "area2"
-    end
-end
-
-def render_panel(args)
-  return if game_paused?(args)
-
-  Panel.new(args, args.state.diver).to_a.each do |item|
-    args.outputs.labels << item 
-  end 
-end
-
-def game_paused?(args)
-  ["title", "game_over"].include?(args.state.game_scene)
-end
-
-def render_diver(args)
-  args.outputs.sprites << args.state.diver.to_h
-  if !!FOG_OF_WAR
-    args.outputs.sprites << FogOfWar.new(args.state.diver).to_a
-  end
+def boot(args)
+  args.state = {} # opt out of args.state nil auto-initialization
 end
 
 def tick(args)
-  sprite_index ||= 0
-  initialize_game(args, sprite_index) unless args.state.initialized
-
-  start_animation_on_tick = 60
-  sprite_index =
-    start_animation_on_tick.frame_index(
-      count: 8, # how many sprites?
-      hold_for: 16, # how long to hold each sprite?
-      repeat: true # should it repeat?
-    ) || 0
-
-  update_scene(args)
-  update_characters(args, sprite_index)
-  basic_movements_per_tick(args)
-  render_panel(args)
-  send("#{args.state.game_scene}_tick", args)
-  render_diver(args) unless game_paused?(args)
+  $game ||= Game.new
+  $game.args = args
+  $game.tick
 end
+
+def reset(args)
+  $game = nil
+end
+
+$game = nil

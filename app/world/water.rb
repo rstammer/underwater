@@ -1,27 +1,26 @@
-# NOTE: args.state property names must not collide with these top-level
-# method names (water/ground/deepness_factors) — reading args.state.water
-# would dispatch to the method. Hence the *_bands / *_values suffixes.
-def deepness_factors(args)
-  args.state.deepness_values ||= (6..10).to_a.map{ |n| n / 10 }
-end
+class Game
+  def deepness_factors
+    state.deepness_values ||= (6..10).to_a.map { |n| n / 10 }
+  end
 
-def water(args, grid_size)
-  if args.tick_count % 122 != 0
-    args.state.water_bands
-  else
-    deepness_factor = deepness_factors(args).sample
-    args.state.water_bands =
-      (1..grid_size).map do |n|
-        {
-          x: 0,
-          y: n*args.grid.h / grid_size,
-          w: args.grid.w,
-          h: args.grid.h / grid_size,
-          r: 0 + rand(25),
-          g: 0 + rand(25),
-          b: 15 + deepness_factor * n*args.grid.h / grid_size,
-          path: :solid,
-        }
-      end
+  def water(grid_size)
+    if Kernel.tick_count % 122 != 0
+      state.water_bands
+    else
+      deepness_factor = deepness_factors.sample
+      state.water_bands =
+        (1..grid_size).map do |n|
+          {
+            x: 0,
+            y: n * grid.h / grid_size,
+            w: grid.w,
+            h: grid.h / grid_size,
+            r: 0 + rand(25),
+            g: 0 + rand(25),
+            b: 15 + deepness_factor * n * grid.h / grid_size,
+            path: :solid,
+          }
+        end
+    end
   end
 end
