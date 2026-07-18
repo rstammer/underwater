@@ -20,6 +20,9 @@ SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 SURFACE_WATERLINE = 350 # y of the waterline in the surface scene; diver body stays below it
 SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center floats (only head/shoulders show)
+OXYGEN_MAX = 100
+OXYGEN_DRAIN = 0.05 # per tick underwater (~33s of air)
+OXYGEN_REFILL = 1.0 # per tick while breathing at the surface (fast top-up)
 FOG_OF_WAR = true
 DEBUG = false
 
@@ -42,9 +45,10 @@ class Game
     update_characters(sprite_index)
     basic_movements_per_tick
     apply_vertical_bounds
-    render_panel
+    update_oxygen unless game_paused?
     send("#{state.game_scene}_tick")
     render_diver unless game_paused?
+    render_panel # HUD last so it draws on top of the scene and fog
   end
 
   def initialize_game(sprite_index)
@@ -58,6 +62,8 @@ class Game
     state.game_scene = "title"
     state.diver_global_x = Diver::START_X
     state.surfaced = false
+    state.oxygen = OXYGEN_MAX
+    state.death_cause = nil
     state.initialized = true
 
     state.diver = Diver.new(args, sprite_index)
@@ -111,6 +117,8 @@ class Game
     state.dark_shark = { x: 300, y: 300 }
     state.diver_global_x = Diver::START_X # otherwise restart stays in area2 with the shark
     state.surfaced = false
+    state.oxygen = OXYGEN_MAX
+    state.death_cause = nil
   end
 
   def update_characters(sprite_index)
@@ -122,6 +130,7 @@ class Game
 
     if state.diver.to_h.intersect_rect?(state.shark.to_h)
       state.game_scene = "game_over"
+      state.death_cause = :eaten
     end
   end
 
@@ -208,12 +217,51 @@ class Game
     end
   end
 
+  # Oxygen tops up only while the head is actually above the waterline,
+  # otherwise it drains; running out drowns you.
+  def update_oxygen
+    if breathing?
+      state.oxygen = [state.oxygen + OXYGEN_REFILL, OXYGEN_MAX].min
+    else
+      state.oxygen -= OXYGEN_DRAIN
+      if state.oxygen <= 0
+        state.oxygen = 0
+        state.game_scene = "game_over"
+        state.death_cause = :drowned
+      end
+    end
+  end
+
+  # The head clears the water only once the diver has floated up near the
+  # waterline in the surface scene.
+  def breathing?
+    state.surfaced && state.player_y + Diver::HEIGHT >= SURFACE_WATERLINE
+  end
+
   def render_panel
     return if game_paused?
 
     Panel.new(args, state.diver).to_a.each do |item|
       outputs.labels << item
     end
+    render_oxygen_bar
+  end
+
+  def render_oxygen_bar
+    x = 20
+    y = 640
+    w = 220
+    h = 18
+    ratio = state.oxygen / OXYGEN_MAX
+    low = ratio < 0.3
+
+    outputs.labels << { x: x, y: y + h + 22, text: "Sauerstoff", r: 225, g: 238, b: 255 }
+    outputs.sprites << { x: x, y: y, w: w, h: h, r: 15, g: 25, b: 45, path: :solid } # track
+    outputs.sprites << {                                                             # fill
+      x: x, y: y, w: w * ratio, h: h,
+      r: (low ? 210 : 40), g: (low ? 70 : 170), b: (low ? 80 : 230),
+      path: :solid,
+    }
   end
 
   def game_paused?
