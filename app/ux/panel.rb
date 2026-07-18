@@ -1,7 +1,8 @@
 class Panel
   SCENE_TITLES = {
     "area1" => "Spürst du die große Stille?",
-    "area2" => "Achtung, Skalare und mehr!"
+    "area2" => "Achtung, Skalare und mehr!",
+    "surface" => "Auftauchen — Luft holen!"
   }
 
   def initialize(args, diver)

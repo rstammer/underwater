@@ -1,11 +1,13 @@
 # Underwater — TODO / Ideen
 
 ## Features
-- [ ] **Sprint-Mechanik:** Beim Drücken der Leertaste schwimmt der Taucher
-      schneller — verbraucht dafür schneller Sauerstoff. (Koppelt an die
-      geplante O2-Mechanik: Speed↑ ⇒ O2-Verbrauch↑.)
-- [ ] Sauerstoff-Mechanik (O2-Anzeige, auftauchen füllt auf)
-- [ ] Sammelbares + Score
+- [~] **Surface-Szene** (Wasserlinie oben, nur Kopf darf raus) — Schritt 1 in Arbeit.
+      Später ausbauen: **Boot als "home" für den Taucher**.
+- [ ] **Sauerstoff-Mechanik** (O2-Anzeige, auftauchen an der Surface füllt auf,
+      leer → game_over)
+- [ ] **Sprint-Mechanik:** Leertaste = schneller schwimmen, verbraucht schneller
+      Sauerstoff (Speed↑ ⇒ O2-Verbrauch↑)
+- [ ] Sammelbares + Score (später, nicht jetzt)
 
 ## Cleanup (in Arbeit, Branch `cleanup/idiomatic-refactor`)
 - [x] Stage 1: Restart-/Idle-Bugs, toter Code, tick_count

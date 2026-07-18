@@ -4,6 +4,7 @@ require "app/scenes/title.rb"
 require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
 require "app/scenes/area2.rb"
+require "app/scenes/surface.rb"
 
 require "app/entities/dark_shark.rb"
 require "app/entities/sloppy_scalar.rb"
@@ -17,6 +18,8 @@ require "app/world/fog_of_war.rb"
 ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
+SURFACE_WATERLINE = 350 # y of the waterline in the surface scene; diver body stays below it
+SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center floats (only head/shoulders show)
 FOG_OF_WAR = true
 DEBUG = false
 
@@ -38,6 +41,7 @@ class Game
     update_scene
     update_characters(sprite_index)
     basic_movements_per_tick
+    apply_vertical_bounds
     render_panel
     send("#{state.game_scene}_tick")
     render_diver unless game_paused?
@@ -53,6 +57,7 @@ class Game
     state.scene = "underwater-start"
     state.game_scene = "title"
     state.diver_global_x = Diver::START_X
+    state.surfaced = false
     state.initialized = true
 
     state.diver = Diver.new(args, sprite_index)
@@ -105,6 +110,7 @@ class Game
     state.direction = :right
     state.dark_shark = { x: 300, y: 300 }
     state.diver_global_x = Diver::START_X # otherwise restart stays in area2 with the shark
+    state.surfaced = false
   end
 
   def update_characters(sprite_index)
@@ -140,12 +146,12 @@ class Game
       state.player_y -= Diver::SPEED
     end
 
-    if !inputs.up && state.player_y >= 1
+    if state.surfaced
+      # buoyant at the surface: drift up and stay unless actively diving down
+      state.player_y += 0.15 unless inputs.down
+    elsif !inputs.up
+      # underwater: slowly sink unless swimming up (sea floor clamp in apply_vertical_bounds)
       state.player_y -= 0.15
-    end
-
-    if state.player_y <= 1
-      state.player_y = 1
     end
 
     if state.direction == :right
@@ -171,11 +177,35 @@ class Game
     return if game_paused?
 
     state.game_scene =
-      if state.diver.global_position_x < 1281
+      if state.surfaced
+        "surface"
+      elsif state.diver.global_position_x < 1281
         "area1"
       else
         "area2"
       end
+  end
+
+  # Vertical world bounds + surface transition (mirrors the horizontal
+  # area1<->area2 wrap). The diver can never leave the water: while surfaced
+  # its body is clamped at the waterline so only the head pokes above.
+  def apply_vertical_bounds
+    if state.surfaced
+      float_y = SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
+      state.player_y = float_y if state.player_y > float_y
+
+      if state.player_y <= 0 # dived back below the surface view -> underwater
+        state.surfaced = false
+        state.player_y = SCREEN_HEIGHT - 1
+      end
+    else
+      if state.player_y >= SCREEN_HEIGHT # swam up past the top -> surface
+        state.surfaced = true
+        state.player_y = 1
+      end
+
+      state.player_y = 1 if state.player_y < 1 # sea floor
+    end
   end
 
   def render_panel
@@ -192,7 +222,7 @@ class Game
 
   def render_diver
     outputs.sprites << state.diver.to_h
-    if !!FOG_OF_WAR
+    if FOG_OF_WAR && !state.surfaced # no fog at the surface — there's daylight up here
       outputs.sprites << FogOfWar.new(state.diver).to_a
     end
   end
