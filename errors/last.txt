@@ -1,6 +1,0 @@
-* EXCEPTION: 'water': wrong number of arguments (0 for 2)
-** Backtrace:
-*** app/world/water.rb:5:in water
-*** app/world/water.rb:7:in water
-*** app/scenes/area1.rb:3:in area1_tick
-*** app/main.rb:207:in tick

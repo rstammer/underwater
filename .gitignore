@@ -4,6 +4,7 @@ samples/
 docs/
 fonts/
 logs/
+errors/
 metadata/
 tmp/
 dragonruby
