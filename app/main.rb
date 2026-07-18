@@ -5,7 +5,6 @@ require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
 require "app/scenes/area2.rb"
 
-require "app/entities/little_bass.rb"
 require "app/entities/dark_shark.rb"
 require "app/entities/sloppy_scalar.rb"
 require "app/entities/diver.rb"
@@ -88,6 +87,7 @@ def reset_game(args)
   args.state.dark_shark.x = 300
   args.state.dark_shark.y = 300
   args.state.player_state = :alive
+  @diver.reset! # otherwise global_position_x keeps us in area2 with the shark
 end
 
 def update_characters(args, sprite_index)
@@ -119,9 +119,8 @@ def basic_movements_per_tick(args)
   elsif args.inputs.right
     args.state.player_x += Diver::SPEED
     args.state.direction = :right
-  else
-    args.state.direction = :right
   end
+  # no else: keep facing the last direction while idle
 
   if args.inputs.up
     args.state.player_y += Diver::SPEED

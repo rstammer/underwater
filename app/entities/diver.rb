@@ -11,7 +11,14 @@ class Diver
   def initialize(current_args, sprite_index)
     @sprite_index = sprite_index
     @current_args = current_args
-    @global_position_x = 600
+    @global_position_x = START_X
+  end
+
+  # Reset the unbounded horizontal position so a restart returns the
+  # diver to area1 (see reset_game). Needed because this lives on the
+  # instance, not in args.state.
+  def reset!
+    @global_position_x = START_X
   end
 
   def tick(current_args, sprite_index)

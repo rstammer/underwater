@@ -3,7 +3,7 @@ def deepness_factors
 end
 
 def water(args, grid_size)
-  if args.state.tick_count % 122 != 0
+  if args.tick_count % 122 != 0
     @water
   else
     deepness_factor = deepness_factors.sample
