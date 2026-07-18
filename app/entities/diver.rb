@@ -6,30 +6,26 @@ class Diver
   START_X = 600
   SPEED = 2
 
-  attr_reader :global_position_x
-
   def initialize(current_args, sprite_index)
     @sprite_index = sprite_index
     @current_args = current_args
-    @global_position_x = START_X
   end
 
-  # Reset the unbounded horizontal position so a restart returns the
-  # diver to area1 (see reset_game). Needed because this lives on the
-  # instance, not in args.state.
-  def reset!
-    @global_position_x = START_X
+  # Single source of truth: the unbounded horizontal position lives in
+  # args.state, so reset_game can restore it without touching this object.
+  def global_position_x
+    @current_args.state.diver_global_x
   end
 
   def tick(current_args, sprite_index)
     @sprite_index = sprite_index
     @current_args = current_args
-    
+
     if horizontal_movement?
-      if @current_args.state.direction == :right 
-        @global_position_x += SPEED
+      if @current_args.state.direction == :right
+        @current_args.state.diver_global_x += SPEED
       elsif @current_args.state.direction == :left
-        @global_position_x -= SPEED
+        @current_args.state.diver_global_x -= SPEED
       end
     end
   end

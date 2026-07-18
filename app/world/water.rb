@@ -1,13 +1,16 @@
-def deepness_factors
-  @deepness_factors ||= (6..10).to_a.map{ |n| n / 10 }
+# NOTE: args.state property names must not collide with these top-level
+# method names (water/ground/deepness_factors) — reading args.state.water
+# would dispatch to the method. Hence the *_bands / *_values suffixes.
+def deepness_factors(args)
+  args.state.deepness_values ||= (6..10).to_a.map{ |n| n / 10 }
 end
 
 def water(args, grid_size)
   if args.tick_count % 122 != 0
-    @water
+    args.state.water_bands
   else
-    deepness_factor = deepness_factors.sample
-    @water =
+    deepness_factor = deepness_factors(args).sample
+    args.state.water_bands =
       (1..grid_size).map do |n|
         {
           x: 0,

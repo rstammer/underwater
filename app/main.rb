@@ -31,19 +31,20 @@ def initialize_game(args, sprite_index)
   args.state.player_state = :alive
   args.state.scene = "underwater-start"
   args.state.game_scene = "title"
+  args.state.diver_global_x = Diver::START_X
   args.state.initialized = true
 
-  @diver = Diver.new(args, sprite_index)
-  @dark_shark = DarkShark.new(args, sprite_index)
+  args.state.diver = Diver.new(args, sprite_index)
+  args.state.shark = DarkShark.new(args, sprite_index)
 
-  @scalars = (1..30).map do |n|
+  args.state.scalars = (1..30).map do |n|
     x = rand(1280)
     y = 75 + rand(400)
 
     SloppyScalar.new(args, sprite_index, x: x, y: y)
   end
 
-  @weeds = (1..150).map do |n|
+  args.state.weeds = (1..150).map do |n|
     x = rand(65) + 10*n % SCREEN_WIDTH
     y = 10 + rand(20)
     size = 3 + rand(4)
@@ -65,7 +66,7 @@ def default_background(grid)
 end
 
 def ground(args)
-  @ground ||=
+  args.state.ground_tiles ||=
     (1..10_000).map do |n|
       SandTile.new(args.grid, 2*n % args.grid.w, -2 + rand(22)).to_h
     end
@@ -87,22 +88,22 @@ def reset_game(args)
   args.state.dark_shark.x = 300
   args.state.dark_shark.y = 300
   args.state.player_state = :alive
-  @diver.reset! # otherwise global_position_x keeps us in area2 with the shark
+  args.state.diver_global_x = Diver::START_X # otherwise restart stays in area2 with the shark
 end
 
 def update_characters(args, sprite_index)
-  @dark_shark.tick(args, sprite_index)
-  @diver.tick(args, sprite_index)
+  args.state.shark.tick(args, sprite_index)
+  args.state.diver.tick(args, sprite_index)
 
-  @weeds.each do |weed|
+  args.state.weeds.each do |weed|
     weed.tick(args, sprite_index)
   end
 
-  @scalars.each do |scalar|
+  args.state.scalars.each do |scalar|
     scalar.tick(args, sprite_index)
   end
 
-  if @diver.to_h.intersect_rect?(@dark_shark.to_h)
+  if args.state.diver.to_h.intersect_rect?(args.state.shark.to_h)
     args.state.game_scene = "game_over"
   end
 end
@@ -158,8 +159,8 @@ end
 def update_scene(args)
   return if game_paused?(args)
 
-  args.state.game_scene = 
-    if @diver.global_position_x < 1281 
+  args.state.game_scene =
+    if args.state.diver.global_position_x < 1281
       "area1"
     else
       "area2"
@@ -169,7 +170,7 @@ end
 def render_panel(args)
   return if game_paused?(args)
 
-  Panel.new(args, @diver).to_a.each do |item|
+  Panel.new(args, args.state.diver).to_a.each do |item|
     args.outputs.labels << item 
   end 
 end
@@ -179,9 +180,9 @@ def game_paused?(args)
 end
 
 def render_diver(args)
-  args.outputs.sprites << @diver.to_h
-  if !!FOG_OF_WAR 
-    FogOfWar.new(@diver).to_a.each do |fog|
+  args.outputs.sprites << args.state.diver.to_h
+  if !!FOG_OF_WAR
+    FogOfWar.new(args.state.diver).to_a.each do |fog|
       args.outputs.primitives << fog
     end
   end

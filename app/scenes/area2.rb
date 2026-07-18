@@ -14,6 +14,6 @@ def area2_tick(args)
   args.outputs.solids << default_background(args.grid)
   args.outputs.solids << water(args, 60)
   args.outputs.solids << ground(args)
-  args.outputs.sprites << @dark_shark.to_h
-  args.outputs.sprites << (@scalars.map(&:to_h) + @weeds.map(&:to_h)).flatten
+  args.outputs.sprites << args.state.shark.to_h
+  args.outputs.sprites << (args.state.scalars.map(&:to_h) + args.state.weeds.map(&:to_h)).flatten
 end
