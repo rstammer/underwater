@@ -129,9 +129,10 @@ Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start be
   `apply_vertical_bounds` clampt seinen Körper **unter** der Wasserlinie
   (`SURFACE_WATERLINE`), sodass nur der Kopf rausschaut (`SURFACE_FLOAT_DEPTH`).
   Er kann das Wasser nie ganz verlassen.
-- **Auftrieb:** An der Oberfläche treibt er nach oben und *bleibt* dort; er sinkt
-  nur wieder, wenn man aktiv ↓ drückt (dann zurück nach area1/area2). Unter
-  Wasser sinkt er langsam, solange man nicht ↑ hält.
+- **Auftrieb:** Der Taucher ist negativ schwimmfähig und sinkt langsam (0.15/Tick),
+  solange man nicht ↑ hält. **Ausnahme:** ragt sein Kopf aus dem Wasser
+  (`breathing?`, an der Wasserlinie), sinkt er nicht — eine Art Ruhe-/Pause-Modus
+  zum Atmen. Sobald er wieder unter die Wasserlinie taucht, sinkt er weiter.
 - **Sauerstoff:** Drain unter Wasser (`OXYGEN_DRAIN`/Tick, ~33 s). Refill **nur**
   wenn `breathing?` — also aufgetaucht *und* Kopf über der Wasserlinie (nicht
   schon beim bloßen Szenenwechsel). Leer → `game_over` / `:drowned`. O2-Balken-

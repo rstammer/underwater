@@ -161,13 +161,11 @@ class Game
       state.player_y -= state.speed
     end
 
-    if state.surfaced
-      # buoyant at the surface: drift up and stay unless actively diving down
-      state.player_y += 0.15 unless inputs.down
-    elsif !inputs.up
-      # underwater: slowly sink unless swimming up (sea floor clamp in apply_vertical_bounds)
-      state.player_y -= 0.15
-    end
+    # Negatively buoyant: the diver slowly sinks unless he's swimming up. The one
+    # exception is resting at the surface with his head out of the water
+    # (breathing?) — a pause mode where he floats in place. Below the waterline he
+    # always sinks. (sea floor / waterline clamps in apply_vertical_bounds)
+    state.player_y -= 0.15 unless inputs.up || breathing?
 
     if state.direction == :right
       if inputs.up && (inputs.left || inputs.right)
