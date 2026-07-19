@@ -38,7 +38,7 @@ class Biome
     name: "Kelpwald",
     water_top: [40, 130, 150], water_bottom: [12, 58, 78],
     floor_colors: [[120, 132, 96], [96, 112, 78], [78, 96, 66]],
-    fog: 0.32,
+    fog: 0.42,
     seaweed: 16, coral: 2, starfish: 2, rocks: 3,
     fish_count: 9, fish_colors: %w[green blue purple], shark: false,
   )
@@ -58,7 +58,7 @@ class Biome
     name: "Tiefsee",
     water_top: [24, 60, 104], water_bottom: [6, 18, 44],
     floor_colors: [[60, 66, 84], [48, 54, 72], [38, 44, 60]],
-    fog: 0.55,
+    fog: 0.70,
     seaweed: 3, coral: 1, starfish: 1, rocks: 6,
     fish_count: 4, fish_colors: %w[blue purple], shark: true,
   )

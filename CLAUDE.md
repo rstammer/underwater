@@ -51,7 +51,9 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
   `send("#{state.game_scene}_tick")`
 - `app/entities/` — `diver` (Spieler), `dark_shark`, `sloppy_scalar` — eigene
   Klassen, bekommen `args` übergeben, lesen Position aus `state`
-- `app/world/` — `water` (reopenet `Game`), `sand_tile`, `weed`, `fog_of_war`
+- `app/world/` — **Welt-System** (s. u.): `rng`, `biome`, `world`, `world_generator`,
+  `static_worlds`, `world_renderer` (reopenet `Game`), `fog_of_war`; Alt: `water`,
+  `sand_tile`, `weed` (Boden/Deko jetzt aus Welten, teils ungenutzt)
 - `app/ux/` — `panel` (HUD/UI), eigenständige Klasse
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
@@ -95,6 +97,34 @@ Buckets bestimmt die Einfüge-Reihenfolge das Layering. Deshalb HUD am Ende.
 
 `title` und `game_over` sind **pausiert** (`game_paused?`): kein Input-Movement,
 kein O2-Drain, kein HUD.
+
+## Welten (prozedural + statisch)
+
+Die Unterwasser-Szenen sind **prozedural generiert und in Segmente (Chunks)
+geteilt**. Trennung von *Beschreibung* und *Rendering*:
+
+- **`World`** (`app/world/world.rb`) — reine Daten: Boden-Heightmap (`floor`),
+  Deko-Platzierungen (`decorations`), `biome`. Rührt nie `outputs` an → testbar.
+- **`Rng`** — seedbarer xorshift-PRNG: gleiche Seed → gleiche Welt (deterministisch,
+  stabil beim Zurückschwimmen, unit-testbar).
+- **`Biome`** — Themen (Sandbank/Kelpwald/Riff/Tiefsee): Wasserpalette, `fog`-Stärke,
+  Boden-Farben, Deko-Dichte, Fauna (Fischanzahl/-farben, `shark`).
+- **`WorldGenerator.generate(index)`** — baut aus dem Index deterministisch Boden
+  (interpoliertes Value-Noise) + Deko; Biom wird pro Index gemischt gewählt.
+- **`StaticWorlds`** — Registry, um einzelne Indizes mit **handgebauten** Welten zu
+  überschreiben (`world_for` = statisch ?: generiert). Der „Mix"-Hook; aktuell leer.
+- **`world_renderer.rb`** (reopenet `Game`) — `current_world` wählt die Welt aus
+  `world_index = diver_global_x / SCREEN_WIDTH` (gecacht in `state.active_world`,
+  Neugenerierung nur bei Segmentwechsel), `render_world` zeichnet Wasser-Verlauf +
+  Boden + Deko. Fauna: `spawn_fauna` (Fisch-Schwarm pro Biom), `shark_present?`
+  (Hai nur in Hai-Biomen, nie an der Oberfläche). **Fog:** `fog_radius`/`fog_color`
+  aus dem Biom — **hellere Biome sehen weiter**, die Tiefsee schließt sich eng um
+  den Taucher.
+- **Home & Locator:** `at_home?` (`world_index == 0`) — nur dort schwimmt das Boot
+  an der Oberfläche. Der dezente Locator (oben rechts) zeigt Sektor + Tiefe, hinter
+  `locator?` (später an ein Gerät koppelbar).
+
+Deko-Sprites für Welten liegen in `sprites/decor/` (seaweed/coral/starfish/rock).
 
 ## State-Modell (`args.state`)
 

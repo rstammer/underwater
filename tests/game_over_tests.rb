@@ -8,6 +8,9 @@ class GameOverTests
   def test_shark_collision_ends_game_as_eaten(args, assert)
     game = build_game(args)
     game.initialize_game(0)
+    args.state.game_scene = "area2"   # un-paused, underwater
+    args.state.surfaced = false
+    args.state.diver_global_x = 1500  # a shark biome (Tiefsee)
     args.state.player_x = 100
     args.state.player_y = 100
     args.state.dark_shark = { x: 100, y: 100 } # overlapping the diver

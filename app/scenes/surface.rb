@@ -7,8 +7,13 @@ class Game
     outputs.sprites << water(60)
     outputs.sprites << sky_band
     outputs.sprites << waterline
-    outputs.sprites << surface_boat
-    outputs.labels << surface_hint
+
+    # The home boat (and its welcome hint) only exist above the starting area.
+    # Surface anywhere else and it's just open water and sky.
+    if at_home?
+      outputs.sprites << surface_boat
+      outputs.labels << surface_hint
+    end
   end
 
   # The diver's home: a small boat bobbing on the waterline. The diver spawns

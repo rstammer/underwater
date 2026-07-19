@@ -19,6 +19,8 @@ require "app/world/rng.rb"
 require "app/world/biome.rb"
 require "app/world/world.rb"
 require "app/world/world_generator.rb"
+require "app/world/static_worlds.rb"
+require "app/world/world_renderer.rb"
 
 ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
@@ -78,17 +80,7 @@ class Game
 
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)
-
-    state.scalars = (1..30).map do |n|
-      SloppyScalar.new(args, sprite_index, x: rand(1280), y: 75 + rand(400))
-    end
-
-    state.weeds = (1..150).map do |n|
-      Weed.new(args, sprite_index,
-               x: rand(65) + 10 * n % SCREEN_WIDTH,
-               y: 10 + rand(20),
-               size: 3 + rand(4))
-    end
+    state.fish = [] # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
   end
 
   def default_background
@@ -142,16 +134,35 @@ class Game
   end
 
   def update_characters(sprite_index)
-    state.shark.tick(args, sprite_index)
     state.diver.tick(args, sprite_index)
+    return if game_paused?
 
-    state.weeds.each { |weed| weed.tick(args, sprite_index) }
-    state.scalars.each { |scalar| scalar.tick(args, sprite_index) }
+    state.fish ||= [] # resilience against stale state (e.g. DragonRuby hot reload)
+    state.fish.each { |fish| fish.tick(args, sprite_index) }
 
-    if state.diver.to_h.intersect_rect?(state.shark.to_h)
-      state.game_scene = "game_over"
-      state.death_cause = :eaten
+    if shark_present?
+      if state.diver.to_h.intersect_rect?(state.shark.to_h)
+        state.game_scene = "game_over"
+        state.death_cause = :eaten
+      end
+      update_shark(sprite_index)
     end
+  end
+
+  # Shark cruises across the screen, drifting vertically, and wraps around.
+  def update_shark(sprite_index)
+    if state.dark_shark.x > SCREEN_WIDTH
+      state.dark_shark.x = -300
+      state.dark_shark.y = rand(SCREEN_HEIGHT)
+    else
+      state.dark_shark.x += DarkShark::SPEED
+    end
+
+    if Kernel.tick_count % 30 == 0
+      state.dark_shark.y = (state.dark_shark.y + ((-1)**rand(10) * rand(30))) % SCREEN_HEIGHT
+    end
+
+    state.shark.tick(args, sprite_index)
   end
 
   def basic_movements_per_tick
@@ -289,6 +300,35 @@ class Game
       outputs.labels << item
     end
     render_oxygen_bar
+    render_locator
+  end
+
+  # A discreet position readout, top-right. Later this can be gated behind
+  # carrying a locator device (see locator?).
+  def render_locator
+    return unless locator?
+
+    outputs.labels << {
+      x: grid.w - 20, y: grid.h - 16,
+      text: locator_text,
+      size_enum: 1, alignment_enum: 2,
+      r: 210, g: 228, b: 245, a: 175,
+    }
+  end
+
+  def locator?
+    true # later: only when the diver carries a locator / dive computer
+  end
+
+  def locator_text
+    "Sektor #{world_index}    Tiefe #{current_depth} m"
+  end
+
+  # 0 at the surface, growing the deeper the diver swims.
+  def current_depth
+    return 0 if state.surfaced
+
+    [(SCREEN_HEIGHT - state.player_y) / 10, 0].max.to_i
   end
 
   def render_oxygen_bar
@@ -315,7 +355,10 @@ class Game
   def render_diver
     outputs.sprites << state.diver.to_h
     if FOG_OF_WAR && !state.surfaced # no fog at the surface — there's daylight up here
-      outputs.sprites << FogOfWar.new(state.diver).to_a
+      biome = current_world.biome
+      outputs.sprites << FogOfWar.new(state.diver,
+                                      radius: fog_radius(biome),
+                                      color: fog_color(biome)).to_a
     end
   end
 end

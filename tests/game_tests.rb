@@ -15,8 +15,7 @@ class GameTests
     assert.true! args.state.initialized
     assert.equal! args.state.dark_shark.x, -300
     assert.equal! args.state.dark_shark.y, 300
-    assert.equal! args.state.scalars.length, 30
-    assert.equal! args.state.weeds.length, 150
+    assert.equal! args.state.fish.length, 0 # a swarm is spawned per world, not at boot
     assert.true! args.state.diver.is_a?(Diver)
   end
 

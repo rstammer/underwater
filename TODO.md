@@ -12,6 +12,11 @@
       verbraucht schneller Sauerstoff (O2-Drain ×2). `SPRINT_MULTIPLIER`.
 - [x] **Start an der Oberfläche** (`spawn_at_surface`) + dezenter Erkundungs-
       Hinweis in der surface-Szene (`surface_hint`)
+- [x] **Prozedurale Welten** (chunk-basiert, deterministisch, Biome, gestreute
+      Deko, biome-abhängiger Fog & Fauna) + Static-Override-Hook (`StaticWorlds`)
+  - [x] Home-abhängige Surface (Boot nur über Startsegment) + dezenter Locator
+  - [ ] erste **statische Handbau-Welt** registrieren (z. B. Wrack)
+  - [ ] Fauna weiter ausbauen (mehr Arten, Verhalten je Biom)
 - [ ] Sammelbares + Score (später, nicht jetzt)
 
 ## Tuning-Notizen (Defaults, per Playtest justierbar)
