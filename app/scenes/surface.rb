@@ -7,6 +7,23 @@ class Game
     outputs.sprites << water(60)
     outputs.sprites << sky_band
     outputs.sprites << waterline
+    outputs.labels << surface_hint
+  end
+
+  # A quiet nudge in the sky, encouraging the player to dive and explore.
+  # Deliberately low-contrast and small so it stays in the background.
+  def surface_hint
+    {
+      x: grid.w / 2,
+      y: grid.h - 60,
+      text: "Tauche ab und erkunde die Unterwasserwelt",
+      size_enum: 2,
+      alignment_enum: 1,
+      r: 30,
+      g: 60,
+      b: 80,
+      a: 170,
+    }
   end
 
   def sky_band

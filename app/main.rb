@@ -120,11 +120,18 @@ class Game
     state.direction = :right
     state.dark_shark = { x: 300, y: 300 }
     state.diver_global_x = Diver::START_X # otherwise restart stays in area2 with the shark
-    state.surfaced = false
     state.oxygen = OXYGEN_MAX
     state.death_cause = nil
     state.sprinting = false
     state.speed = Diver::SPEED
+    spawn_at_surface
+  end
+
+  # Every round begins floating at the surface with the head out of the water,
+  # so the player catches a breath and eases in before diving to explore.
+  def spawn_at_surface
+    state.surfaced = true
+    state.player_y = SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
   end
 
   def update_characters(sprite_index)

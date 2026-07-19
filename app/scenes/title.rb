@@ -1,7 +1,8 @@
 class Game
   def title_tick
     if fire_input?
-      state.game_scene = "area1"
+      spawn_at_surface
+      state.game_scene = "surface"
       return
     end
 

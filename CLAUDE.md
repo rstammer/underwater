@@ -85,8 +85,8 @@ Buckets bestimmt die Einfüge-Reihenfolge das Layering. Deshalb HUD am Ende.
      (diver_global_x < 1281 → area1,      (state.surfaced == true)
       sonst area2)
 
-   title ──[Leertaste/z/j/A]──► area1 (Spielstart)
-   <überall> ──[Hai / O2 leer]──► game_over ──[Leertaste]──► area1 (reset_game)
+   title ──[Leertaste/z/j/A]──► surface (Spielstart, aufgetaucht/atmend)
+   <überall> ──[Hai / O2 leer]──► game_over ──[Leertaste]──► surface (reset_game)
    <überall> ──[ESC]──► title
 ```
 
@@ -124,6 +124,10 @@ Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start be
 
 ## Spielmechanik
 
+- **Rundenstart (`spawn_at_surface`):** Jede Runde (erster Start *und* Neustart
+  nach game_over) beginnt an der Oberfläche, Kopf raus/atmend. Die surface-Szene
+  zeigt einen dezenten Hinweis (`surface_hint`), der zum Abtauchen/Erkunden
+  ermutigt.
 - **Auftauchen (surface-Szene):** Schwimmt der Taucher über den Screen-Top
   hinaus, wird `surfaced = true` und er landet in der surface-Szene.
   `apply_vertical_bounds` clampt seinen Körper **unter** der Wasserlinie

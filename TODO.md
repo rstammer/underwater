@@ -8,6 +8,8 @@
 - [x] **Game-Over-Screen** neu (zentriert, ursachen-abhängig: Hai vs. ertrunken)
 - [x] **Sprint-Mechanik:** Leertaste halten + schwimmen = schneller (Speed ×2),
       verbraucht schneller Sauerstoff (O2-Drain ×2). `SPRINT_MULTIPLIER`.
+- [x] **Start an der Oberfläche** (`spawn_at_surface`) + dezenter Erkundungs-
+      Hinweis in der surface-Szene (`surface_hint`)
 - [ ] Sammelbares + Score (später, nicht jetzt)
 
 ## Tuning-Notizen (Defaults, per Playtest justierbar)
