@@ -2,7 +2,9 @@
 
 ## Features
 - [x] **Surface-Szene** (Wasserlinie oben, nur Kopf darf raus, Auftrieb)
-  - [ ] später ausbauen: **Boot als "home" für den Taucher**
+  - [x] **Boot als "home"** (`surface_boat`, generiertes `sprites/decor/boat.png`),
+        Taucher spawnt daneben (`SURFACE_BOAT_X`)
+  - [ ] Boot weiter ausbauen: als Hub/Menü, Nachschub, Tauchgang-Start
 - [x] **Sauerstoff-Mechanik** (O2-Balken, Refill nur beim Atmen an der Oberfläche,
       leer → ertrinken/game_over)
 - [x] **Game-Over-Screen** neu (zentriert, ursachen-abhängig: Hai vs. ertrunken)

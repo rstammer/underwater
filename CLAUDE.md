@@ -54,6 +54,9 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
 - `app/world/` — `water` (reopenet `Game`), `sand_tile`, `weed`, `fog_of_war`
 - `app/ux/` — `panel` (HUD/UI), eigenständige Klasse
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
+- `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
+  Seetang, Boot); erzeugt per Stdlib-PNG-Skript, im Titel + der Surface-Szene
+  genutzt und für später wiederverwendbar
 - `sounds/` — Audio
 
 ### Spiel-Loop (`Game#tick`)
@@ -125,9 +128,10 @@ Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start be
 ## Spielmechanik
 
 - **Rundenstart (`spawn_at_surface`):** Jede Runde (erster Start *und* Neustart
-  nach game_over) beginnt an der Oberfläche, Kopf raus/atmend. Die surface-Szene
-  zeigt einen dezenten Hinweis (`surface_hint`), der zum Abtauchen/Erkunden
-  ermutigt.
+  nach game_over) beginnt an der Oberfläche neben dem Boot (`SURFACE_BOAT_X`),
+  Kopf raus/atmend. Die surface-Szene zeigt ein schaukelndes **Home-Boot**
+  (`surface_boat`) und einen dezenten Hinweis (`surface_hint`), der zum
+  Abtauchen/Erkunden ermutigt.
 - **Auftauchen (surface-Szene):** Schwimmt der Taucher über den Screen-Top
   hinaus, wird `surfaced = true` und er landet in der surface-Szene.
   `apply_vertical_bounds` clampt seinen Körper **unter** der Wasserlinie

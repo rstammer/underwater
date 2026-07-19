@@ -7,7 +7,22 @@ class Game
     outputs.sprites << water(60)
     outputs.sprites << sky_band
     outputs.sprites << waterline
+    outputs.sprites << surface_boat
     outputs.labels << surface_hint
+  end
+
+  # The diver's home: a small boat bobbing on the waterline. The diver spawns
+  # right next to it (see spawn_at_surface). Meant to grow into a hub later.
+  def surface_boat
+    scale = 3
+    bob = Math.sin(Kernel.tick_count / 45.0) * 4
+    {
+      x: SURFACE_BOAT_X,
+      y: SURFACE_WATERLINE - 24 + bob,
+      w: 48 * scale,
+      h: 34 * scale,
+      path: "sprites/decor/boat.png",
+    }
   end
 
   # A quiet nudge in the sky, encouraging the player to dive and explore.

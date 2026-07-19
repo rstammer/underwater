@@ -20,6 +20,7 @@ SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 SURFACE_WATERLINE = 350 # y of the waterline in the surface scene; diver body stays below it
 SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center floats (only head/shoulders show)
+SURFACE_BOAT_X = 120 # screen x of the diver's home boat in the surface scene
 OXYGEN_MAX = 100
 OXYGEN_DRAIN = 0.05 # per tick underwater (~33s of air)
 OXYGEN_REFILL = 1.0 # per tick while breathing at the surface (fast top-up)
@@ -127,11 +128,12 @@ class Game
     spawn_at_surface
   end
 
-  # Every round begins floating at the surface with the head out of the water,
-  # so the player catches a breath and eases in before diving to explore.
+  # Every round begins floating at the surface next to the home boat, head out
+  # of the water — the player catches a breath and eases in before diving.
   def spawn_at_surface
     state.surfaced = true
     state.player_y = SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
+    state.player_x = SURFACE_BOAT_X + 96 # in the water just beside the boat
   end
 
   def update_characters(sprite_index)

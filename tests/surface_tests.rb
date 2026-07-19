@@ -52,6 +52,25 @@ class SurfaceTests
     assert.equal! args.state.player_y, 1
   end
 
+  def test_surface_shows_the_home_boat(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    boat = game.surface_boat
+
+    assert.true! boat[:path].include?("boat"), "the surface shows the home boat"
+    assert.true! boat[:y] < SURFACE_WATERLINE, "the boat floats at the waterline"
+  end
+
+  def test_diver_starts_beside_the_home_boat(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    game.spawn_at_surface
+
+    assert.true! (args.state.player_x - SURFACE_BOAT_X).abs < 200, "diver starts near the boat"
+  end
+
   def test_update_scene_selects_surface_when_surfaced(args, assert)
     game = build_game(args)
     game.initialize_game(0)
