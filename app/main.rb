@@ -23,6 +23,7 @@ SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center floats
 OXYGEN_MAX = 100
 OXYGEN_DRAIN = 0.05 # per tick underwater (~33s of air)
 OXYGEN_REFILL = 1.0 # per tick while breathing at the surface (fast top-up)
+SPRINT_MULTIPLIER = 2 # sprinting: this much faster, and this much thirstier for air
 FOG_OF_WAR = true
 DEBUG = false
 
@@ -42,6 +43,7 @@ class Game
     ) || 0
 
     update_scene
+    update_sprint
     update_characters(sprite_index)
     basic_movements_per_tick
     apply_vertical_bounds
@@ -64,6 +66,8 @@ class Game
     state.surfaced = false
     state.oxygen = OXYGEN_MAX
     state.death_cause = nil
+    state.sprinting = false
+    state.speed = Diver::SPEED
     state.initialized = true
 
     state.diver = Diver.new(args, sprite_index)
@@ -119,6 +123,8 @@ class Game
     state.surfaced = false
     state.oxygen = OXYGEN_MAX
     state.death_cause = nil
+    state.sprinting = false
+    state.speed = Diver::SPEED
   end
 
   def update_characters(sprite_index)
@@ -142,17 +148,17 @@ class Game
 
     if inputs.left
       state.direction = :left
-      state.player_x -= Diver::SPEED
+      state.player_x -= state.speed
     elsif inputs.right
-      state.player_x += Diver::SPEED
+      state.player_x += state.speed
       state.direction = :right
     end
     # no else: keep facing the last direction while idle
 
     if inputs.up
-      state.player_y += Diver::SPEED
+      state.player_y += state.speed
     elsif inputs.down
-      state.player_y -= Diver::SPEED
+      state.player_y -= state.speed
     end
 
     if state.surfaced
@@ -217,19 +223,45 @@ class Game
     end
   end
 
+  # Sprinting (holding the sprint key while actually swimming) makes the diver
+  # faster but burns air quicker. Paused scenes never sprint. The decision is a
+  # pure function so it stays trivially testable without stubbing inputs.
+  def update_sprint
+    state.sprinting = sprint_active?(inputs.keyboard.key_held.space, moving?)
+    state.speed = current_speed
+  end
+
+  def sprint_active?(sprint_key, moving)
+    return false if game_paused?
+
+    !!sprint_key && !!moving
+  end
+
+  def moving?
+    !!(inputs.up || inputs.down || inputs.left || inputs.right)
+  end
+
+  def current_speed
+    state.sprinting ? Diver::SPEED * SPRINT_MULTIPLIER : Diver::SPEED
+  end
+
   # Oxygen tops up only while the head is actually above the waterline,
   # otherwise it drains; running out drowns you.
   def update_oxygen
     if breathing?
       state.oxygen = [state.oxygen + OXYGEN_REFILL, OXYGEN_MAX].min
     else
-      state.oxygen -= OXYGEN_DRAIN
+      state.oxygen -= oxygen_drain
       if state.oxygen <= 0
         state.oxygen = 0
         state.game_scene = "game_over"
         state.death_cause = :drowned
       end
     end
+  end
+
+  def oxygen_drain
+    state.sprinting ? OXYGEN_DRAIN * SPRINT_MULTIPLIER : OXYGEN_DRAIN
   end
 
   # The head clears the water only once the diver has floated up near the

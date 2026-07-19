@@ -22,10 +22,11 @@ class Diver
     @current_args = current_args
 
     if horizontal_movement?
+      speed = @current_args.state.speed || SPEED # sprint scales this via Game#update_sprint
       if @current_args.state.direction == :right
-        @current_args.state.diver_global_x += SPEED
+        @current_args.state.diver_global_x += speed
       elsif @current_args.state.direction == :left
-        @current_args.state.diver_global_x -= SPEED
+        @current_args.state.diver_global_x -= speed
       end
     end
   end

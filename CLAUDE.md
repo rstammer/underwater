@@ -63,14 +63,15 @@ kritisch:
 
 1. `initialize_game` (nur beim ersten Tick, `unless state.initialized`)
 2. `update_scene` — setzt `state.game_scene` (State-Machine, s. u.)
-3. `update_characters` — Hai/Skalare/Weeds ticken; **Hai-Kollision → game_over
+3. `update_sprint` — setzt `state.sprinting` + `state.speed` (vor jeder Bewegung)
+4. `update_characters` — Hai/Skalare/Weeds ticken; **Hai-Kollision → game_over
    (`death_cause = :eaten`)**
-4. `basic_movements_per_tick` — Tastatur-Input, Auftrieb/Sinken, `angle`
-5. `apply_vertical_bounds` — Meeresgrund-Clamp + Oberflächen-Übergang
-6. `update_oxygen` (außer wenn `game_paused?`) — Drain/Refill, leer → ertrinken
-7. `send("#{state.game_scene}_tick")` — rendert die aktive Szene
-8. `render_diver` (außer pausiert) — Taucher-Sprite + Fog
-9. `render_panel` — **HUD ganz zuletzt**, sonst überdeckt die Szene/der Fog den
+5. `basic_movements_per_tick` — Tastatur-Input, Auftrieb/Sinken, `angle`
+6. `apply_vertical_bounds` — Meeresgrund-Clamp + Oberflächen-Übergang
+7. `update_oxygen` (außer wenn `game_paused?`) — Drain/Refill, leer → ertrinken
+8. `send("#{state.game_scene}_tick")` — rendert die aktive Szene
+9. `render_diver` (außer pausiert) — Taucher-Sprite + Fog
+10. `render_panel` — **HUD ganz zuletzt**, sonst überdeckt die Szene/der Fog den
    O2-Balken (das war ein realer Bug)
 
 Render-Layering in DragonRuby: `solids < sprites < labels`; innerhalb eines
@@ -108,6 +109,8 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `direction` | `:left` / `:right` (Blickrichtung, hält beim Idle) |
 | `angle` | Sprite-Neigung beim Diagonal-Schwimmen |
 | `surfaced` | `true`, wenn der Taucher an der Oberfläche ist (surface-Szene aktiv) |
+| `sprinting` | `true`, solange die Sprint-Taste gehalten wird *und* geschwommen wird |
+| `speed` | effektive Geschwindigkeit dieses Ticks (`Diver::SPEED`, beim Sprint ×`SPRINT_MULTIPLIER`); von Movement *und* `Diver#tick` gelesen |
 | `oxygen` | 0..`OXYGEN_MAX`; leer → ertrinken |
 | `death_cause` | `:eaten` (Hai) / `:drowned` (O2 leer) / `nil` — steuert Game-Over-Text |
 | `player_state` | `:alive` (Alt-Feld, aktuell nicht game-over-relevant) |
@@ -133,6 +136,11 @@ Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start be
   wenn `breathing?` — also aufgetaucht *und* Kopf über der Wasserlinie (nicht
   schon beim bloßen Szenenwechsel). Leer → `game_over` / `:drowned`. O2-Balken-
   HUD wird bei <30 % rot.
+- **Sprint:** Sprint-Taste (Leertaste) halten *während* man schwimmt →
+  Geschwindigkeit ×`SPRINT_MULTIPLIER` und O2-Verbrauch ×`SPRINT_MULTIPLIER`.
+  Reine Entscheidung in `sprint_active?` (nie in pausierten Szenen), Effekt über
+  `state.speed` / `oxygen_drain`. Taste im Stehen kostet nichts. Kein Konflikt
+  mit `fire_input?` (das nutzt `key_down`, nur in pausierten Szenen).
 - **Fog of War:** unter Wasser aktiv (`FOG_OF_WAR`), an der Oberfläche aus (dort
   ist Tageslicht).
 - **Hai:** In area2 unterwegs; Kollision (`intersect_rect?`) → `game_over` /
@@ -141,7 +149,8 @@ Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start be
 ### Tuning-Konstanten (`app/main.rb`)
 
 `SURFACE_WATERLINE=350`, `SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`,
-`OXYGEN_DRAIN=0.05`, `OXYGEN_REFILL=1.0`, `FOG_OF_WAR=true`, `DEBUG=false`.
+`OXYGEN_DRAIN=0.05`, `OXYGEN_REFILL=1.0`, `SPRINT_MULTIPLIER=2`,
+`FOG_OF_WAR=true`, `DEBUG=false`.
 Per Playtest justierbar — siehe Notizen in [`TODO.md`](TODO.md).
 
 ## Tests
