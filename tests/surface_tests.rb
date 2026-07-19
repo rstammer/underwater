@@ -62,6 +62,16 @@ class SurfaceTests
     assert.true! boat[:y] < SURFACE_WATERLINE, "the boat floats at the waterline"
   end
 
+  def test_spawn_syncs_screen_and_world_x(args, assert)
+    # If these drift apart, the sector boundary no longer lines up with the edge.
+    game = build_game(args)
+    game.initialize_game(0)
+
+    game.spawn_at_surface
+
+    assert.equal! args.state.player_x, args.state.diver_global_x
+  end
+
   def test_diver_starts_beside_the_home_boat(args, assert)
     game = build_game(args)
     game.initialize_game(0)

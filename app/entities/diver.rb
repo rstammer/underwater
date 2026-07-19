@@ -17,22 +17,12 @@ class Diver
     @current_args.state.diver_global_x
   end
 
+  # Horizontal movement (both player_x and diver_global_x) is driven together in
+  # Game#basic_movements_per_tick so the two stay perfectly in lockstep. This
+  # object is now a pure renderer that reads position from state.
   def tick(current_args, sprite_index)
     @sprite_index = sprite_index
     @current_args = current_args
-
-    if horizontal_movement?
-      speed = @current_args.state.speed || SPEED # sprint scales this via Game#update_sprint
-      if @current_args.state.direction == :right
-        @current_args.state.diver_global_x += speed
-      elsif @current_args.state.direction == :left
-        @current_args.state.diver_global_x -= speed
-      end
-    end
-  end
-  
-  def horizontal_movement?
-    @current_args.inputs.left || @current_args.inputs.right
   end
 
   def movement?

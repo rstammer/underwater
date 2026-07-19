@@ -112,17 +112,14 @@ class Game
 
   def reset_game
     state.angle = 0
-    state.player_x = 20
-    state.player_y = 710
     state.player_state = :alive
     state.direction = :right
     state.dark_shark = { x: 300, y: 300 }
-    state.diver_global_x = Diver::START_X # otherwise restart stays in area2 with the shark
     state.oxygen = OXYGEN_MAX
     state.death_cause = nil
     state.sprinting = false
     state.speed = Diver::SPEED
-    spawn_at_surface
+    spawn_at_surface # sets position (player_x, diver_global_x, player_y, surfaced)
   end
 
   # Every round begins floating at the surface next to the home boat, head out
@@ -131,6 +128,9 @@ class Game
     state.surfaced = true
     state.player_y = SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
     state.player_x = SURFACE_BOAT_X + 96 # in the water just beside the boat
+    # Keep the world position in lockstep with the on-screen position, so the
+    # sector boundary lines up with the screen edge (both wrap at SCREEN_WIDTH).
+    state.diver_global_x = state.player_x
   end
 
   def update_characters(sprite_index)
@@ -171,11 +171,15 @@ class Game
       return
     end
 
+    # Move the on-screen and world x together so the sector boundary always
+    # lines up with the screen edge.
     if inputs.left
       state.direction = :left
       state.player_x -= state.speed
+      state.diver_global_x -= state.speed
     elsif inputs.right
       state.player_x += state.speed
+      state.diver_global_x += state.speed
       state.direction = :right
     end
     # no else: keep facing the last direction while idle
@@ -324,11 +328,15 @@ class Game
     "Sektor #{world_index}    Tiefe #{current_depth} m"
   end
 
-  # 0 at the surface, growing the deeper the diver swims.
+  # Depth below the surface in metres — continuous across the shallow surface
+  # scene and the deep underwater scene. 0 m at the waterline, growing as the
+  # diver descends (the surface scene is the top SURFACE_WATERLINE/10 metres).
   def current_depth
-    return 0 if state.surfaced
-
-    [(SCREEN_HEIGHT - state.player_y) / 10, 0].max.to_i
+    if state.surfaced
+      [(SURFACE_WATERLINE - state.player_y) / 10, 0].max.to_i
+    else
+      (SURFACE_WATERLINE + SCREEN_HEIGHT - state.player_y) / 10
+    end
   end
 
   def render_oxygen_bar
