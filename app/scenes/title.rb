@@ -4,9 +4,9 @@ class Game
   TITLE_FISH = [
     { path: "sprites/animals/scalar_32_16/orange.png", y: 470, speed: 0.9,  size: 2, dir: 1 },
     { path: "sprites/animals/scalar_32_16/blue.png",   y: 250, speed: 0.6,  size: 2, dir: -1 },
-    { path: "sprites/animals/bass1_32_16/Grey.png",    y: 150, speed: 1.3,  size: 3, dir: 1 },
+    { path: "sprites/animals/bass1_32_16/grey.png",    y: 150, speed: 1.3,  size: 3, dir: 1 },
     { path: "sprites/animals/scalar_32_16/purple.png", y: 560, speed: 0.45, size: 1, dir: -1 },
-    { path: "sprites/animals/bass1_32_16/Red.png",     y: 360, speed: 0.75, size: 2, dir: -1 },
+    { path: "sprites/animals/bass1_32_16/red.png",     y: 360, speed: 0.75, size: 2, dir: -1 },
   ]
 
   def title_tick
