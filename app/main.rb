@@ -15,6 +15,11 @@ require "app/world/water.rb"
 require "app/world/weed.rb"
 require "app/world/fog_of_war.rb"
 
+require "app/world/rng.rb"
+require "app/world/biome.rb"
+require "app/world/world.rb"
+require "app/world/world_generator.rb"
+
 ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
