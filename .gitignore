@@ -29,3 +29,6 @@ eula.txt
 
 # macOS
 .DS_Store
+
+# personal working notes, not for the public repo
+TODO.md
