@@ -2,6 +2,8 @@
 
 <img width="700" alt="Bildschirmfoto 2024-11-10 um 20 00 34" src="https://github.com/user-attachments/assets/93abe1ed-50a3-4966-9598-7f0db62a5a3f">
 
+**▶ [Play it in your browser](https://stammer.dev/underwater/)**
+
 This is my first game made using DragonRuby. It's a pet project
 for the joy of learning on how to make games. 
 
@@ -63,3 +65,5 @@ Cross-Origin-Embedder-Policy: require-corp
 `dragonruby-httpd` sets them for you; on your own server you have to add them.
 (The export also ships a service worker that can inject them client-side as a
 fallback, but setting them on the server is more reliable.)
+
+The live instance runs at <https://stammer.dev/underwater/>.
