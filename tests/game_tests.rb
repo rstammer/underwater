@@ -10,8 +10,8 @@ class GameTests
     game.initialize_game(0)
 
     assert.equal! args.state.game_scene, "title"
-    assert.equal! args.state.player_x, Diver::START_X
     assert.equal! args.state.diver_global_x, Diver::START_X
+    assert.equal! args.state.player_x, CAMERA_ANCHOR_X # on-screen x is camera-projected
     assert.true! args.state.initialized
     assert.equal! args.state.dark_shark.x, -300
     assert.equal! args.state.dark_shark.y, 300

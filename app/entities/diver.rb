@@ -31,7 +31,7 @@ class Diver
 
   def to_h
     {
-      x: @current_args.state.player_x % 1280,
+      x: @current_args.state.player_x, # already the on-screen x (camera-projected)
       y: @current_args.state.player_y,
       w: WIDTH * 2,
       h: HEIGHT * 2,

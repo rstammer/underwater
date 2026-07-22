@@ -67,6 +67,32 @@ class CameraTests
     assert.false! game.sky_fill == [], "sky appears as the waterline comes into view"
   end
 
+  # Horizontally the camera centres on the diver; the world scrolls sideways.
+  def test_camera_centers_on_the_diver_horizontally(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.diver_global_x = 2000
+
+    game.update_depth_and_camera
+
+    assert.equal! args.state.camera_x, 2000 - CAMERA_ANCHOR_X, "camera scrolls to keep the diver centred"
+    assert.equal! args.state.player_x, CAMERA_ANCHOR_X, "the diver sits at the horizontal anchor"
+  end
+
+  # At a chunk boundary the diver's segment and its neighbour are both on screen,
+  # so the terrain scrolls across continuously instead of flipping.
+  def test_two_segments_are_visible_at_a_boundary(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.diver_global_x = SCREEN_WIDTH # right at the segment 0/1 boundary
+
+    game.update_depth_and_camera
+    indices = game.visible_world_indices
+
+    assert.true! indices.length >= 2, "more than one segment is on screen at a boundary"
+    assert.true! indices.include?(game.world_index), "the diver's own segment is visible"
+  end
+
   # At the surface you see only the water surface — the fish below are hidden.
   def test_fauna_hidden_at_the_surface(args, assert)
     game = build_game(args)

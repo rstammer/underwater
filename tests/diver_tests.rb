@@ -1,7 +1,7 @@
 class DiverTests
-  # to_h wraps the on-screen x at the screen width and reflects direction.
-  def test_to_h_wraps_x_and_faces_right(args, assert)
-    args.state.player_x = 1300
+  # to_h renders at the camera-projected on-screen x and reflects direction.
+  def test_to_h_uses_the_screen_x_and_faces_right(args, assert)
+    args.state.player_x = 640
     args.state.player_y = 200
     args.state.direction = :right
     args.state.angle = 0
@@ -9,7 +9,7 @@ class DiverTests
     diver = Diver.new(args, 0)
     h = diver.to_h
 
-    assert.equal! h[:x], 1300 % 1280 # 20
+    assert.equal! h[:x], 640 # already the on-screen x, no wrapping
     assert.equal! h[:y], 200
     assert.equal! h[:w], Diver::WIDTH * 2
     assert.equal! h[:h], Diver::HEIGHT * 2

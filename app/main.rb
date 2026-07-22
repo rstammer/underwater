@@ -22,6 +22,7 @@ SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 WATERLINE_Y = SCREEN_HEIGHT # world y of the surface: water fills world 0..WATERLINE_Y, sky above it
 CAMERA_ANCHOR = SCREEN_HEIGHT / 2 # target screen y for the diver; the camera scrolls the world past him
+CAMERA_ANCHOR_X = SCREEN_WIDTH / 2 # target screen x for the diver; the world scrolls sideways past him
 SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center rests (only head/shoulders show)
 SURFACE_BOAT_X = 120 # world x of the diver's home boat, floating at the waterline
 OXYGEN_MAX = 100
@@ -59,14 +60,15 @@ class Game
 
   def initialize_game(sprite_index)
     state.angle = 0
-    state.player_x = Diver::START_X
+    state.diver_global_x = Diver::START_X             # world horizontal position (source of truth)
     state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH # world vertical position (0 = sea floor)
-    state.player_y = CAMERA_ANCHOR                    # on-screen y, derived each tick from depth_y - camera_y
+    state.camera_x = Diver::START_X - CAMERA_ANCHOR_X # world x shown at the left of the screen
     state.camera_y = 0                                # world y shown at the bottom of the screen
+    state.player_x = CAMERA_ANCHOR_X                  # on-screen x, derived each tick from global_x - camera_x
+    state.player_y = CAMERA_ANCHOR                    # on-screen y, derived each tick from depth_y - camera_y
     state.direction = :right
     state.dark_shark = { x: -300, y: 300 }
     state.game_scene = "title"
-    state.diver_global_x = Diver::START_X
     state.oxygen = OXYGEN_MAX
     state.death_cause = nil
     state.sprinting = false
@@ -100,12 +102,11 @@ class Game
   # of the water — the player catches a breath and eases in before diving.
   def spawn_at_surface
     state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH # head out, body just under the waterline
-    state.player_x = SURFACE_BOAT_X + 96 # in the water just beside the boat
-    # Keep the world position in lockstep with the on-screen position, so the
-    # sector boundary lines up with the screen edge (both wrap at SCREEN_WIDTH).
-    state.diver_global_x = state.player_x
+    state.diver_global_x = SURFACE_BOAT_X + 96 # world x, in the water just beside the boat
     state.camera_y = [state.depth_y - CAMERA_ANCHOR, 0].max
+    state.camera_x = state.diver_global_x - CAMERA_ANCHOR_X
     state.player_y = state.depth_y - state.camera_y
+    state.player_x = state.diver_global_x - state.camera_x
   end
 
   def update_characters(sprite_index)
@@ -116,10 +117,13 @@ class Game
     state.fish.each { |fish| fish.tick(args, sprite_index) }
 
     if shark_present?
-      # Collide in world space: the diver's on-screen y is camera-relative, but
-      # the shark's y is a world position, so compare the diver at his depth_y.
-      diver_rect = state.diver.to_h.merge(y: state.depth_y)
-      if diver_rect.intersect_rect?(state.shark.to_h)
+      # Collide in world space: on-screen x/y are camera-relative, so compare the
+      # diver at his world position against the shark at its world position (the
+      # shark's local x lives in the current chunk).
+      diver_rect = state.diver.to_h.merge(x: state.diver_global_x, y: state.depth_y)
+      shark_rect = state.shark.to_h.merge(x: world_index * SCREEN_WIDTH + state.dark_shark.x,
+                                          y: state.dark_shark.y)
+      if diver_rect.intersect_rect?(shark_rect)
         state.game_scene = "game_over"
         state.death_cause = :eaten
       end
@@ -149,14 +153,12 @@ class Game
       return
     end
 
-    # Move the on-screen and world x together so the sector boundary always
-    # lines up with the screen edge.
+    # Horizontal movement is in world space (diver_global_x); the camera turns it
+    # into an on-screen position later, so no wrapping at the screen edge.
     if inputs.left
       state.direction = :left
-      state.player_x -= state.speed
       state.diver_global_x -= state.speed
     elsif inputs.right
-      state.player_x += state.speed
       state.diver_global_x += state.speed
       state.direction = :right
     end
@@ -203,25 +205,29 @@ class Game
     state.game_scene = state.diver.global_position_x < 1281 ? "area1" : "area2"
   end
 
-  # Clamp the diver in the water column, then move the camera to follow him and
-  # project his world depth_y onto an on-screen player_y. One continuous space:
-  # no scene switch, no teleport — the camera just scrolls the world past him.
+  # Clamp the diver in the water column, then move the camera (both axes) to
+  # follow him and project his world position onto the on-screen player_x/y. One
+  # continuous space: no scene switch, no teleport — the camera scrolls the world.
   def update_depth_and_camera
     ceil = WATERLINE_Y - SURFACE_FLOAT_DEPTH # float no higher than head-out at the surface
     state.depth_y = ceil if state.depth_y > ceil
     state.depth_y = sea_floor_y if state.depth_y < sea_floor_y
 
-    # Follow the diver, but never scroll below the sea-floor view: with the
-    # camera at 0 the screen shows the classic world 0..SCREEN_HEIGHT (floor to
+    # Vertical: follow the diver, but never scroll below the sea-floor view — with
+    # camera_y at 0 the screen shows the classic world 0..SCREEN_HEIGHT (floor to
     # waterline). Above the dead zone the world scrolls and the diver stays put.
     state.camera_y = [state.depth_y - CAMERA_ANCHOR, 0].max
+    # Horizontal: centre the diver; the world scrolls sideways past him.
+    state.camera_x = state.diver_global_x - CAMERA_ANCHOR_X
+
     state.player_y = state.depth_y - state.camera_y
+    state.player_x = state.diver_global_x - state.camera_x
   end
 
   # The sand height right under the diver, so he rests on the floor instead of
   # sinking through it. A little headroom keeps his body above the dune.
   def sea_floor_y
-    current_world.floor_height_at(state.player_x % SCREEN_WIDTH) + Diver::HEIGHT
+    current_world.floor_height_at(state.diver_global_x % SCREEN_WIDTH) + Diver::HEIGHT
   end
 
   # Sprinting (holding the sprint key while actually swimming) makes the diver

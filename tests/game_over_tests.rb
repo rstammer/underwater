@@ -9,10 +9,10 @@ class GameOverTests
     game = build_game(args)
     game.initialize_game(0)
     args.state.game_scene = "area2"   # un-paused, underwater
-    args.state.diver_global_x = 1500  # a shark biome (Tiefsee)
-    args.state.player_x = 100
+    args.state.diver_global_x = 1500  # a shark biome (Tiefsee), world x 1500
     args.state.depth_y = 100           # collide in world space at this depth
-    args.state.dark_shark = { x: 100, y: 100 } # overlapping the diver
+    # Shark local x 220 in segment 1 -> world x 1280 + 220 = 1500, overlapping the diver.
+    args.state.dark_shark = { x: 220, y: 100 }
 
     game.update_characters(0)
 
