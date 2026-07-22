@@ -10,9 +10,7 @@ require "app/entities/dark_shark.rb"
 require "app/entities/sloppy_scalar.rb"
 require "app/entities/diver.rb"
 
-require "app/world/sand_tile.rb"
 require "app/world/water.rb"
-require "app/world/weed.rb"
 require "app/world/fog_of_war.rb"
 
 require "app/world/rng.rb"
@@ -22,7 +20,6 @@ require "app/world/world_generator.rb"
 require "app/world/static_worlds.rb"
 require "app/world/world_renderer.rb"
 
-ANIMATION_START_TICK = 0
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 SURFACE_WATERLINE = 350 # y of the waterline in the surface scene; diver body stays below it
@@ -65,10 +62,8 @@ class Game
     state.angle = 0
     state.player_x = Diver::START_X
     state.player_y = 710
-    state.player_state = :alive
     state.direction = :right
     state.dark_shark = { x: -300, y: 300 }
-    state.scene = "underwater-start"
     state.game_scene = "title"
     state.diver_global_x = Diver::START_X
     state.surfaced = false
@@ -96,13 +91,6 @@ class Game
     }
   end
 
-  def ground
-    state.ground_tiles ||=
-      (1..10_000).map do |n|
-        SandTile.new(grid, 2 * n % grid.w, -2 + rand(22)).to_h
-      end
-  end
-
   def fire_input?
     inputs.keyboard.key_down.space ||
       inputs.keyboard.key_down.z ||
@@ -112,7 +100,6 @@ class Game
 
   def reset_game
     state.angle = 0
-    state.player_state = :alive
     state.direction = :right
     state.dark_shark = { x: 300, y: 300 }
     state.oxygen = OXYGEN_MAX

@@ -52,8 +52,8 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
 - `app/entities/` — `diver` (Spieler), `dark_shark`, `sloppy_scalar` — eigene
   Klassen, bekommen `args` übergeben, lesen Position aus `state`
 - `app/world/` — **Welt-System** (s. u.): `rng`, `biome`, `world`, `world_generator`,
-  `static_worlds`, `world_renderer` (reopenet `Game`), `fog_of_war`; Alt: `water`,
-  `sand_tile`, `weed` (Boden/Deko jetzt aus Welten, teils ungenutzt)
+  `static_worlds`, `world_renderer` (reopenet `Game`), `fog_of_war`; `water`
+  (reopenet `Game`, liefert die dunklen Wasser-Bänder der surface-Szene)
 - `app/ux/` — `panel` (HUD/UI), eigenständige Klasse
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
@@ -135,7 +135,6 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 |-----|-----------|
 | `initialized` | Flag, ob `initialize_game` schon lief |
 | `game_scene` | aktive Szene (`title`/`area1`/`area2`/`surface`/`game_over`) — steuert Dispatch |
-| `scene` | Legacy-Freitext-Label (`"underwater-start"`), rein deskriptiv |
 | `player_x` | horizontale Screen-Position (wird `% 1280` gerendert) |
 | `player_y` | **vertikale Position = Tiefe.** (0,0) ist unten-links, `y=720` oben. `player_y` hoch = näher an der Oberfläche |
 | `diver_global_x` | unbegrenztes horizontales Weltkoordinat des Tauchers → entscheidet area1/area2. Single source of truth (Diver liest daraus) |
@@ -146,11 +145,11 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `speed` | effektive Geschwindigkeit dieses Ticks (`Diver::SPEED`, beim Sprint ×`SPRINT_MULTIPLIER`); von Movement *und* `Diver#tick` gelesen |
 | `oxygen` | 0..`OXYGEN_MAX`; leer → ertrinken |
 | `death_cause` | `:eaten` (Hai) / `:drowned` (O2 leer) / `nil` — steuert Game-Over-Text |
-| `player_state` | `:alive` (Alt-Feld, aktuell nicht game-over-relevant) |
 | `diver` / `shark` | Entity-Instanzen (`Diver` / `DarkShark`) |
-| `scalars` / `weeds` | Arrays von `SloppyScalar` / `Weed` |
-| `dark_shark` | `{x:, y:}`-Hash der Hai-Position (von area2 gelesen) |
-| `ground_tiles` / `water_bands` / `deepness_values` | gecachte Render-Daten (bewusst so benannt, s. Gotchas) |
+| `fish` | Array von `SloppyScalar` — der Fisch-Schwarm des aktiven Bioms (von `spawn_fauna` neu bestückt) |
+| `dark_shark` | `{x:, y:}`-Hash der Hai-Position (von der `DarkShark`-Entity in `to_h` gelesen) |
+| `active_world` / `active_world_index` | gecachte aktive `World` + ihr Segment-Index (Neugenerierung nur bei Segmentwechsel) |
+| `water_bands` / `deepness_values` | gecachte Render-Daten der surface-Szene (bewusst so benannt, s. Gotchas) |
 
 Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start bei
 `player_y = 710` (dicht unter der Oberfläche), Taucher sinkt langsam ab.
@@ -221,7 +220,7 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
 
 - **`args.state`-Property ≠ Methodenname.** `state.water` würde die Methode
   `water` aufrufen statt Daten zu lesen → Crash `wrong number of arguments`.
-  Deshalb heißen die Caches `water_bands`/`ground_tiles`/`deepness_values`.
+  Deshalb heißen die Caches `water_bands`/`deepness_values`.
 - **HUD zuletzt rendern.** `render_panel` muss ans Ende von `tick`, sonst
   überdecken Szene/Fog den O2-Balken.
 - **`--test` exit-code lügt.** Immer 0 — nur `bin/test` (mit Output-Parsing)
