@@ -8,13 +8,11 @@ class IntroTests
   def test_spawn_at_surface_floats_at_the_waterline(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    args.state.surfaced = false
-    args.state.player_y = 100
+    args.state.depth_y = 100 # somewhere deep
 
     game.spawn_at_surface
 
-    assert.true! args.state.surfaced
-    assert.equal! args.state.player_y, SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
+    assert.equal! args.state.depth_y, WATERLINE_Y - SURFACE_FLOAT_DEPTH
     assert.true! game.breathing?, "head should be out of the water, breathing"
   end
 
@@ -25,7 +23,6 @@ class IntroTests
 
     game.reset_game
 
-    assert.true! args.state.surfaced
     assert.true! game.breathing?
   end
 

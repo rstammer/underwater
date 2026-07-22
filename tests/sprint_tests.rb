@@ -60,7 +60,7 @@ class SprintTests
   def test_sprinting_drains_oxygen_faster_underwater(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    args.state.surfaced = false
+    args.state.depth_y = 300 # submerged, head under water
     args.state.sprinting = true
     args.state.oxygen = 50
 
@@ -72,8 +72,7 @@ class SprintTests
   def test_sprinting_does_not_affect_surface_refill(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    args.state.surfaced = true
-    args.state.player_y = SURFACE_WATERLINE # head above water -> breathing
+    args.state.depth_y = WATERLINE_Y # head above water -> breathing
     args.state.sprinting = true
     args.state.oxygen = 50
 

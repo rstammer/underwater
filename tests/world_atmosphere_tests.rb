@@ -23,7 +23,7 @@ class WorldAtmosphereTests
     game = build_game(args)
     game.initialize_game(0)
     args.state.diver_global_x = 1500 # a shark biome underwater
-    args.state.surfaced = true
+    args.state.depth_y = WATERLINE_Y # floated up, head out -> breathing at the surface
 
     assert.false! game.shark_present?, "the shark can't reach the surface"
   end

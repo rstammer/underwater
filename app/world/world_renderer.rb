@@ -47,9 +47,10 @@ class Game
     end
   end
 
-  # A shark only prowls in shark biomes, and never at the surface.
+  # A shark only prowls in shark biomes, and never while the diver is up
+  # breathing at the surface.
   def shark_present?
-    !state.surfaced && current_world.biome.shark
+    !breathing? && current_world.biome.shark
   end
 
   # Brighter biomes (low fog) let the diver see farther; the dark deep closes in.
@@ -64,12 +65,40 @@ class Game
   end
 
   def render_world(world)
+    outputs.sprites << sky_fill
     outputs.sprites << world_water(world)
+    outputs.sprites << surface_line
     outputs.sprites << world_floor(world)
     outputs.sprites << world_decorations(world)
+    if at_home?
+      outputs.sprites << home_boat
+      outputs.labels << surface_hint if breathing?
+    end
   end
 
-  # Vertical water gradient from the biome's palette (deep at the bottom).
+  # Shift a world-space sprite onto the screen by the current camera offset.
+  def camera_shift(sprite)
+    sprite.merge(y: sprite[:y] - state.camera_y)
+  end
+
+  # Daylight sky above the waterline, filling whatever the camera reveals once
+  # the diver rises. Empty (nothing to draw) while he's deep and the camera rests.
+  def sky_fill
+    waterline = WATERLINE_Y - state.camera_y
+    return [] if waterline >= SCREEN_HEIGHT
+
+    { x: 0, y: waterline, w: grid.w, h: SCREEN_HEIGHT - waterline,
+      r: 135, g: 206, b: 235, path: :solid }
+  end
+
+  # The bright line where water meets sky.
+  def surface_line
+    { x: 0, y: WATERLINE_Y - state.camera_y - 3, w: grid.w, h: 6,
+      r: 200, g: 230, b: 245, path: :solid }
+  end
+
+  # Vertical water gradient from the biome's palette (deep at the bottom, bright
+  # at the waterline), spanning the whole water column and shifted by the camera.
   def world_water(world)
     top = world.biome.water_top
     bottom = world.biome.water_bottom
@@ -78,9 +107,9 @@ class Game
       t = i / (bands - 1.0)
       {
         x: 0,
-        y: i * grid.h / bands,
+        y: i * WATERLINE_Y / bands - state.camera_y,
         w: grid.w,
-        h: grid.h / bands + 1,
+        h: WATERLINE_Y / bands + 1,
         r: lerp(bottom[0], top[0], t),
         g: lerp(bottom[1], top[1], t),
         b: lerp(bottom[2], top[2], t),
@@ -94,12 +123,13 @@ class Game
   def world_floor(world)
     base = world.biome.floor_colors[1]
     cap = world.biome.floor_colors[0]
+    cam = state.camera_y
     tiles = []
     world.floor.each_with_index do |h, col|
       x = col * World::COLUMN_WIDTH
-      tiles << { x: x, y: 0, w: World::COLUMN_WIDTH + 1, h: h,
+      tiles << { x: x, y: 0 - cam, w: World::COLUMN_WIDTH + 1, h: h,
                  r: base[0] - 14, g: base[1] - 14, b: base[2] - 14, path: :solid }
-      tiles << { x: x, y: h - 4, w: World::COLUMN_WIDTH + 1, h: 4,
+      tiles << { x: x, y: h - 4 - cam, w: World::COLUMN_WIDTH + 1, h: 4,
                  r: cap[0], g: cap[1], b: cap[2], path: :solid } # sunlit cap
     end
     tiles
@@ -111,7 +141,7 @@ class Game
       sway = d[:kind] == "seaweed" ? Math.sin((Kernel.tick_count + d[:x]) / 45.0) * 3 : 0
       {
         x: d[:x],
-        y: d[:y],
+        y: d[:y] - state.camera_y,
         w: sprite[:w] * d[:scale],
         h: sprite[:h] * d[:scale],
         path: sprite[:path],
@@ -120,6 +150,36 @@ class Game
         angle: sway,
       }
     end
+  end
+
+  # The diver's home: a small boat bobbing on the waterline over the starting
+  # segment. The diver spawns right next to it (see spawn_at_surface).
+  def home_boat
+    scale = 3
+    bob = Math.sin(Kernel.tick_count / 45.0) * 4
+    {
+      x: SURFACE_BOAT_X,
+      y: WATERLINE_Y - 24 + bob - state.camera_y,
+      w: 48 * scale,
+      h: 34 * scale,
+      path: "sprites/decor/boat.png",
+    }
+  end
+
+  # A quiet nudge in the sky, shown while resting at the surface, encouraging the
+  # player to dive and explore. Deliberately low-contrast so it stays background.
+  def surface_hint
+    {
+      x: grid.w / 2,
+      y: grid.h - 60,
+      text: "Tauche ab und erkunde die Unterwasserwelt",
+      size_enum: 2,
+      alignment_enum: 1,
+      r: 30,
+      g: 60,
+      b: 80,
+      a: 170,
+    }
   end
 
   def lerp(a, b, t)

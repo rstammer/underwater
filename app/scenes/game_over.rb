@@ -1,7 +1,7 @@
 class Game
   def game_over_tick
     if fire_input?
-      state.game_scene = "surface" # restart at the surface, mirroring a fresh start
+      state.game_scene = "area1" # restart at the surface, mirroring a fresh start
       reset_game
       return
     end

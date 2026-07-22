@@ -5,9 +5,10 @@ class Game
 
   # Both underwater segments render the same way now — the active world (its
   # biome, floor and decorations) drives the look, plus its fish and any shark.
+  # Fauna lives in world space, so shift it onto the screen by the camera.
   def render_underwater
     render_world(current_world)
-    outputs.sprites << state.fish.map(&:to_h)
-    outputs.sprites << state.shark.to_h if shark_present?
+    outputs.sprites << state.fish.map { |fish| camera_shift(fish.to_h) }
+    outputs.sprites << camera_shift(state.shark.to_h) if shark_present?
   end
 end

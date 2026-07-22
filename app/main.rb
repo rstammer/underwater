@@ -4,13 +4,11 @@ require "app/scenes/title.rb"
 require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
 require "app/scenes/area2.rb"
-require "app/scenes/surface.rb"
 
 require "app/entities/dark_shark.rb"
 require "app/entities/sloppy_scalar.rb"
 require "app/entities/diver.rb"
 
-require "app/world/water.rb"
 require "app/world/fog_of_war.rb"
 
 require "app/world/rng.rb"
@@ -22,9 +20,10 @@ require "app/world/world_renderer.rb"
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
-SURFACE_WATERLINE = 160 # y of the waterline in the surface scene; diver body stays below it
-SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center floats (only head/shoulders show)
-SURFACE_BOAT_X = 120 # screen x of the diver's home boat in the surface scene
+WATERLINE_Y = SCREEN_HEIGHT # world y of the surface: water fills world 0..WATERLINE_Y, sky above it
+CAMERA_ANCHOR = SCREEN_HEIGHT / 2 # target screen y for the diver; the camera scrolls the world past him
+SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center rests (only head/shoulders show)
+SURFACE_BOAT_X = 120 # world x of the diver's home boat, floating at the waterline
 OXYGEN_MAX = 100
 OXYGEN_DRAIN = 0.009 # per tick underwater (~3 min of air at 60 fps)
 OXYGEN_REFILL = 1.0 # per tick while breathing at the surface (fast top-up)
@@ -51,7 +50,7 @@ class Game
     update_sprint
     update_characters(sprite_index)
     basic_movements_per_tick
-    apply_vertical_bounds
+    update_depth_and_camera
     update_oxygen unless game_paused?
     send("#{state.game_scene}_tick")
     render_diver unless game_paused?
@@ -61,12 +60,13 @@ class Game
   def initialize_game(sprite_index)
     state.angle = 0
     state.player_x = Diver::START_X
-    state.player_y = 710
+    state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH # world vertical position (0 = sea floor)
+    state.player_y = CAMERA_ANCHOR                    # on-screen y, derived each tick from depth_y - camera_y
+    state.camera_y = 0                                # world y shown at the bottom of the screen
     state.direction = :right
     state.dark_shark = { x: -300, y: 300 }
     state.game_scene = "title"
     state.diver_global_x = Diver::START_X
-    state.surfaced = false
     state.oxygen = OXYGEN_MAX
     state.death_cause = nil
     state.sprinting = false
@@ -76,19 +76,6 @@ class Game
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)
     state.fish = [] # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
-  end
-
-  def default_background
-    {
-      x: 0,
-      y: 0,
-      w: grid.w,
-      h: grid.h,
-      r: 48,
-      g: 95,
-      b: 177,
-      path: :solid,
-    }
   end
 
   def fire_input?
@@ -101,23 +88,24 @@ class Game
   def reset_game
     state.angle = 0
     state.direction = :right
-    state.dark_shark = { x: 300, y: 300 }
+    state.dark_shark = { x: -300, y: 300 }
     state.oxygen = OXYGEN_MAX
     state.death_cause = nil
     state.sprinting = false
     state.speed = Diver::SPEED
-    spawn_at_surface # sets position (player_x, diver_global_x, player_y, surfaced)
+    spawn_at_surface # sets position (player_x, diver_global_x, depth_y, camera_y)
   end
 
   # Every round begins floating at the surface next to the home boat, head out
   # of the water — the player catches a breath and eases in before diving.
   def spawn_at_surface
-    state.surfaced = true
-    state.player_y = SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
+    state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH # head out, body just under the waterline
     state.player_x = SURFACE_BOAT_X + 96 # in the water just beside the boat
     # Keep the world position in lockstep with the on-screen position, so the
     # sector boundary lines up with the screen edge (both wrap at SCREEN_WIDTH).
     state.diver_global_x = state.player_x
+    state.camera_y = [state.depth_y - CAMERA_ANCHOR, 0].max
+    state.player_y = state.depth_y - state.camera_y
   end
 
   def update_characters(sprite_index)
@@ -128,7 +116,10 @@ class Game
     state.fish.each { |fish| fish.tick(args, sprite_index) }
 
     if shark_present?
-      if state.diver.to_h.intersect_rect?(state.shark.to_h)
+      # Collide in world space: the diver's on-screen y is camera-relative, but
+      # the shark's y is a world position, so compare the diver at his depth_y.
+      diver_rect = state.diver.to_h.merge(y: state.depth_y)
+      if diver_rect.intersect_rect?(state.shark.to_h)
         state.game_scene = "game_over"
         state.death_cause = :eaten
       end
@@ -171,17 +162,19 @@ class Game
     end
     # no else: keep facing the last direction while idle
 
+    # Vertical movement is in world space now (depth_y): up = shallower, down =
+    # deeper. The camera turns this into an on-screen position later.
     if inputs.up
-      state.player_y += state.speed
+      state.depth_y += state.speed
     elsif inputs.down
-      state.player_y -= state.speed
+      state.depth_y -= state.speed
     end
 
     # Negatively buoyant: the diver slowly sinks unless he's swimming up. The one
     # exception is resting at the surface with his head out of the water
     # (breathing?) — a pause mode where he floats in place. Below the waterline he
-    # always sinks. (sea floor / waterline clamps in apply_vertical_bounds)
-    state.player_y -= 0.15 unless inputs.up || breathing?
+    # always sinks. (sea floor / waterline clamps in update_depth_and_camera)
+    state.depth_y -= 0.15 unless inputs.up || breathing?
 
     if state.direction == :right
       if inputs.up && (inputs.left || inputs.right)
@@ -205,41 +198,30 @@ class Game
   def update_scene
     return if game_paused?
 
-    state.game_scene =
-      if state.surfaced
-        "surface"
-      elsif state.diver.global_position_x < 1281
-        "area1"
-      else
-        "area2"
-      end
+    # Only the horizontal sector matters now — being at the surface is just a
+    # high depth_y, rendered continuously, not a separate scene.
+    state.game_scene = state.diver.global_position_x < 1281 ? "area1" : "area2"
   end
 
-  # Vertical world bounds + surface transition (mirrors the horizontal
-  # area1<->area2 wrap). The diver can never leave the water: while surfaced
-  # its body is clamped at the waterline so only the head pokes above.
-  def apply_vertical_bounds
-    if state.surfaced
-      float_y = SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
-      state.player_y = float_y if state.player_y > float_y
+  # Clamp the diver in the water column, then move the camera to follow him and
+  # project his world depth_y onto an on-screen player_y. One continuous space:
+  # no scene switch, no teleport — the camera just scrolls the world past him.
+  def update_depth_and_camera
+    ceil = WATERLINE_Y - SURFACE_FLOAT_DEPTH # float no higher than head-out at the surface
+    state.depth_y = ceil if state.depth_y > ceil
+    state.depth_y = sea_floor_y if state.depth_y < sea_floor_y
 
-      # The moment the head dips under the waterline the diver is diving, so hand
-      # straight over to the underwater scene just below the surface — symmetric
-      # with breaking the surface on the way up, no long descent in between.
-      if state.player_y + Diver::HEIGHT < SURFACE_WATERLINE
-        state.surfaced = false
-        state.player_y = SCREEN_HEIGHT - 1
-      end
-    else
-      if state.player_y >= SCREEN_HEIGHT # swam up past the top -> break the surface
-        state.surfaced = true
-        # Arrive right at the breathing position: reaching the top means you're
-        # up, not facing another water column to climb inside the surface scene.
-        state.player_y = SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
-      end
+    # Follow the diver, but never scroll below the sea-floor view: with the
+    # camera at 0 the screen shows the classic world 0..SCREEN_HEIGHT (floor to
+    # waterline). Above the dead zone the world scrolls and the diver stays put.
+    state.camera_y = [state.depth_y - CAMERA_ANCHOR, 0].max
+    state.player_y = state.depth_y - state.camera_y
+  end
 
-      state.player_y = 1 if state.player_y < 1 # sea floor
-    end
+  # The sand height right under the diver, so he rests on the floor instead of
+  # sinking through it. A little headroom keeps his body above the dune.
+  def sea_floor_y
+    current_world.floor_height_at(state.player_x % SCREEN_WIDTH) + Diver::HEIGHT
   end
 
   # Sprinting (holding the sprint key while actually swimming) makes the diver
@@ -283,10 +265,9 @@ class Game
     state.sprinting ? OXYGEN_DRAIN * SPRINT_MULTIPLIER : OXYGEN_DRAIN
   end
 
-  # The head clears the water only once the diver has floated up near the
-  # waterline in the surface scene.
+  # The head clears the water once the diver has floated up to the waterline.
   def breathing?
-    state.surfaced && state.player_y + Diver::HEIGHT >= SURFACE_WATERLINE
+    state.depth_y + Diver::HEIGHT >= WATERLINE_Y
   end
 
   def render_panel
@@ -320,17 +301,10 @@ class Game
     "Sektor #{world_index}    Tiefe #{current_depth} m"
   end
 
-  # Depth below the surface in metres — a whole number, continuous across the
-  # shallow surface scene and the deep underwater scene. 0 m at the waterline
-  # (and just below the screen top underwater), growing as the diver descends.
+  # Depth below the surface in metres — a whole number from the diver's world
+  # position: 0 m at the waterline, growing as he descends toward the sea floor.
   def current_depth
-    if state.surfaced
-      [(SURFACE_WATERLINE - state.player_y) / 10, 0].max.to_i
-    else
-      # 0 m just below the surface (screen top), growing as the diver descends —
-      # continuous with the surface scene and always a whole number.
-      ((SCREEN_HEIGHT - state.player_y) / 10).to_i
-    end
+    [(WATERLINE_Y - state.depth_y) / 10, 0].max.to_i
   end
 
   def render_oxygen_bar
@@ -356,7 +330,7 @@ class Game
 
   def render_diver
     outputs.sprites << state.diver.to_h
-    if FOG_OF_WAR && !state.surfaced # no fog at the surface — there's daylight up here
+    if FOG_OF_WAR && !breathing? # no fog at the surface — there's daylight up here
       biome = current_world.biome
       outputs.sprites << FogOfWar.new(state.diver,
                                       radius: fog_radius(biome),
