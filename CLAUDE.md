@@ -46,18 +46,20 @@ Singleton delegieren; `boot` initialisiert `args.state = {}` (kein nil-Auto-
 Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
 
 - `app/main.rb` — `class Game` (Loop + Helfer) + `boot`/`tick`/`reset`
-- `app/scenes/` — `title`/`area1`/`area2`/`surface`/`game_over`, **reopenen
-  `class Game`** und definieren `<scene>_tick`; Dispatch via
-  `send("#{state.game_scene}_tick")`
+- `app/scenes/` — `title`/`area1`/`area2`/`game_over`, **reopenen `class Game`**
+  und definieren `<scene>_tick`; Dispatch via `send("#{state.game_scene}_tick")`.
+  `area1`/`area2` rendern dieselbe kontinuierliche Welt (`render_underwater`);
+  eine eigene „surface"-Szene gibt es **nicht mehr** — die Oberfläche ist Teil
+  der durchgehenden Vertikalen (s. Kamera unten).
 - `app/entities/` — `diver` (Spieler), `dark_shark`, `sloppy_scalar` — eigene
   Klassen, bekommen `args` übergeben, lesen Position aus `state`
 - `app/world/` — **Welt-System** (s. u.): `rng`, `biome`, `world`, `world_generator`,
-  `static_worlds`, `world_renderer` (reopenet `Game`), `fog_of_war`; `water`
-  (reopenet `Game`, liefert die dunklen Wasser-Bänder der surface-Szene)
+  `static_worlds`, `world_renderer` (reopenet `Game`; Kamera, Wasser, Himmel,
+  Boden, Deko, Boot), `fog_of_war`
 - `app/ux/` — `panel` (HUD/UI), eigenständige Klasse
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
-  Seetang, Boot); erzeugt per Stdlib-PNG-Skript, im Titel + der Surface-Szene
+  Seetang, Boot); erzeugt per Stdlib-PNG-Skript, im Titel + an der Oberfläche
   genutzt und für später wiederverwendbar
 - `sounds/` — Audio
 
@@ -69,12 +71,15 @@ kritisch:
 1. `initialize_game` (nur beim ersten Tick, `unless state.initialized`)
 2. `update_scene` — setzt `state.game_scene` (State-Machine, s. u.)
 3. `update_sprint` — setzt `state.sprinting` + `state.speed` (vor jeder Bewegung)
-4. `update_characters` — Hai/Skalare/Weeds ticken; **Hai-Kollision → game_over
-   (`death_cause = :eaten`)**
-5. `basic_movements_per_tick` — Tastatur-Input, Auftrieb/Sinken, `angle`
-6. `apply_vertical_bounds` — Meeresgrund-Clamp + Oberflächen-Übergang
+4. `update_characters` — Hai/Skalare ticken; **Hai-Kollision (in Welt-Koordinaten,
+   auf `depth_y`) → game_over (`death_cause = :eaten`)**
+5. `basic_movements_per_tick` — Tastatur-Input, Auftrieb/Sinken (verändert
+   `depth_y`), `angle`
+6. `update_depth_and_camera` — clampt `depth_y` (Meeresgrund ↔ Atem-Höhe an der
+   Wasserlinie), setzt `camera_y` (folgt dem Taucher, Dead Zone am Grund) und
+   projiziert auf die Screen-Position `player_y = depth_y - camera_y`
 7. `update_oxygen` (außer wenn `game_paused?`) — Drain/Refill, leer → ertrinken
-8. `send("#{state.game_scene}_tick")` — rendert die aktive Szene
+8. `send("#{state.game_scene}_tick")` — rendert die aktive Szene (kamera-versetzt)
 9. `render_diver` (außer pausiert) — Taucher-Sprite + Fog
 10. `render_panel` — **HUD ganz zuletzt**, sonst überdeckt die Szene/der Fog den
    O2-Balken (das war ein realer Bug)
@@ -84,19 +89,37 @@ Buckets bestimmt die Einfüge-Reihenfolge das Layering. Deshalb HUD am Ende.
 
 ### Scene-State-Machine (`state.game_scene`)
 
-```
-                 up über Screen-Top          ↓ (down) unter Oberfläche
-   area1 ⇄ area2 ───────────────────►  surface ──────────────────► area1/area2
-     (diver_global_x < 1281 → area1,      (state.surfaced == true)
-      sonst area2)
+Vertikal gibt es **keinen** Szenenwechsel mehr — Auf-/Abtauchen ist eine
+durchgehende Kamerafahrt (s. Kamera & Vertikale). `game_scene` steuert nur noch
+den **horizontalen** Sektor plus die pausierten Screens:
 
-   title ──[Leertaste/z/j/A]──► surface (Spielstart, aufgetaucht/atmend)
-   <überall> ──[Hai / O2 leer]──► game_over ──[Leertaste]──► surface (reset_game)
+```
+   area1 ⇄ area2   (diver_global_x < 1281 → area1, sonst area2; beide rendern
+                    dieselbe kontinuierliche Welt inkl. Oberfläche/Himmel)
+
+   title ──[Leertaste/z/j/A]──► area1 (Spielstart, an der Oberfläche/atmend)
+   <überall> ──[Hai / O2 leer]──► game_over ──[Leertaste]──► area1 (reset_game)
    <überall> ──[ESC]──► title
 ```
 
-`title` und `game_over` sind **pausiert** (`game_paused?`): kein Input-Movement,
-kein O2-Drain, kein HUD.
+`title` und `game_over` sind **pausiert** (`game_paused?`): kein O2-Drain, kein HUD.
+
+### Kamera & Vertikale (kontinuierlich)
+
+Die Vertikale ist **eine durchgehende Welt-Koordinate**, keine gestapelten
+Szenen:
+
+- `state.depth_y` — Welt-Position des Tauchers: `0` = Meeresgrund,
+  `WATERLINE_Y` (= `SCREEN_HEIGHT`) = Wasserlinie, darüber Himmel.
+- `state.camera_y` — Welt-`y`, das am **unteren** Screenrand liegt; folgt dem
+  Taucher (`depth_y - CAMERA_ANCHOR`), aber nie unter den Grund (`max(…, 0)`) →
+  **Dead Zone** am Meeresgrund (dort ruht die Kamera, der klassische Blick 0..720).
+- **Projektion:** `screen_y = welt_y - camera_y`; der Taucher landet auf
+  `state.player_y = depth_y - camera_y` (Diver + Fog lesen daraus, unverändert).
+- Alles Welt-Räumliche (Wasser-Verlauf, Himmel, Boden, Deko, Fisch, Hai, Boot)
+  wird beim Rendern um `camera_y` verschoben (`camera_shift`). Hochschwimmen
+  scrollt so die Welt weich durch, bis Wasserlinie + Himmel ins Bild kommen —
+  **kein Sprung, keine Teleportation.**
 
 ## Welten (prozedural + statisch)
 
@@ -115,13 +138,16 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   überschreiben (`world_for` = statisch ?: generiert). Der „Mix"-Hook; aktuell leer.
 - **`world_renderer.rb`** (reopenet `Game`) — `current_world` wählt die Welt aus
   `world_index = diver_global_x / SCREEN_WIDTH` (gecacht in `state.active_world`,
-  Neugenerierung nur bei Segmentwechsel), `render_world` zeichnet Wasser-Verlauf +
-  Boden + Deko. Fauna: `spawn_fauna` (Fisch-Schwarm pro Biom), `shark_present?`
-  (Hai nur in Hai-Biomen, nie an der Oberfläche). **Fog:** `fog_radius`/`fog_color`
-  aus dem Biom — **hellere Biome sehen weiter**, die Tiefsee schließt sich eng um
-  den Taucher.
+  Neugenerierung nur bei Segmentwechsel). `render_world` zeichnet **kamera-versetzt**
+  (`camera_y`): Himmel über der Wasserlinie (`sky_fill`), Wasser-Verlauf über die
+  ganze Wassersäule (`world_water`), Wasserlinie (`surface_line`), Boden + Deko,
+  und am Startsegment das Boot (`home_boat` + `surface_hint` beim Atmen). Fauna:
+  `spawn_fauna` (Fisch-Schwarm pro Biom), `fauna_visible?`/`shark_present?` — Fisch
+  **und** Hai sind an der Oberfläche (`breathing?`) unsichtbar, dort sieht man nur
+  die Wasseroberfläche. **Fog:** `fog_radius`/`fog_color` aus dem Biom — **hellere
+  Biome sehen weiter**, die Tiefsee schließt sich eng um den Taucher.
 - **Home & Locator:** `at_home?` (`world_index == 0`) — nur dort schwimmt das Boot
-  an der Oberfläche. Der dezente Locator (oben rechts) zeigt Sektor + Tiefe, hinter
+  an der Wasserlinie. Der dezente Locator (oben rechts) zeigt Sektor + Tiefe, hinter
   `locator?` (später an ein Gerät koppelbar).
 
 Deko-Sprites für Welten liegen in `sprites/decor/` (seaweed/coral/starfish/rock).
@@ -134,66 +160,67 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | Key | Bedeutung |
 |-----|-----------|
 | `initialized` | Flag, ob `initialize_game` schon lief |
-| `game_scene` | aktive Szene (`title`/`area1`/`area2`/`surface`/`game_over`) — steuert Dispatch |
+| `game_scene` | aktiver Screen (`title`/`area1`/`area2`/`game_over`) — steuert Dispatch |
 | `player_x` | horizontale Screen-Position (wird `% 1280` gerendert) |
-| `player_y` | **vertikale Position = Tiefe.** (0,0) ist unten-links, `y=720` oben. `player_y` hoch = näher an der Oberfläche |
+| `depth_y` | **vertikale Welt-Position (Single source of truth).** `0` = Meeresgrund, `WATERLINE_Y` = Wasserlinie, darüber Himmel. Hoch schwimmen = `depth_y` steigt = flacher |
+| `camera_y` | Welt-`y` am unteren Screenrand; folgt dem Taucher, `≥ 0` (Dead Zone am Grund) |
+| `player_y` | **abgeleitete** Screen-`y` des Tauchers = `depth_y - camera_y`; jeden Tick in `update_depth_and_camera` gesetzt (Diver + Fog lesen daraus) |
 | `diver_global_x` | unbegrenztes horizontales Weltkoordinat des Tauchers → entscheidet area1/area2. Single source of truth (Diver liest daraus) |
 | `direction` | `:left` / `:right` (Blickrichtung, hält beim Idle) |
 | `angle` | Sprite-Neigung beim Diagonal-Schwimmen |
-| `surfaced` | `true`, wenn der Taucher an der Oberfläche ist (surface-Szene aktiv) |
 | `sprinting` | `true`, solange die Sprint-Taste gehalten wird *und* geschwommen wird |
 | `speed` | effektive Geschwindigkeit dieses Ticks (`Diver::SPEED`, beim Sprint ×`SPRINT_MULTIPLIER`); von Movement *und* `Diver#tick` gelesen |
 | `oxygen` | 0..`OXYGEN_MAX`; leer → ertrinken |
 | `death_cause` | `:eaten` (Hai) / `:drowned` (O2 leer) / `nil` — steuert Game-Over-Text |
 | `diver` / `shark` | Entity-Instanzen (`Diver` / `DarkShark`) |
-| `fish` | Array von `SloppyScalar` — der Fisch-Schwarm des aktiven Bioms (von `spawn_fauna` neu bestückt) |
-| `dark_shark` | `{x:, y:}`-Hash der Hai-Position (von der `DarkShark`-Entity in `to_h` gelesen) |
+| `fish` | Array von `SloppyScalar` — der Fisch-Schwarm des aktiven Bioms (von `spawn_fauna` neu bestückt); Positionen in Welt-`y` |
+| `dark_shark` | `{x:, y:}`-Hash der Hai-Position in Welt-Koordinaten (von der `DarkShark`-Entity in `to_h` gelesen) |
 | `active_world` / `active_world_index` | gecachte aktive `World` + ihr Segment-Index (Neugenerierung nur bei Segmentwechsel) |
-| `water_bands` / `deepness_values` | gecachte Render-Daten der surface-Szene (bewusst so benannt, s. Gotchas) |
 
-Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start bei
-`player_y = 710` (dicht unter der Oberfläche), Taucher sinkt langsam ab.
+Koordinaten-Merksatz: **hoch schwimmen = `depth_y` steigt = flacher.** Der Grund
+liegt bei `depth_y = 0`, die Wasserlinie bei `WATERLINE_Y`; `player_y` ist nur die
+kamera-projizierte Screen-Position und wird nicht direkt gesetzt.
 
 ## Spielmechanik
 
 - **Rundenstart (`spawn_at_surface`):** Jede Runde (erster Start *und* Neustart
-  nach game_over) beginnt an der Oberfläche neben dem Boot (`SURFACE_BOAT_X`),
-  Kopf raus/atmend. Die surface-Szene zeigt ein schaukelndes **Home-Boot**
-  (`surface_boat`) und einen dezenten Hinweis (`surface_hint`), der zum
-  Abtauchen/Erkunden ermutigt.
-- **Auftauchen (surface-Szene):** Schwimmt der Taucher über den Screen-Top
-  hinaus, wird `surfaced = true` und er landet **direkt an der Atem-Position**
-  (`SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH`) — den oberen Rand erreichen heißt
-  „oben sein", keine zweite Wassersäule zum Hochklettern. `apply_vertical_bounds`
-  clampt seinen Körper dort **unter** der Wasserlinie (`SURFACE_WATERLINE`),
-  sodass nur der Kopf rausschaut. Er kann das Wasser nie ganz verlassen.
-- **Abtauchen (symmetrisch):** Sobald der Kopf wieder unter die Wasserlinie
-  taucht (`player_y + Diver::HEIGHT < SURFACE_WATERLINE`), wird `surfaced = false`
-  und der Taucher landet **direkt** knapp unter der Oberfläche (`SCREEN_HEIGHT - 1`)
-  in der Unterwasser-Szene — kein langes Absinken durch die Surface-Szene mehr.
-- **Auftrieb:** Der Taucher ist negativ schwimmfähig und sinkt langsam (0.15/Tick),
-  solange man nicht ↑ hält. **Ausnahme:** ragt sein Kopf aus dem Wasser
-  (`breathing?`, an der Wasserlinie), sinkt er nicht — eine Art Ruhe-/Pause-Modus
-  zum Atmen. Sobald er wieder unter die Wasserlinie taucht, sinkt er weiter.
+  nach game_over) beginnt an der Wasserlinie neben dem Boot (`SURFACE_BOAT_X`),
+  Kopf raus/atmend (`depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH`). Am Startsegment
+  schaukelt ein **Home-Boot** (`home_boat`) an der Wasserlinie, dazu ein dezenter
+  Hinweis (`surface_hint`), der zum Abtauchen/Erkunden ermutigt.
+- **Auf-/Abtauchen (kontinuierlich):** Es gibt keinen Übergang mehr — der Taucher
+  bewegt sich in `depth_y`, die Kamera scrollt die Welt weich durch. Nahe dem
+  Grund ruht die Kamera (Dead Zone); schwimmt er höher, folgt sie und die
+  Wasserlinie + Himmel kommen ins Bild. `update_depth_and_camera` clampt `depth_y`
+  zwischen Meeresgrund (`sea_floor_y`, ruht auf dem Sand) und Atem-Höhe
+  (`WATERLINE_Y - SURFACE_FLOAT_DEPTH`, nur der Kopf ragt raus). Er kann das
+  Wasser nie ganz verlassen.
+- **Nur Wasseroberfläche oben:** An der Oberfläche (`breathing?`) sind Fisch und
+  Hai unsichtbar (`fauna_visible?`/`shark_present?`) — man sieht nur die
+  Wasseroberfläche + Himmel.
+- **Auftrieb:** Der Taucher ist negativ schwimmfähig und `depth_y` sinkt langsam
+  (0.15/Tick), solange man nicht ↑ hält. **Ausnahme:** ragt sein Kopf aus dem
+  Wasser (`breathing?`, `depth_y + Diver::HEIGHT >= WATERLINE_Y`), sinkt er nicht
+  — Ruhe-/Atem-Modus. Sobald er wieder untertaucht, sinkt er weiter.
 - **Sauerstoff:** Drain unter Wasser (`OXYGEN_DRAIN`/Tick, ~3 min). Refill **nur**
-  wenn `breathing?` — also aufgetaucht *und* Kopf über der Wasserlinie (nicht
-  schon beim bloßen Szenenwechsel). Leer → `game_over` / `:drowned`. O2-Balken-
-  HUD wird bei <30 % rot.
+  wenn `breathing?` — also Kopf über der Wasserlinie. Leer → `game_over` /
+  `:drowned`. O2-Balken-HUD wird bei <30 % rot.
 - **Sprint:** Sprint-Taste (Leertaste) halten *während* man schwimmt →
   Geschwindigkeit ×`SPRINT_MULTIPLIER` und O2-Verbrauch ×`SPRINT_MULTIPLIER`.
   Reine Entscheidung in `sprint_active?` (nie in pausierten Szenen), Effekt über
   `state.speed` / `oxygen_drain`. Taste im Stehen kostet nichts. Kein Konflikt
   mit `fire_input?` (das nutzt `key_down`, nur in pausierten Szenen).
-- **Fog of War:** unter Wasser aktiv (`FOG_OF_WAR`), an der Oberfläche aus (dort
-  ist Tageslicht).
-- **Hai:** In area2 unterwegs; Kollision (`intersect_rect?`) → `game_over` /
+- **Fog of War:** unter Wasser aktiv (`FOG_OF_WAR`), an der Oberfläche
+  (`breathing?`) aus (dort ist Tageslicht).
+- **Hai:** in Hai-Biomen (Tiefsee) unterwegs; **Kollision in Welt-Koordinaten**
+  (Taucher auf `depth_y` vs. Hai-Welt-`y`, `intersect_rect?`) → `game_over` /
   `:eaten`.
 
 ### Tuning-Konstanten (`app/main.rb`)
 
-`SURFACE_WATERLINE=160`, `SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`,
-`OXYGEN_DRAIN=0.009`, `OXYGEN_REFILL=1.0`, `SPRINT_MULTIPLIER=2`,
-`FOG_OF_WAR=true`, `DEBUG=false`.
+`WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
+`SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`, `OXYGEN_DRAIN=0.009`,
+`OXYGEN_REFILL=1.0`, `SPRINT_MULTIPLIER=2`, `FOG_OF_WAR=true`, `DEBUG=false`.
 Per Playtest justierbar — siehe Notizen in [`TODO.md`](TODO.md).
 
 ## Tests
@@ -223,9 +250,13 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
 
 ## Gotchas & Lektionen (nicht nochmal reintappen)
 
-- **`args.state`-Property ≠ Methodenname.** `state.water` würde die Methode
-  `water` aufrufen statt Daten zu lesen → Crash `wrong number of arguments`.
-  Deshalb heißen die Caches `water_bands`/`deepness_values`.
+- **`args.state`-Property ≠ Methodenname.** Eine `state.foo`-Property, die wie
+  eine `Game`-Methode heißt, ruft die **Methode** auf statt Daten zu lesen →
+  Crash `wrong number of arguments`. Deshalb heißen State-Caches bewusst anders
+  als die Render-Helfer.
+- **Welt vs. Screen trennen.** Fauna/Hai/Deko liegen in **Welt-`y`**; beim
+  Rendern immer per `camera_shift` (bzw. `- camera_y`) auf den Screen bringen.
+  Hai-Kollision deshalb auf `depth_y` prüfen, nicht auf der Screen-`player_y`.
 - **HUD zuletzt rendern.** `render_panel` muss ans Ende von `tick`, sonst
   überdecken Szene/Fog den O2-Balken.
 - **`--test` exit-code lügt.** Immer 0 — nur `bin/test` (mit Output-Parsing)

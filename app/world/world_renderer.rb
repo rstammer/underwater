@@ -53,6 +53,12 @@ class Game
     !breathing? && current_world.biome.shark
   end
 
+  # At the surface you only see the water surface and the sky — the fish below
+  # are out of view. Underwater the swarm is drawn.
+  def fauna_visible?
+    !breathing?
+  end
+
   # Brighter biomes (low fog) let the diver see farther; the dark deep closes in.
   def fog_radius(biome)
     (120 + 290 * (1.0 - biome.fog)).to_i

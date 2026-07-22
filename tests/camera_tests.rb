@@ -67,6 +67,18 @@ class CameraTests
     assert.false! game.sky_fill == [], "sky appears as the waterline comes into view"
   end
 
+  # At the surface you see only the water surface — the fish below are hidden.
+  def test_fauna_hidden_at_the_surface(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    args.state.depth_y = WATERLINE_Y # head out, at the surface
+    assert.false! game.fauna_visible?, "no fish while at the surface"
+
+    args.state.depth_y = 200 # dived under
+    assert.true! game.fauna_visible?, "fish are visible underwater"
+  end
+
   # Smoke test: a full underwater render at the surface and deep in a shark biome
   # must not blow up (boat, hint, camera-shifted fauna, sky, floor all exercised).
   def test_renders_without_error_at_surface_and_deep(args, assert)
