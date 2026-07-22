@@ -162,10 +162,15 @@ Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start be
   (`surface_boat`) und einen dezenten Hinweis (`surface_hint`), der zum
   Abtauchen/Erkunden ermutigt.
 - **Auftauchen (surface-Szene):** Schwimmt der Taucher über den Screen-Top
-  hinaus, wird `surfaced = true` und er landet in der surface-Szene.
-  `apply_vertical_bounds` clampt seinen Körper **unter** der Wasserlinie
-  (`SURFACE_WATERLINE`), sodass nur der Kopf rausschaut (`SURFACE_FLOAT_DEPTH`).
-  Er kann das Wasser nie ganz verlassen.
+  hinaus, wird `surfaced = true` und er landet **direkt an der Atem-Position**
+  (`SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH`) — den oberen Rand erreichen heißt
+  „oben sein", keine zweite Wassersäule zum Hochklettern. `apply_vertical_bounds`
+  clampt seinen Körper dort **unter** der Wasserlinie (`SURFACE_WATERLINE`),
+  sodass nur der Kopf rausschaut. Er kann das Wasser nie ganz verlassen.
+- **Abtauchen (symmetrisch):** Sobald der Kopf wieder unter die Wasserlinie
+  taucht (`player_y + Diver::HEIGHT < SURFACE_WATERLINE`), wird `surfaced = false`
+  und der Taucher landet **direkt** knapp unter der Oberfläche (`SCREEN_HEIGHT - 1`)
+  in der Unterwasser-Szene — kein langes Absinken durch die Surface-Szene mehr.
 - **Auftrieb:** Der Taucher ist negativ schwimmfähig und sinkt langsam (0.15/Tick),
   solange man nicht ↑ hält. **Ausnahme:** ragt sein Kopf aus dem Wasser
   (`breathing?`, an der Wasserlinie), sinkt er nicht — eine Art Ruhe-/Pause-Modus
@@ -186,7 +191,7 @@ Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start be
 
 ### Tuning-Konstanten (`app/main.rb`)
 
-`SURFACE_WATERLINE=350`, `SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`,
+`SURFACE_WATERLINE=160`, `SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`,
 `OXYGEN_DRAIN=0.05`, `OXYGEN_REFILL=1.0`, `SPRINT_MULTIPLIER=2`,
 `FOG_OF_WAR=true`, `DEBUG=false`.
 Per Playtest justierbar — siehe Notizen in [`TODO.md`](TODO.md).

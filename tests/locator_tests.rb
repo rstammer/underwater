@@ -34,6 +34,15 @@ class LocatorTests
     assert.true! game.current_depth > 0, "depth must not stay 0 while sinking at the surface"
   end
 
+  def test_depth_is_a_whole_number(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.surfaced = false
+    args.state.player_y = 517.3 # the diver's y is fractional (slow sinking)
+
+    assert.equal! game.current_depth, game.current_depth.to_i, "depth reads as whole metres, no decimals"
+  end
+
   def test_depth_grows_as_you_dive(args, assert)
     game = build_game(args)
     game.initialize_game(0)

@@ -22,7 +22,7 @@ require "app/world/world_renderer.rb"
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
-SURFACE_WATERLINE = 350 # y of the waterline in the surface scene; diver body stays below it
+SURFACE_WATERLINE = 160 # y of the waterline in the surface scene; diver body stays below it
 SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center floats (only head/shoulders show)
 SURFACE_BOAT_X = 120 # screen x of the diver's home boat in the surface scene
 OXYGEN_MAX = 100
@@ -223,14 +223,19 @@ class Game
       float_y = SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
       state.player_y = float_y if state.player_y > float_y
 
-      if state.player_y <= 0 # dived back below the surface view -> underwater
+      # The moment the head dips under the waterline the diver is diving, so hand
+      # straight over to the underwater scene just below the surface — symmetric
+      # with breaking the surface on the way up, no long descent in between.
+      if state.player_y + Diver::HEIGHT < SURFACE_WATERLINE
         state.surfaced = false
         state.player_y = SCREEN_HEIGHT - 1
       end
     else
-      if state.player_y >= SCREEN_HEIGHT # swam up past the top -> surface
+      if state.player_y >= SCREEN_HEIGHT # swam up past the top -> break the surface
         state.surfaced = true
-        state.player_y = 1
+        # Arrive right at the breathing position: reaching the top means you're
+        # up, not facing another water column to climb inside the surface scene.
+        state.player_y = SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
       end
 
       state.player_y = 1 if state.player_y < 1 # sea floor
@@ -315,14 +320,16 @@ class Game
     "Sektor #{world_index}    Tiefe #{current_depth} m"
   end
 
-  # Depth below the surface in metres — continuous across the shallow surface
-  # scene and the deep underwater scene. 0 m at the waterline, growing as the
-  # diver descends (the surface scene is the top SURFACE_WATERLINE/10 metres).
+  # Depth below the surface in metres — a whole number, continuous across the
+  # shallow surface scene and the deep underwater scene. 0 m at the waterline
+  # (and just below the screen top underwater), growing as the diver descends.
   def current_depth
     if state.surfaced
       [(SURFACE_WATERLINE - state.player_y) / 10, 0].max.to_i
     else
-      (SURFACE_WATERLINE + SCREEN_HEIGHT - state.player_y) / 10
+      # 0 m just below the surface (screen top), growing as the diver descends —
+      # continuous with the surface scene and always a whole number.
+      ((SCREEN_HEIGHT - state.player_y) / 10).to_i
     end
   end
 

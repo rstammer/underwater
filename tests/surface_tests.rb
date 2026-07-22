@@ -14,7 +14,10 @@ class SurfaceTests
     game.apply_vertical_bounds
 
     assert.true! args.state.surfaced, "should have surfaced"
-    assert.true! args.state.player_y < SCREEN_HEIGHT, "player_y should reset low when entering the surface"
+    # Reaching the top means you're up: arrive right at the breathing position,
+    # not at the bottom of the surface scene with a whole water column to climb.
+    assert.equal! args.state.player_y, SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
+    assert.true! game.breathing?, "can breathe immediately after surfacing"
   end
 
   def test_head_clamped_at_waterline_in_surface(args, assert)
@@ -29,16 +32,18 @@ class SurfaceTests
     assert.equal! args.state.player_y, SURFACE_WATERLINE - SURFACE_FLOAT_DEPTH
   end
 
-  def test_swim_down_from_surface_returns_underwater(args, assert)
+  def test_dipping_head_under_waterline_dives_under(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     args.state.surfaced = true
-    args.state.player_y = -5 # dive back down past the bottom of the surface view
+    args.state.player_y = SURFACE_WATERLINE - Diver::HEIGHT - 1 # head just slipped under
 
     game.apply_vertical_bounds
 
-    assert.false! args.state.surfaced, "should return underwater"
-    assert.true! args.state.player_y > SURFACE_WATERLINE, "player_y should reset high when re-entering the water"
+    # Symmetric with surfacing: the moment the head dips under you're diving, so
+    # hand straight over to the underwater scene — no long descent in the surface.
+    assert.false! args.state.surfaced, "head under the waterline -> diving under"
+    assert.true! args.state.player_y > SURFACE_WATERLINE, "re-enters just below the surface"
   end
 
   def test_sea_floor_clamp_when_underwater(args, assert)
