@@ -175,7 +175,7 @@ Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start be
   solange man nicht ↑ hält. **Ausnahme:** ragt sein Kopf aus dem Wasser
   (`breathing?`, an der Wasserlinie), sinkt er nicht — eine Art Ruhe-/Pause-Modus
   zum Atmen. Sobald er wieder unter die Wasserlinie taucht, sinkt er weiter.
-- **Sauerstoff:** Drain unter Wasser (`OXYGEN_DRAIN`/Tick, ~33 s). Refill **nur**
+- **Sauerstoff:** Drain unter Wasser (`OXYGEN_DRAIN`/Tick, ~3 min). Refill **nur**
   wenn `breathing?` — also aufgetaucht *und* Kopf über der Wasserlinie (nicht
   schon beim bloßen Szenenwechsel). Leer → `game_over` / `:drowned`. O2-Balken-
   HUD wird bei <30 % rot.
@@ -192,7 +192,7 @@ Koordinaten-Merksatz: **hoch schwimmen = `player_y` steigt = flacher.** Start be
 ### Tuning-Konstanten (`app/main.rb`)
 
 `SURFACE_WATERLINE=160`, `SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`,
-`OXYGEN_DRAIN=0.05`, `OXYGEN_REFILL=1.0`, `SPRINT_MULTIPLIER=2`,
+`OXYGEN_DRAIN=0.009`, `OXYGEN_REFILL=1.0`, `SPRINT_MULTIPLIER=2`,
 `FOG_OF_WAR=true`, `DEBUG=false`.
 Per Playtest justierbar — siehe Notizen in [`TODO.md`](TODO.md).
 
