@@ -12,6 +12,7 @@ require "app/entities/diver.rb"
 require "app/world/fog_of_war.rb"
 
 require "app/world/rng.rb"
+require "app/world/noise.rb"
 require "app/world/biome.rb"
 require "app/world/world.rb"
 require "app/world/world_generator.rb"
