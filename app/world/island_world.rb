@@ -29,6 +29,9 @@ class IslandWorld
   PLANT_SPACING = 90   # px of level ground each plant wants for itself
   SHORE_HEIGHT = 110   # crown height above the water that still counts as beach
   GULL_HEIGHT = 110    # how high over the water the gulls hang
+  # How far out from the island's edges they range, in columns, and how much
+  # higher each one flies. Negative = off the left shore, positive = off the right.
+  GULL_OFFSETS = [[-92, 30], [-40, 0], [46, 44], [88, 16]]
   MARGIN = 8           # px of bare ground kept at each side of a plant's base
   SHAPE_SEED = 707
   DECOR_SEED = 808
@@ -290,10 +293,13 @@ class IslandWorld
        x: (top[:first] * World::COLUMN_WIDTH) + (top[:width] * World::COLUMN_WIDTH).idiv(2) }]
   end
 
-  # Gulls hang over the water just off the coast, low enough to actually be in
-  # frame from the surface. They drift on their own in the renderer.
+  # Gulls range well out over the water on both sides, not just over the coast:
+  # spotting birds on the horizon is the first hint that there's land out there.
+  # They're low enough to be in frame from the surface, and drift on their own in
+  # the renderer.
   def gulls
-    [[first_column - 6, 0], [last_column + 6, 40], [first_column - 18, 26]].map do |col, lift|
+    GULL_OFFSETS.map do |offset, lift|
+      col = offset < 0 ? first_column + offset : last_column + offset
       { kind: "gull", x: col * World::COLUMN_WIDTH,
         y: WATERLINE_Y + GULL_HEIGHT + lift, scale: SCALES["gull"] }
     end

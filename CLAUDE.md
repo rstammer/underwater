@@ -203,8 +203,10 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   weiter oben, was in die Lücke passt. Geprüft wird der **Fuß** der Pflanze
   (`base_width`, ~⅓ der Sprite-Breite) — Wedel dürfen überhängen, Stämme nicht.
   (Vorher standen Palmen in festen Abständen und damit halb über der Kante.)
-  Möwen hängen **über dem Wasser an der Küste** (`gulls` — über dem Gipfel wären
-  sie außerhalb des Bildes), auf manchen Gipfeln steckt eine Fahne. Die Bewegung
+  Möwen kreisen **weit draußen über dem Wasser** (`gulls`/`GULL_OFFSETS`, beide
+  Seiten, 320–1600 px vor der Küste): Vögel am Horizont sind der erste Hinweis,
+  dass da Land ist — über dem Gipfel wären sie außerhalb des Bildes. Auf manchen
+  Gipfeln steckt eine Fahne. Die Bewegung
   von Möwe und Krabbe macht `decor_drift` im Renderer.
 - **Wo die Inseln liegen:** `ISLAND_COUNT` Stück pro Runde, ausgewürfelt in
   `roll_island_sectors` (verschiedene Sektoren, beide Richtungen), gemerkt in

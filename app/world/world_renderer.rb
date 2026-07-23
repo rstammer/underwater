@@ -18,7 +18,7 @@ class Game
   CAVE_DIM = 0.5              # inside a cave it is dark whatever the depth says
   ROOF_FADE = 300             # px under the surface over which rock loses the daylight
 
-  BOAT_SPRITE = { path: "sprites/decor/boat.png", w: 44, h: 20 }
+  BOAT_SPRITE = { path: "sprites/decor/boat.png", w: 41, h: 20 }
 
   DECOR_SPRITES = {
     "seaweed"  => { path: "sprites/decor/seaweed.png",  w: 14, h: 44 },

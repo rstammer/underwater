@@ -111,6 +111,13 @@ class IslandTests
 
     gulls = built.decorations.select { |d| d[:kind] == "gull" }
     assert.true! gulls.length >= 2, "gulls hang around the coast"
+    off_shore = gulls.map do |gull|
+      col = gull[:x].idiv(World::COLUMN_WIDTH)
+      col < island.first_column ? island.first_column - col : col - island.last_column
+    end
+    assert.true! off_shore.max * World::COLUMN_WIDTH > 400,
+                 "some range far enough out to give the island away early (#{off_shore.max} columns)"
+    assert.true! off_shore.min >= 0, "and none of them sit over the rock"
     gulls.each do |gull|
       assert.true! gull[:y] > WATERLINE_Y, "a gull flies above the water (#{gull[:y]})"
       assert.true! gull[:y] < WATERLINE_Y + 300, "and low enough to be in frame (#{gull[:y]})"
