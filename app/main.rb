@@ -251,12 +251,20 @@ class Game
     project_diver
   end
 
-  # The diver lives between the sand and the waterline: he can rest on the floor
-  # and float up until his head clears the water, but no further.
+  # The diver lives between the sand and whatever is above him: the waterline in
+  # open water, or the rock he bumps his head on inside a cave.
   def clamp_depth
-    ceil = WATERLINE_Y - SURFACE_FLOAT_DEPTH # float no higher than head-out at the surface
+    ceil = depth_ceiling
     state.depth_y = ceil if state.depth_y > ceil
     state.depth_y = sea_floor_y if state.depth_y < sea_floor_y
+  end
+
+  # As high as he can rise here: head out at the waterline, or just under a cave
+  # roof where there is rock overhead.
+  def depth_ceiling
+    open_water = WATERLINE_Y - SURFACE_FLOAT_DEPTH # only head and shoulders show
+    rock = cave_ceiling_at(state.diver_global_x)
+    rock ? [open_water, rock - Diver::HEIGHT].min : open_water
   end
 
   # Follow the diver, but never scroll past the sea floor: near the bottom the
@@ -279,18 +287,36 @@ class Game
     state.player_x = state.diver_global_x - state.camera_x
   end
 
-  # World y of the sand under the diver, so he rests on the floor instead of
-  # sinking through it. The highest sand under his whole footprint counts, so he
-  # glides over the ragged notches instead of dropping into every one of them.
+  # World y the diver's centre comes to rest at on the sand below him.
   def sea_floor_y
-    x = state.diver_global_x
-    [floor_at(x - DIVER_FOOTPRINT), floor_at(x), floor_at(x + DIVER_FOOTPRINT)].max + Diver::HEIGHT
+    floor_top_at(state.diver_global_x) + Diver::HEIGHT
   end
 
-  # Sand world y at any world x, looked up in the segment it belongs to — so a
-  # footprint that reaches across a segment border reads the right world.
-  def floor_at(world_x)
+  # The highest sand across the diver's whole footprint at a world x, so he
+  # glides over the ragged notches instead of dropping into every one of them.
+  def floor_top_at(world_x)
+    footprint(world_x).map { |x| floor_y_at(x) }.max
+  end
+
+  # The lowest rock overhead across his footprint, or nil where the water is open
+  # all the way up.
+  def cave_ceiling_at(world_x)
+    roofs = footprint(world_x).map { |x| roof_at(x) }.compact
+    roofs.empty? ? nil : roofs.map { |rock| rock[:ceiling] }.min
+  end
+
+  def footprint(world_x)
+    [world_x - DIVER_FOOTPRINT, world_x, world_x + DIVER_FOOTPRINT]
+  end
+
+  # Sand / rock at any world x, looked up in the segment it belongs to — so a
+  # footprint reaching across a segment border reads the right world.
+  def floor_y_at(world_x)
     world_at(world_x.idiv(SCREEN_WIDTH)).floor_y_at(world_x % SCREEN_WIDTH)
+  end
+
+  def roof_at(world_x)
+    world_at(world_x.idiv(SCREEN_WIDTH)).roof_at(world_x % SCREEN_WIDTH)
   end
 
   # Sprinting (holding the sprint key while actually swimming) makes the diver

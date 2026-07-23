@@ -54,6 +54,7 @@ class Game
       world = world_at(index)
       dx = chunk_offset_x(index)
       outputs.sprites << world_floor(world, dx)
+      outputs.sprites << world_roof(world, dx)
       outputs.sprites << world_decorations(world, dx)
     end
     if home_visible?
@@ -126,7 +127,7 @@ class Game
     body = world.biome.floor_colors[1].map { |c| c - 14 }
     cap = world.biome.floor_colors[0]
     tiles = []
-    each_terrace(world.floor) do |top, first_col, width|
+    each_run(world.floor) do |top, first_col, width|
       y = top - state.camera_y
       next if y < 0 || y - FLOOR_FILL_DEPTH > SCREEN_HEIGHT # this terrace is off screen
 
@@ -149,15 +150,42 @@ class Game
                path: :solid)
   end
 
-  # Walk the heightmap as runs of equal height: |height, first column, width|.
-  def each_terrace(floor)
+  # Walk a per-column array as runs of equal value: |value, first column, width|.
+  # Merging equal columns is what turns the heightmap into terraces to draw.
+  def each_run(values)
     first = 0
-    (1..floor.length).each do |col|
-      next if col < floor.length && floor[col] == floor[first]
+    (1..values.length).each do |col|
+      next if col < values.length && values[col] == values[first]
 
-      yield(floor[first], first, col - first)
+      yield(values[first], first, col - first)
       first = col
     end
+  end
+
+  # Rock hanging overhead — the roof of a cave, filled upward from the underside
+  # the diver bumps his head on to the top of the slab. Same terraces and strata
+  # tint as the floor, with a lighter rim so the edge reads in the dark.
+  def world_roof(world, dx)
+    return [] unless world.roof
+
+    body = world.biome.floor_colors[2]
+    rim = world.biome.floor_colors[0]
+    tiles = []
+    each_run(world.roof) do |rock, first_col, width|
+      next unless rock
+
+      y = rock[:ceiling] - state.camera_y
+      h = rock[:crown] - rock[:ceiling]
+      next if y > SCREEN_HEIGHT || y + h < 0 # this slab is off screen
+
+      x = first_col * World::COLUMN_WIDTH + dx
+      w = width * World::COLUMN_WIDTH + 1
+      shade = (rock[:ceiling].idiv(WorldGenerator::FLOOR_STEP) % 5 - 2) * 4
+      dim = light_at(rock[:ceiling])
+      tiles << sand({ x: x, y: y, w: w, h: h }, body, shade, dim)
+      tiles << sand({ x: x, y: y, w: w, h: 4 }, rim, shade, dim)
+    end
+    tiles
   end
 
   def world_decorations(world, dx)
