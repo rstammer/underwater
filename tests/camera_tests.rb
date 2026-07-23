@@ -10,6 +10,15 @@ class CameraTests
     ticks.times { game.update_depth_and_camera }
   end
 
+  # Islands are rolled onto random sectors each round, and one landing on the
+  # stretch under test would replace the terrain there. Anything that measures
+  # the open sea has to say so.
+  def open_sea(args)
+    args.state.island_sectors = []
+    args.state.world_cache = {}
+    args.state.active_world_index = nil
+  end
+
   # Resting on the sand the camera comes to rest just below the floor, so the
   # diver has ground under him and room above — a dead zone at the bottom.
   def test_camera_rests_below_the_sea_floor(args, assert)
@@ -64,6 +73,7 @@ class CameraTests
   def test_camera_stays_steady_while_cruising_along_the_floor(args, assert)
     game = build_game(args)
     game.initialize_game(0)
+    open_sea(args)
     args.state.depth_y = -99_999 # settle onto the sand
     settle(game)
 
@@ -95,6 +105,7 @@ class CameraTests
   def test_the_diver_is_framed_the_same_on_any_ground(args, assert)
     game = build_game(args)
     game.initialize_game(0)
+    open_sea(args)
 
     [Diver::START_X, deep_world_x, shallow_world_x].each do |x|
       args.state.diver_global_x = x
@@ -105,6 +116,32 @@ class CameraTests
                    "resting at world x #{x} leaves him at #{args.state.player_y.to_i} — too low in frame"
       assert.true! args.state.player_y < 420, "and not too high either (#{args.state.player_y.to_i})"
     end
+  end
+
+  # Steep ground is where the camera's smoothed idea of the floor and the real
+  # sand drift furthest apart — walking a chasm from rim to rim must never drop
+  # the diver off the bottom of the screen.
+  def test_the_diver_stays_framed_all_the_way_across_a_chasm(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    open_sea(args)
+    middle = deep_world_x
+    worst = SCREEN_HEIGHT
+    worst_at = nil
+
+    offset = -900
+    while offset <= 900
+      args.state.diver_global_x = middle + offset
+      args.state.depth_y = -99_999 # rest on whatever the ground is here
+      game.center_camera
+      if args.state.player_y < worst
+        worst = args.state.player_y
+        worst_at = offset
+      end
+      offset += 8
+    end
+
+    assert.true! worst > 100, "framed at #{worst.to_i} on the chasm wall (#{worst_at} px from the middle)"
   end
 
   # The diver can float up to head-out at the waterline, but no higher.
@@ -123,6 +160,7 @@ class CameraTests
   def test_a_trench_can_be_dived_far_below_the_shelf(args, assert)
     game = build_game(args)
     game.initialize_game(0)
+    open_sea(args)
     args.state.diver_global_x = deep_world_x
     args.state.depth_y = -99_999 # dive all the way down
     settle(game)

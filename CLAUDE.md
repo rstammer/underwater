@@ -126,7 +126,9 @@ dem Taucher und projiziert auf die Screen-Position (`update_depth_and_camera`):
   `max(depth_y - CAMERA_ANCHOR, camera_floor_y - FLOOR_VIEW_MARGIN)` → **Dead Zone
   am Boden, die dem Bodenprofil folgt** (deshalb relativ statt fix bei 0).
   `camera_floor_y` liest `WorldGenerator.smooth_floor_y_at` — den Boden als
-  **glatte Kurve** (alles außer Terrassen und Jitter). Der rohe Sand lässt das
+  **glatte Kurve** (alles außer Terrassen und Jitter) — aber nie mehr als
+  `CAMERA_FLOOR_SLACK` über dem echten Sand: an einer Abgrundwand weichen die
+  beiden um Hunderte px ab, und dann gilt der Sand. Der rohe Sand lässt das
   Bild bei jeder Kerbe ruckeln; nur die *grobe* Form (Shelf+Basin) wiederum liegt
   im Abgrund weit über dem echten Grund und klemmt den Taucher an die Unterkante. Zusätzlich **easet** sie mit `CAMERA_EASE`
   ans Ziel; `center_camera` setzt sie hart (Spawn/Reset).
@@ -373,7 +375,8 @@ Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
 `DOME_RISE`.
 
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
-`CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=240`, `CAMERA_EASE=0.1`,
+`CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=240`, `CAMERA_FLOOR_SLACK=60`,
+`CAMERA_EASE=0.1`,
 `SURFACE_FLOAT_DEPTH=20`, `PIXELS_PER_METRE=14`, `OXYGEN_MAX=100`, `OXYGEN_DRAIN=0.009`,
 `OXYGEN_REFILL=1.0`, `SUIT_MAX=100`, `SUIT_DEPTH_LIMIT=100`, `SUIT_DRAIN=0.0025`,
 `SUIT_REPAIR=0.4`, `BOAT_REACH=160`, `SPRINT_MULTIPLIER=2`, `SHARK_PATROL_SPREAD=200`,
@@ -448,7 +451,10 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
   Bildunterkante (gemessen: `player_y` 59 im Abgrund). Richtig ist
   `smooth_floor_y_at`: derselbe Boden, nur ohne Terrassen und Jitter. Und: ein
   Kamera-Test sollte den **Ruck** messen (2. Ableitung), nicht die Geschwindigkeit
-  — gleichmäßiges Mitschwenken über einen Hang ist erwünscht. Ebenso fühlt der Taucher den Grund
+  — gleichmäßiges Mitschwenken über einen Hang ist erwünscht.
+- **Gelände-Tests brauchen `island_sectors = []`.** Die Inseln werden pro Runde auf
+  zufällige Sektoren gewürfelt; landet eine auf der getesteten Stelle, ist das
+  Gelände dort ein anderes — der Test wird flaky (genau so passiert). Ebenso fühlt der Taucher den Grund
   über seine ganze Breite (`DIVER_FOOTPRINT`, Maximum) statt an genau einer Spalte.
 - **Boden = Funktion der Welt-`x`, nicht pro Segment gewürfelt.** Nur weil
   `WorldGenerator.floor_y_at` global ist, passen unabhängig generierte Segmente

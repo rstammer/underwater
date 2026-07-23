@@ -28,6 +28,7 @@ PIXELS_PER_METRE = 14 # how much sea a metre of depth is worth. The suit's ratin
                       # ordinary world may go, so a bigger metre is what gives it room to feel deep
 CAMERA_ANCHOR = SCREEN_HEIGHT / 2 # target screen y for the diver; the camera scrolls the world past him
 CAMERA_ANCHOR_X = SCREEN_WIDTH / 2 # target screen x for the diver; the world scrolls sideways past him
+CAMERA_FLOOR_SLACK = 60 # how far the smoothed floor may sit above the real sand before the camera trusts the sand
 FLOOR_VIEW_MARGIN = 240 # how far below the sea floor the camera rests — the diver sits this high above the bottom edge
 CAMERA_EASE = 0.1 # how quickly the camera catches up per tick — smooths the ragged floor out of the view
 SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center rests (only head/shoulders show)
@@ -350,7 +351,13 @@ class Game
   # made the view lurch; reading only the broad shape left him pinned to the
   # bottom edge wherever the two disagreed — over a rocky rise, or down a chasm.
   def camera_floor_y
-    WorldGenerator.smooth_floor_y_at(state.diver_global_x) + Diver::HEIGHT
+    x = state.diver_global_x
+    smooth = WorldGenerator.smooth_floor_y_at(x)
+    # Down a chasm wall the smoothed curve can sit hundreds of px above the sand
+    # he is actually standing on, which would leave him under the bottom edge of
+    # the screen. Where they disagree that badly, believe the sand. (The two meet
+    # exactly at the slack, so switching between them never jumps.)
+    [smooth, floor_top_at(x) + CAMERA_FLOOR_SLACK].min + Diver::HEIGHT
   end
 
   def project_diver
