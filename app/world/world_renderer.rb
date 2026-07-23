@@ -7,6 +7,8 @@ class Game
   WATER_ABYSS = 2600    # px below the waterline where the light is as good as gone
   ABYSS_DIM = 0.82      # how much of the light the abyss swallows
   WATER_BANDS = 24      # horizontal strips the water gradient is drawn in
+  AIR_COLOR = [20, 26, 32]            # the gloom inside an air chamber
+  AIR_SURFACE_COLOR = [150, 190, 205] # the water surface trapped under it
   FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
 
   DECOR_SPRITES = {
@@ -19,13 +21,13 @@ class Game
   # A shark only prowls in shark biomes, and never while the diver is up
   # breathing at the surface.
   def shark_present?
-    !breathing? && current_world.biome.shark
+    !at_open_surface? && current_world.biome.shark
   end
 
   # At the surface you only see the water surface and the sky — the fish below
   # are out of view. Underwater the swarm is drawn.
   def fauna_visible?
-    !breathing?
+    !at_open_surface?
   end
 
   # Brighter biomes (low fog) let the diver see farther; the dark deep closes in.
@@ -55,11 +57,12 @@ class Game
       dx = chunk_offset_x(index)
       outputs.sprites << world_floor(world, dx)
       outputs.sprites << world_roof(world, dx)
+      outputs.sprites << world_air(world, dx)
       outputs.sprites << world_decorations(world, dx)
     end
     if home_visible?
       outputs.sprites << home_boat
-      outputs.labels << surface_hint if breathing?
+      outputs.labels << surface_hint if at_open_surface?
     end
   end
 
@@ -186,6 +189,21 @@ class Game
       tiles << sand({ x: x, y: y, w: w, h: 4 }, rim, shade, dim)
     end
     tiles
+  end
+
+  # Air trapped under rock — the cave's own little sky, with the water surface
+  # inside drawn as a bright line along its bottom edge.
+  def world_air(world, dx)
+    world.air_pockets.flat_map do |air|
+      x = air[:x] + dx
+      y = air[:y] - state.camera_y
+      [
+        { x: x, y: y, w: air[:w], h: air[:h],
+          r: AIR_COLOR[0], g: AIR_COLOR[1], b: AIR_COLOR[2], path: :solid },
+        { x: x, y: y - 2, w: air[:w], h: 4,
+          r: AIR_SURFACE_COLOR[0], g: AIR_SURFACE_COLOR[1], b: AIR_SURFACE_COLOR[2], path: :solid },
+      ]
+    end
   end
 
   def world_decorations(world, dx)

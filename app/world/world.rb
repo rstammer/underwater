@@ -5,7 +5,7 @@
 class World
   COLUMN_WIDTH = 8 # width in px of one floor column (small = finely stepped sand)
 
-  attr_reader :index, :biome, :floor, :decorations, :roof
+  attr_reader :index, :biome, :floor, :decorations, :roof, :air_pockets
 
   # floor:       array of sand *world y* values, one per column across the
   #              segment. Higher = shallower; deep trenches are far below 0.
@@ -14,12 +14,30 @@ class World
   #              { ceiling:, crown: }: rock from `ceiling` (its underside, what
   #              the diver bumps his head on) up to `crown` (its top). A
   #              heightmap alone cannot describe a cave; this is the other half.
-  def initialize(index:, biome:, floor:, decorations:, roof: nil)
+  # air_pockets: rects { x:, y:, w:, h: } of air trapped under rock. Their bottom
+  #              edge is the water surface inside; a diver whose head is in one
+  #              can breathe there.
+  def initialize(index:, biome:, floor:, decorations:, roof: nil, air_pockets: [])
     @index = index
     @biome = biome
     @floor = floor
     @decorations = decorations
     @roof = roof
+    @air_pockets = air_pockets
+  end
+
+  # The water surface inside an air pocket over this segment-local x — the level
+  # a diver floats at in there — or nil where there is no trapped air.
+  def air_line_at(x)
+    over = air_pockets.select { |air| x >= air[:x] && x < air[:x] + air[:w] }
+    over.empty? ? nil : over.map { |air| air[:y] }.min
+  end
+
+  # Is this segment-local point inside trapped air?
+  def air_at?(x, y)
+    air_pockets.any? do |air|
+      x >= air[:x] && x < air[:x] + air[:w] && y >= air[:y] && y <= air[:y] + air[:h]
+    end
   end
 
   def columns

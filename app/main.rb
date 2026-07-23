@@ -18,6 +18,7 @@ require "app/world/biome.rb"
 require "app/world/world.rb"
 require "app/world/world_generator.rb"
 require "app/world/static_worlds.rb"
+require "app/world/island_world.rb"
 require "app/world/world_stream.rb"
 require "app/world/world_renderer.rb"
 
@@ -37,6 +38,8 @@ SPRINT_MULTIPLIER = 2 # sprinting: this much faster, and this much thirstier for
 SHARK_PATROL_SPREAD = 200 # how far above/below the diver's depth the shark comes back in
 DIVER_FOOTPRINT = 20 # how far to each side the diver's footing feels for sand to rest on
 SOLID_STEP_UP = 48 # ledge he still slips over sideways; anything higher is a wall
+ISLAND_MIN_SECTOR = 2 # the island never lands right next to the boat ...
+ISLAND_MAX_SECTOR = 10 # ... nor further out than this
 FOG_OF_WAR = true
 DEBUG = false
 
@@ -76,6 +79,7 @@ class Game
     state.player_y = CAMERA_ANCHOR                    # on-screen y, derived each tick from depth_y - camera_y
     state.direction = :right
     state.world_cache = {}
+    state.island_sector = roll_island_sector
     state.dark_shark = { x: -300, y: 300 }
     state.game_scene = "title"
     state.oxygen = OXYGEN_MAX
@@ -90,6 +94,13 @@ class Game
     center_camera   # frame the diver right away instead of gliding in on the first ticks
   end
 
+  # Where the island lies this round: a random sector to either side of home,
+  # near enough to reach on one tank of air, far enough that you have to explore.
+  def roll_island_sector
+    sector = ISLAND_MIN_SECTOR + rand(ISLAND_MAX_SECTOR - ISLAND_MIN_SECTOR + 1)
+    rand(2).zero? ? -sector : sector
+  end
+
   def fire_input?
     inputs.keyboard.key_down.space ||
       inputs.keyboard.key_down.z ||
@@ -100,6 +111,8 @@ class Game
   def reset_game
     state.angle = 0
     state.direction = :right
+    state.world_cache = {}
+    state.island_sector = roll_island_sector # a new round hides the island somewhere else
     state.dark_shark = { x: -300, y: 300 }
     state.oxygen = OXYGEN_MAX
     state.death_cause = nil
@@ -252,20 +265,32 @@ class Game
     project_diver
   end
 
-  # The diver lives between the sand and whatever is above him: the waterline in
-  # open water, or the rock he bumps his head on inside a cave.
+  # The diver lives between the rock below him and whatever is above: the
+  # waterline in open water, or the underside of a cave roof. The floor gives
+  # way to the ceiling where they conflict, so a wall of rock leaves him
+  # floating beside it rather than flying over it.
   def clamp_depth
-    ceil = depth_ceiling
-    state.depth_y = ceil if state.depth_y > ceil
-    state.depth_y = sea_floor_y if state.depth_y < sea_floor_y
+    floor, ceiling = rock_span_at(state.diver_global_x, state.depth_y)
+    bottom = floor + Diver::HEIGHT
+    top = depth_ceiling(ceiling, state.diver_global_x)
+
+    state.depth_y = bottom if state.depth_y < bottom
+    state.depth_y = top if state.depth_y > top
   end
 
-  # As high as he can rise here: head out at the waterline, or just under a cave
-  # roof where there is rock overhead.
-  def depth_ceiling
-    open_water = WATERLINE_Y - SURFACE_FLOAT_DEPTH # only head and shoulders show
-    rock = cave_ceiling_at(state.diver_global_x)
-    rock ? [open_water, rock - Diver::HEIGHT].min : open_water
+  # As high as he can rise here. He floats at whatever water surface is above
+  # him — the sea's, or the one inside an air chamber — and otherwise stops at
+  # the rock of a cave roof. Whichever is lowest wins.
+  def depth_ceiling(ceiling, world_x)
+    limits = [WATERLINE_Y - SURFACE_FLOAT_DEPTH] # only head and shoulders show
+    limits << ceiling - Diver::HEIGHT if ceiling
+    air = air_line_at(world_x)
+    limits << air - SURFACE_FLOAT_DEPTH if air
+    limits.min
+  end
+
+  def air_line_at(world_x)
+    world_at(world_x.idiv(SCREEN_WIDTH)).air_line_at(world_x % SCREEN_WIDTH)
   end
 
   # Follow the diver, but never scroll past the sea floor: near the bottom the
@@ -300,10 +325,8 @@ class Game
   def blocked?(world_x)
     feet = state.depth_y - Diver::HEIGHT
     head = state.depth_y + Diver::HEIGHT
-    floor = floor_top_at(world_x)
+    floor, ceiling = rock_span_at(world_x, state.depth_y)
     return true if floor > feet + SOLID_STEP_UP
-
-    ceiling = cave_ceiling_at(world_x)
     return false unless ceiling
     return true if ceiling < head - SOLID_STEP_UP
 
@@ -321,11 +344,35 @@ class Game
     footprint(world_x).map { |x| floor_y_at(x) }.max
   end
 
-  # The lowest rock overhead across his footprint, or nil where the water is open
-  # all the way up.
-  def cave_ceiling_at(world_x)
-    roofs = footprint(world_x).map { |x| roof_at(x) }.compact
-    roofs.empty? ? nil : roofs.map { |rock| rock[:ceiling] }.min
+  # The rock slab hanging over the diver's footprint at a world x: its lowest
+  # underside and its highest top, or nil where the water is open all the way up.
+  def roof_span_at(world_x)
+    rocks = footprint(world_x).map { |x| roof_at(x) }.compact
+    return nil if rocks.empty?
+
+    { ceiling: rocks.map { |rock| rock[:ceiling] }.min,
+      crown: rocks.map { |rock| rock[:crown] }.max }
+  end
+
+  # What bounds the water at a world x for a diver currently at `depth`:
+  # [rock below, rock above (or nil for open water)]. Usually that is the sand
+  # and a cave roof — but where he is swimming *over* a submerged slab, its top
+  # is the floor and the sky is open.
+  def rock_span_at(world_x, depth)
+    sand = floor_top_at(world_x)
+    rock = roof_span_at(world_x)
+    return [sand, nil] unless rock
+    return [[sand, rock[:crown]].max, nil] if over_slab?(rock, depth)
+
+    [sand, rock[:ceiling]]
+  end
+
+  # He is over a slab only if he is above it *and* there is enough water left
+  # above it to fit him — a hand's breadth of rock under the surface is a wall,
+  # not a ledge to swim over.
+  def over_slab?(rock, depth)
+    depth - Diver::HEIGHT >= rock[:crown] &&
+      rock[:crown] + Diver::HEIGHT * 2 <= WATERLINE_Y
   end
 
   def footprint(world_x)
@@ -383,9 +430,23 @@ class Game
     state.sprinting ? OXYGEN_DRAIN * SPRINT_MULTIPLIER : OXYGEN_DRAIN
   end
 
-  # The head clears the water once the diver has floated up to the waterline.
+  # He breathes wherever his head is out of the water: up at the sea's surface,
+  # or in air trapped under rock inside a cave.
   def breathing?
+    head = state.depth_y + Diver::HEIGHT
+    return true if head >= WATERLINE_Y
+
+    air_at?(state.diver_global_x, head)
+  end
+
+  # Actually up in the daylight, as opposed to breathing in a cave. Fog and the
+  # "only water up here" rules hang off this one, not off breathing?.
+  def at_open_surface?
     state.depth_y + Diver::HEIGHT >= WATERLINE_Y
+  end
+
+  def air_at?(world_x, y)
+    world_at(world_x.idiv(SCREEN_WIDTH)).air_at?(world_x % SCREEN_WIDTH, y)
   end
 
   def game_paused?
@@ -394,7 +455,7 @@ class Game
 
   def render_diver
     outputs.sprites << state.diver.to_h
-    if FOG_OF_WAR && !breathing? # no fog at the surface — there's daylight up here
+    if FOG_OF_WAR && !at_open_surface? # no fog at the surface — there's daylight up here
       biome = current_world.biome
       outputs.sprites << FogOfWar.new(state.diver,
                                       radius: fog_radius(biome),

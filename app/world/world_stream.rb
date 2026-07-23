@@ -25,9 +25,15 @@ class Game
   end
 
   # A hand-built static world overrides generation when one is registered for
-  # this index; otherwise we generate procedurally.
+  # this index; otherwise we generate procedurally — and stamp the island onto
+  # the segment it landed on this round.
   def world_for(index)
-    StaticWorlds.for(index) || WorldGenerator.generate(index)
+    StaticWorlds.for(index) || open_sea_or_island(index)
+  end
+
+  def open_sea_or_island(index)
+    world = WorldGenerator.generate(index)
+    index == state.island_sector ? IslandWorld.build(world) : world
   end
 
   def world_index
@@ -67,12 +73,14 @@ class Game
     state.fish = biome.fish_count.times.map do
       col = rand(world.columns)
       floor_y = world.floor[col]
-      headroom = WATERLINE_Y - floor_y - 120
+      rock = world.roof && world.roof[col]
+      top = rock ? rock[:ceiling] : WATERLINE_Y # under a cave roof they stay in the tunnel
+      headroom = top - floor_y - 100
       headroom = FAUNA_BAND if headroom > FAUNA_BAND
-      headroom = 40 if headroom < 40
+      headroom = 30 if headroom < 30
       SloppyScalar.new(args, 0,
                        x: col * World::COLUMN_WIDTH,
-                       y: floor_y + 40 + rand(headroom),
+                       y: floor_y + 30 + rand(headroom),
                        color: biome.fish_colors.sample.to_sym)
     end
   end
