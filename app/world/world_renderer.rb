@@ -1,13 +1,13 @@
-# Renders the visible slice of the world to the screen through the camera.
-# Reopens Game so the underwater scenes can just call render_world. The World
-# itself is pure data (app/world/world.rb); all the sprite building lives here.
+# Draws the visible slice of the world through the camera: water, sky, sea floor,
+# decorations and the home boat. Reopens Game so the underwater scenes can just
+# call render_world. The World itself is pure data (app/world/world.rb) and which
+# segments are on screen is world_stream.rb's job; all the sprite building is here.
 class Game
   WATER_TWILIGHT = 1100 # px below the waterline over which the biome gradient plays out
   WATER_ABYSS = 2600    # px below the waterline where the light is as good as gone
   ABYSS_DIM = 0.82      # how much of the light the abyss swallows
   WATER_BANDS = 24      # horizontal strips the water gradient is drawn in
   FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
-  FAUNA_BAND = 420 # how high above the sand a segment's fish are spread
 
   DECOR_SPRITES = {
     "seaweed"  => { path: "sprites/decor/seaweed.png",  w: 14, h: 44 },
@@ -15,76 +15,6 @@ class Game
     "starfish" => { path: "sprites/decor/starfish.png", w: 16, h: 16 },
     "rock"     => { path: "sprites/decor/rock.png",     w: 22, h: 15 },
   }
-
-  # The world for the diver's current horizontal segment. Drives biome, fauna and
-  # fog. Regenerated only when the segment changes; deterministic, so swimming
-  # back shows the same world.
-  def current_world
-    idx = world_index
-    if state.active_world_index != idx
-      state.active_world_index = idx
-      state.active_world = world_at(idx)
-      spawn_fauna(state.active_world)
-    end
-    state.active_world
-  end
-
-  # Any segment's world, memoised so the neighbours we render while scrolling
-  # aren't regenerated every frame. Deterministic per index.
-  def world_at(index)
-    state.world_cache ||= {}
-    state.world_cache[index] ||= world_for(index)
-  end
-
-  def world_index
-    state.diver_global_x.idiv(SCREEN_WIDTH)
-  end
-
-  # The segments that overlap the screen right now — usually the diver's chunk and
-  # one neighbour, so the terrain scrolls continuously across the boundary.
-  def visible_world_indices
-    left = state.camera_x.idiv(SCREEN_WIDTH)
-    right = (state.camera_x + SCREEN_WIDTH).idiv(SCREEN_WIDTH)
-    (left..right).to_a
-  end
-
-  # Screen x offset for a segment's local coordinates: world x minus the camera.
-  def chunk_offset_x(index)
-    index * SCREEN_WIDTH - state.camera_x
-  end
-
-  # Home is the starting segment; the boat shows whenever it's on screen.
-  def at_home?
-    world_index == 0
-  end
-
-  def home_visible?
-    visible_world_indices.include?(0)
-  end
-
-  # A hand-built static world overrides generation when one is registered for
-  # this index; otherwise we generate procedurally.
-  def world_for(index)
-    StaticWorlds.for(index) || WorldGenerator.generate(index)
-  end
-
-  # A fresh fish swarm for the world's biome (colours and count from the biome).
-  # They're spawned in the water just above this segment's own sea floor, so a
-  # deep trench has its own fish down there instead of an empty void.
-  def spawn_fauna(world)
-    biome = world.biome
-    state.fish = biome.fish_count.times.map do
-      col = rand(world.columns)
-      floor_y = world.floor[col]
-      headroom = WATERLINE_Y - floor_y - 120
-      headroom = FAUNA_BAND if headroom > FAUNA_BAND
-      headroom = 40 if headroom < 40
-      SloppyScalar.new(args, 0,
-                       x: col * World::COLUMN_WIDTH,
-                       y: floor_y + 40 + rand(headroom),
-                       color: biome.fish_colors.sample.to_sym)
-    end
-  end
 
   # A shark only prowls in shark biomes, and never while the diver is up
   # breathing at the surface.
@@ -130,13 +60,6 @@ class Game
       outputs.sprites << home_boat
       outputs.labels << surface_hint if breathing?
     end
-  end
-
-  # Place a sprite that lives in the diver's current chunk (fauna) onto the
-  # screen: shift its local x into that chunk and drop by the vertical camera.
-  def place_in_current_chunk(sprite)
-    sprite.merge(x: sprite[:x] + chunk_offset_x(world_index),
-                 y: sprite[:y] - state.camera_y)
   end
 
   # Daylight sky above the waterline, filling whatever the camera reveals once
@@ -200,7 +123,7 @@ class Game
   # the column, which keeps a terrace one flat colour, and everything darkens
   # with depth.
   def world_floor(world, dx)
-    base = world.biome.floor_colors[1]
+    body = world.biome.floor_colors[1].map { |c| c - 14 }
     cap = world.biome.floor_colors[0]
     tiles = []
     each_terrace(world.floor) do |top, first_col, width|
@@ -211,16 +134,19 @@ class Game
       w = width * World::COLUMN_WIDTH + 1
       shade = (top.idiv(WorldGenerator::FLOOR_STEP) % 5 - 2) * 4 # strata, not stripes
       dim = light_at(top)
-      tiles << { x: x, y: y - FLOOR_FILL_DEPTH, w: w, h: FLOOR_FILL_DEPTH,
-                 r: ((base[0] - 14 + shade) * dim).to_i,
-                 g: ((base[1] - 14 + shade) * dim).to_i,
-                 b: ((base[2] - 14 + shade) * dim).to_i, path: :solid }
-      tiles << { x: x, y: y - 4, w: w, h: 4,
-                 r: ((cap[0] + shade) * dim).to_i,
-                 g: ((cap[1] + shade) * dim).to_i,
-                 b: ((cap[2] + shade) * dim).to_i, path: :solid } # sunlit cap
+      tiles << sand({ x: x, y: y - FLOOR_FILL_DEPTH, w: w, h: FLOOR_FILL_DEPTH }, body, shade, dim)
+      tiles << sand({ x: x, y: y - 4, w: w, h: 4 }, cap, shade, dim) # sunlit cap
     end
     tiles
+  end
+
+  # A solid rect in a floor colour, tinted by its strata shade and dimmed by how
+  # little daylight is left down there.
+  def sand(rect, color, shade, dim)
+    rect.merge(r: ((color[0] + shade) * dim).to_i,
+               g: ((color[1] + shade) * dim).to_i,
+               b: ((color[2] + shade) * dim).to_i,
+               path: :solid)
   end
 
   # Walk the heightmap as runs of equal height: |height, first column, width|.
@@ -279,9 +205,5 @@ class Game
       b: 80,
       a: 170,
     }
-  end
-
-  def lerp(a, b, t)
-    (a + (b - a) * t).to_i
   end
 end

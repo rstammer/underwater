@@ -28,9 +28,4 @@ class World
     col = columns - 1 if col >= columns
     floor[col]
   end
-
-  # The deepest point of this segment — how far down there is to explore here.
-  def deepest_y
-    floor.min
-  end
 end

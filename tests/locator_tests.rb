@@ -5,17 +5,6 @@ class LocatorTests
     game
   end
 
-  def test_home_only_in_the_starting_segment(args, assert)
-    game = build_game(args)
-    game.initialize_game(0)
-
-    args.state.diver_global_x = 100
-    assert.true! game.at_home?, "the starting segment is home"
-
-    args.state.diver_global_x = 3000
-    assert.false! game.at_home?, "far away is not home"
-  end
-
   def test_depth_is_zero_at_the_waterline(args, assert)
     game = build_game(args)
     game.initialize_game(0)

@@ -53,7 +53,7 @@ class WorldGeneratorTests
   # variety is the whole point of diving.
   def test_some_stretches_are_far_deeper_than_others(args, assert)
     worlds = (-12..12).map { |i| WorldGenerator.generate(i) }
-    lows = worlds.map { |w| w.deepest_y }
+    lows = worlds.map { |w| w.floor.min }
     highs = worlds.map { |w| w.floor.max }
 
     assert.true! lows.min < -1200, "somewhere the floor should drop into a real trench (#{lows.min})"

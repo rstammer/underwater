@@ -63,7 +63,7 @@ class WorldAtmosphereTests
 
     args.state.fish.each do |fish|
       y = fish.to_h[:y]
-      assert.true! y > world.deepest_y, "a fish should swim above the sand (#{y})"
+      assert.true! y > world.floor.min, "a fish should swim above the sand (#{y})"
       assert.true! y < WATERLINE_Y, "and below the waterline (#{y})"
     end
   end

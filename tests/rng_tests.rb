@@ -29,10 +29,4 @@ class RngTests
       assert.true! v >= 5 && v <= 8, "between(5,8) out of range: #{v}"
     end
   end
-
-  def test_sample_returns_a_member(args, assert)
-    r = Rng.new(1)
-    arr = [:a, :b, :c]
-    10.times { assert.true! arr.include?(r.sample(arr)) }
-  end
 end

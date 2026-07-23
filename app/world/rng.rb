@@ -30,12 +30,4 @@ class Rng
   def float
     next_u32 / 4_294_967_296.0
   end
-
-  def chance(probability)
-    float < probability
-  end
-
-  def sample(array)
-    array[int(array.length)]
-  end
 end

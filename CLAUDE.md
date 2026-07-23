@@ -55,9 +55,12 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
 - `app/entities/` — `diver` (Spieler), `dark_shark`, `sloppy_scalar` — eigene
   Klassen, bekommen `args` übergeben, lesen Position aus `state`
 - `app/world/` — **Welt-System** (s. u.): `rng`, `noise`, `biome`, `world`,
-  `world_generator`, `static_worlds`, `world_renderer` (reopenet `Game`; Kamera,
-  Wasser, Himmel, Boden, Deko, Boot), `fog_of_war`
-- `app/ux/` — `panel` (HUD/UI), eigenständige Klasse
+  `world_generator`, `static_worlds`, `world_stream` (reopenet `Game`; welche
+  Segmente es gibt, welche sichtbar sind, Welt→Screen-Offsets, Fauna-Spawn),
+  `world_renderer` (reopenet `Game`; zeichnet Wasser, Himmel, Boden, Deko, Boot),
+  `fog_of_war`
+- `app/ux/` — `panel` (Szenen-Label, eigenständige Klasse) und `hud` (reopenet
+  `Game`: O2-Balken, Locator, Tiefenanzeige)
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
   Seetang, Boot); erzeugt per Stdlib-PNG-Skript, im Titel + an der Oberfläche
@@ -158,17 +161,22 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   pixelige Sandkante). Alles rastet auf `FLOOR_STEP = 8` px → **Pixel-Terrassen**
   statt glattem Dach. Gesampelt wird **einmal pro Terrasse** (`terrace_start`),
   und Terrassen sind **unterschiedlich breit** (8–64 px, `TERRACE_BLOCK` /
-  `TERRACE_WIDTHS`) — sonst sähe der Boden aus wie ein regelmäßiger Kamm. `SHELF_BIAS`/`BASIN_BIAS` (>1) schieben die Verteilung
-  Richtung flach: meist Bank, ab und zu ein echter Graben (~80 m … ~220 m).
+  `TERRACE_WIDTHS`) — sonst sähe der Boden aus wie ein regelmäßiger Kamm.
+  `SHELF_BIAS`/`BASIN_BIAS` (>1) schieben die Verteilung Richtung flach: meist Bank, ab und zu ein echter Graben (~80 m … ~220 m).
   Weil es eine Funktion der Welt-Position ist, passen **Nachbarsegmente
   nahtlos** aneinander.
 - **`WorldGenerator.generate(index)`** — sampelt diese Funktion für die Spalten
   des Segments und würfelt (per `Rng`) Deko dazu; Biom pro Index gemischt gewählt.
 - **`StaticWorlds`** — Registry, um einzelne Indizes mit **handgebauten** Welten zu
   überschreiben (`world_for` = statisch ?: generiert). Der „Mix"-Hook; aktuell leer.
-- **`world_renderer.rb`** (reopenet `Game`) — `current_world` wählt das Chunk des
-  Tauchers (`world_index = diver_global_x / SCREEN_WIDTH`) für Biom/Fauna/Fog.
-  `render_world` zeichnet **kamera-versetzt** (`camera_x`/`camera_y`): Wasser
+- **`world_stream.rb`** (reopenet `Game`) — die Segment-Verwaltung: `current_world`
+  wählt das Chunk des Tauchers (`world_index = diver_global_x / SCREEN_WIDTH`) für
+  Biom/Fauna/Fog, `world_at`/`world_for` cachen bzw. bauen Segmente,
+  `visible_world_indices` sagt, was im Bild ist, `chunk_offset_x`/
+  `place_in_current_chunk` rechnen Welt→Screen, `spawn_fauna` besetzt ein neues
+  Segment.
+- **`world_renderer.rb`** (reopenet `Game`) — zeichnet daraus das Bild.
+  `render_world` malt **kamera-versetzt** (`camera_x`/`camera_y`): Wasser
   (`world_water` — füllt den ganzen Screen, jede Bande nimmt ihre Farbe aus der
   Welt-Tiefe, die sie gerade zeigt), darüber Himmel (`sky_fill`, deckt alles über
   der Wasserlinie ab), Wasserlinie (`surface_line`), dann für **jedes sichtbare
@@ -279,7 +287,7 @@ Screen-Positionen und werden nicht direkt gesetzt.
 `BASIN_*`, `CRAG_*`, `DUNE_*`, `ROUGH_*`, `FLOOR_STEP`, `TERRACE_BLOCK`,
 `TERRACE_WIDTHS`; `DIVER_FOOTPRINT` (main.rb) = wie breit der Taucher Grund fühlt.
 `app/world/world_renderer.rb` (Optik): `WATER_TWILIGHT`, `WATER_ABYSS`,
-`ABYSS_DIM`, `WATER_BANDS`, `FLOOR_FILL_DEPTH`, `FAUNA_BAND`.
+`ABYSS_DIM`, `WATER_BANDS`, `FLOOR_FILL_DEPTH`; `FAUNA_BAND` in `world_stream.rb`.
 Per Playtest justierbar — siehe Notizen in [`TODO.md`](TODO.md).
 
 ## Tests
