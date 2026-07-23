@@ -111,8 +111,8 @@ class IslandTests
     end
   end
 
-  # Where the islands land is rolled per round: far enough from home to be a
-  # find, close enough to reach, and never twice on the same sector.
+  # Where the islands land is rolled per round: never on the home sector, never
+  # twice on the same one, and always one of them close enough to stumble into.
   def test_the_islands_land_near_home_but_not_on_it(args, assert)
     game = build_game(args)
 
@@ -121,9 +121,11 @@ class IslandTests
       assert.equal! sectors.length, ISLAND_COUNT
       assert.equal! sectors.uniq.length, ISLAND_COUNT, "each island gets its own sector"
       sectors.each do |sector|
-        assert.true! sector.abs >= ISLAND_MIN_SECTOR, "not right next to the boat (#{sector})"
+        assert.false! sector.zero?, "never on top of the boat"
         assert.true! sector.abs <= ISLAND_MAX_SECTOR, "still within reach (#{sector})"
       end
+      near = sectors.select { |sector| sector.abs <= ISLAND_NEAR_SECTOR }
+      assert.true! near.length >= 1, "one island is always close to home (#{sectors.inspect})"
     end
   end
 

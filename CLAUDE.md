@@ -198,8 +198,10 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   über dem Gipfel wären sie außerhalb des Bildes), auf manchen Gipfeln steckt eine
   Fahne. Die Bewegung von Möwe und Krabbe macht `decor_drift` im Renderer.
 - **Wo die Inseln liegen:** `ISLAND_COUNT` Stück pro Runde, ausgewürfelt in
-  `roll_island_sectors` (verschiedene Sektoren, `ISLAND_MIN_SECTOR`..
-  `ISLAND_MAX_SECTOR` in beide Richtungen), gemerkt in `state.island_sectors`.
+  `roll_island_sectors` (verschiedene Sektoren, beide Richtungen), gemerkt in
+  `state.island_sectors`. Die **erste landet immer nah** (`1..ISLAND_NEAR_SECTOR`),
+  damit man beim Rausschwimmen in *irgendeine* Richtung auf eine trifft; die
+  übrigen liegen weiter draußen (`ISLAND_MIN_SECTOR`..`ISLAND_MAX_SECTOR`).
 - **`world_stream.rb`** (reopenet `Game`) — die Segment-Verwaltung: `current_world`
   wählt das Chunk des Tauchers (`world_index = diver_global_x / SCREEN_WIDTH`) für
   Biom/Fauna/Fog, `world_at`/`world_for` cachen bzw. bauen Segmente,
@@ -301,8 +303,9 @@ Screen-Positionen und werden nicht direkt gesetzt.
   `SOLID_STEP_UP` (48 px) gleitet er hoch — natürliches Gelände hat p99 = 32 px,
   also bremst nur echter Fels. **Eine Wand ist nie eine Falle:** hochschwimmen
   geht immer.
-- **Inseln & Höhlen:** 2–10 Sektoren neben zuhause ragen `ISLAND_COUNT` bewachsene
-  Inseln aus dem Wasser, jede mit eigener Form und Größe. Drüber kommt man nicht — der Weg führt **unten durch den Tunnel**,
+- **Inseln & Höhlen:** `ISLAND_COUNT` bewachsene Inseln ragen aus dem Wasser, jede
+  mit eigener Form und Größe — eine davon in Sichtweite (1–3 Sektoren), der Rest
+  weiter draußen. Drüber kommt man nicht — der Weg führt **unten durch den Tunnel**,
   mit einer **Luftkammer** auf halber Strecke, in der man auftaucht und den
   Sauerstoff auffüllt.
 - **Sauerstoff:** Drain unter Wasser (`OXYGEN_DRAIN`/Tick, ~3 min). Refill **nur**
@@ -337,7 +340,8 @@ Screen-Positionen und werden nicht direkt gesetzt.
 `CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=90`, `CAMERA_EASE=0.1`,
 `SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`, `OXYGEN_DRAIN=0.009`,
 `OXYGEN_REFILL=1.0`, `SPRINT_MULTIPLIER=2`, `SHARK_PATROL_SPREAD=200`,
-`SOLID_STEP_UP=48`, `ISLAND_MIN_SECTOR=2`, `ISLAND_MAX_SECTOR=10`, `ISLAND_COUNT=3`,
+`SOLID_STEP_UP=48`, `ISLAND_MIN_SECTOR=2`, `ISLAND_MAX_SECTOR=10`, `ISLAND_NEAR_SECTOR=3`,
+`ISLAND_COUNT=3`,
 `FOG_OF_WAR=true`, `DEBUG=false`.
 
 `app/world/world_generator.rb` (Geländeform): `FLOOR_TOP_Y`, `SHELF_*`,

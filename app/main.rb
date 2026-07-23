@@ -38,8 +38,9 @@ SPRINT_MULTIPLIER = 2 # sprinting: this much faster, and this much thirstier for
 SHARK_PATROL_SPREAD = 200 # how far above/below the diver's depth the shark comes back in
 DIVER_FOOTPRINT = 20 # how far to each side the diver's footing feels for sand to rest on
 SOLID_STEP_UP = 48 # ledge he still slips over sideways; anything higher is a wall
-ISLAND_MIN_SECTOR = 2 # no island lands right next to the boat ...
+ISLAND_MIN_SECTOR = 2 # no island lands on the home sector ...
 ISLAND_MAX_SECTOR = 10 # ... nor further out than this
+ISLAND_NEAR_SECTOR = 3 # ... except the first one, which always lands this close
 ISLAND_COUNT = 3 # how many of them are out there in a round
 FOG_OF_WAR = true
 DEBUG = false
@@ -95,16 +96,18 @@ class Game
     center_camera   # frame the diver right away instead of gliding in on the first ticks
   end
 
-  # Where the islands lie this round: distinct sectors to either side of home,
-  # near enough to reach on one tank of air, far enough that you have to explore.
+  # Where the islands lie this round: distinct sectors to either side of home.
+  # The first one lands close enough that you run into it swimming out in either
+  # direction — otherwise a round can go by without ever finding one. The rest
+  # are scattered further out, for exploring.
   def roll_island_sectors
-    sectors = []
+    sectors = [roll_island_sector(1, ISLAND_NEAR_SECTOR)]
     sectors << roll_island_sector until sectors.uniq.length == ISLAND_COUNT
     sectors.uniq
   end
 
-  def roll_island_sector
-    sector = ISLAND_MIN_SECTOR + rand(ISLAND_MAX_SECTOR - ISLAND_MIN_SECTOR + 1)
+  def roll_island_sector(nearest = ISLAND_MIN_SECTOR, furthest = ISLAND_MAX_SECTOR)
+    sector = nearest + rand(furthest - nearest + 1)
     rand(2).zero? ? -sector : sector
   end
 
