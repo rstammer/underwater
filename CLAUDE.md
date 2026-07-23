@@ -108,10 +108,15 @@ sind eine durchgehende Kamerafahrt (s. Kamera). `game_scene` steuert nur noch da
 
    title ──[Leertaste/z/j/A]──► area1 (Spielstart, an der Oberfläche/atmend)
    <überall> ──[Hai / O2 leer]──► game_over ──[Leertaste]──► area1 (reset_game)
+   <am Boot> ──[E]──► home_menu ──[E/ESC]──► area1/area2 (resume_scene)
    <überall> ──[ESC]──► title
 ```
 
-`title` und `game_over` sind **pausiert** (`game_paused?`): kein O2-Drain, kein HUD.
+`title`, `game_over` und `home_menu` sind **pausiert** (`game_paused?`): kein
+O2-/Anzug-Drain, kein HUD, **und Bewegung + Kamera stehen still** (die Welt friert
+ein, statt dass der Taucher hinter dem Menü davondriftet). Der Menü-Umschalter
+`toggle_home_menu(open_or_close, close_only)` ist von der Tastenabfrage getrennt,
+damit er ohne simulierte Eingaben testbar ist. Das Logbuch selbst: `home_menu.rb`.
 
 ### Kamera (beide Achsen, kontinuierlich)
 
@@ -164,15 +169,23 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
 - **`WorldGenerator.floor_y_at(world_x)`** — **die eine Wahrheit über den
   Meeresgrund.** Kein Würfeln pro Segment, sondern eine Funktion der Welt-`x`,
   geschichtet aus mehreren Noise-Oktaven: `shelf` (sehr breit — ganze Regionen
-  sind Bank oder fallen ab), `basin` (Becken), `crag` (ridged Noise → felsige
-  Spitzen), `dune` (kleines Relief), `rough` (Jitter pro 16-px-Zelle → zerklüftete,
-  pixelige Sandkante). Alles rastet auf `FLOOR_STEP = 8` px → **Pixel-Terrassen**
-  statt glattem Dach. Gesampelt wird **einmal pro Terrasse** (`terrace_start`),
-  und Terrassen sind **unterschiedlich breit** (8–64 px, `TERRACE_BLOCK` /
-  `TERRACE_WIDTHS`) — sonst sähe der Boden aus wie ein regelmäßiger Kamm.
-  `SHELF_BIAS`/`BASIN_BIAS` (>1) schieben die Verteilung Richtung flach: meist Bank, ab und zu ein echter Graben (~80 m … ~220 m).
-  Weil es eine Funktion der Welt-Position ist, passen **Nachbarsegmente
-  nahtlos** aneinander.
+  sind Bank oder fallen ab), `basin` (Becken), **`trough`** (breite tiefe Becken,
+  s. u.), `crag` (ridged Noise → felsige Spitzen), `dune` (kleines Relief),
+  `rough` (Jitter pro 16-px-Zelle → zerklüftete, pixelige Sandkante). Alles rastet
+  auf `FLOOR_STEP = 8` px → **Pixel-Terrassen** statt glattem Dach. Gesampelt wird
+  **einmal pro Terrasse** (`terrace_start`), und Terrassen sind **unterschiedlich
+  breit** (8–64 px, `TERRACE_BLOCK` / `TERRACE_WIDTHS`) — sonst sähe der Boden aus
+  wie ein regelmäßiger Kamm. Weil es eine Funktion der Welt-Position ist, passen
+  **Nachbarsegmente nahtlos** aneinander.
+- **Tiefe / lange Abstiege (`trough_at`, `chasm_at`).** Der Schelf allein war zu
+  flach (überall ~kurzer Weg zum Grund). `trough_at` (schwellwertgesteuerte
+  smoothstep-Oktave, `TROUGH_*`) senkt **breite** Regionen tief ab → **manche
+  Abschnitte sind ein langer Tauchgang** bis zum Grund; `chasm_at` (`CHASM_*`)
+  bleibt der seltene, steilere Extremfall. Verteilung: ~43 % flache Bank (<60 m),
+  Modus 25–49 m, langer Schwanz runter bis ~290 m. **Beide sind steil-aber-glatt
+  by design** und stecken in `ground_level_at` → die Kamera reitet sie über
+  `smooth_floor_y_at` (nicht in `test_ground_level_is_the_smooth_shape` messen —
+  dort werden `chasm_at` **und** `trough_at` herausgerechnet, wie die Chasm-Wände).
 - **`WorldGenerator.generate(index)`** — sampelt diese Funktion für die Spalten
   des Segments und würfelt (per `Rng`) Deko dazu; Biom pro Index gemischt gewählt.
 - **`StaticWorlds`** — Registry, um einzelne Indizes mit **handgebauten** Welten zu
@@ -211,6 +224,16 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   dass da Land ist — über dem Gipfel wären sie außerhalb des Bildes. Auf manchen
   Gipfeln steckt eine Fahne. Die Bewegung
   von Möwe und Krabbe macht `decor_drift` im Renderer.
+- **Skerries** (`skerry_columns`/`skerry_clusters`) — zerklüftete Felsen, die vor
+  **beiden Küsten** aus dem Wasser ragen (nicht die Insel selbst): eigene
+  `roof`-Spalten mit Krone knapp über und Basis knapp unter Wasser
+  (`SKERRY_LIP_*`, `SKERRY_DEPTH`). Sie **stoppen an der Oberfläche** (druntertauchen
+  geht) und sind fester Fels für Hai & Fische. Von oben sieht man wegen der
+  Oberflächen-Occlusion den Fels unter Wasser nicht — die Skerries sind der
+  sichtbare Hinweis „hier ist die Insel, nicht durchschwimmbar". Sie halten sich
+  aus dem offenen Wasser der Segmentmitte heraus (und nie am Segmentrand, sonst
+  Naht). **Gras (`GREEN`) nur noch auf Fels, der `GREEN_MIN` über Wasser steht** —
+  die flachen Skerries und die Wasserlinie bleiben nackter Fels.
 - **Wo die Inseln liegen:** `ISLAND_COUNT` Stück pro Runde, ausgewürfelt in
   `roll_island_sectors` (verschiedene Sektoren, beide Richtungen), gemerkt in
   `state.island_sectors`. Die **erste landet immer nah** (`1..ISLAND_NEAR_SECTOR`),
@@ -266,7 +289,7 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | Key | Bedeutung |
 |-----|-----------|
 | `initialized` | Flag, ob `initialize_game` schon lief |
-| `game_scene` | aktiver Screen (`title`/`area1`/`area2`/`game_over`) — steuert Dispatch |
+| `game_scene` | aktiver Screen (`title`/`area1`/`area2`/`game_over`/`home_menu`) — steuert Dispatch |
 | `diver_global_x` | **horizontale Welt-Position (Single source of truth).** Unbegrenzt; `world_index = diver_global_x / SCREEN_WIDTH` |
 | `depth_y` | **vertikale Welt-Position (Single source of truth).** `WATERLINE_Y` = Wasserlinie, darüber Himmel; nach unten offen (Gräben liegen weit unter `0`, `0` ist nur das historische „Grund"-Niveau). Hoch schwimmen = `depth_y` steigt = flacher |
 | `camera_x` / `camera_y` | Welt-`x`/`y` am linken/unteren Screenrand; folgen dem Taucher (`camera_x` zentriert; `camera_y` easet ans Ziel, Dead Zone **relativ zum Boden**) |
@@ -284,6 +307,7 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `fish` | Array von `SloppyScalar` — Schwarm des aktiven Bioms; Positionen als **lokale** Chunk-`x` (0..`SCREEN_WIDTH`) + Welt-`y`, gerendert via `place_in_current_chunk`. Jeder Fisch patrouilliert nur seinen freien Wasserstreifen (`from_x`/`to_x` aus `open_water_span`, dreht an den Enden) und driftet `DRIFT` px um seine Spawn-Tiefe (kein Wrap!) |
 | `dark_shark` | `{x:, y:}`-Hash der Hai-Position: **lokale** Chunk-`x` (wrappt bei `SCREEN_WIDTH`) + Welt-`y` (von der `DarkShark`-Entity in `to_h` gelesen). Bei jeder neuen Runde kommt er auf **Taucher-Tiefe** ±`SHARK_PATROL_SPREAD` rein |
 | `active_world` / `active_world_index` | gecachtes aktuelles Chunk (Biom/Fauna) + sein Segment-Index (Neu-Setzen nur bei Segmentwechsel) |
+| `log_deepest` / `log_sectors` / `log_islands` / `log_caves` | Logbuch der Runde: tiefste Meterzahl + Index-Sets (Sektoren/Inseln/Höhlen); `track_log` füllt, `reset_log` leert |
 
 Koordinaten-Merksatz: **hoch schwimmen = `depth_y` steigt = flacher; seitlich =
 `diver_global_x`.** Wasserlinie bei `WATERLINE_Y`, der Grund liegt je nach Ort
@@ -300,8 +324,16 @@ Screen-Positionen und werden nicht direkt gesetzt.
   kleines Motorboot mit Kajüte, Außenborder und **Badeleiter**, die ins Wasser
   reicht (gedacht als späteres Zuhause zum Anlegen/Einsteigen). Liegt man daneben,
   erscheint eine kleine Karte über dem Boot (`render_boat_hint`): „Dein Boot —
-  hier bist du zu Hause / Anzug wird repariert, Luft füllt sich auf". Sonst
-  bleibt der Bildschirm frei von Text (die alten Szenen-Titel sind weg).
+  hier bist du zu Hause / Anzug wird repariert, Luft füllt sich auf / [ E ]
+  Logbuch öffnen". Sonst bleibt der Bildschirm frei von Text (die alten
+  Szenen-Titel sind weg). Die Zeilen sind **oben** verankert
+  (`vertical_alignment_enum: 2`), sonst rutscht die letzte unter die Kartenkante.
+- **Logbuch (Home-Menü):** `E` am Boot öffnet `home_menu` (pausiert, Welt friert
+  hinter einem Schleier ein) — die Bilanz der Runde: tiefster Tauchgang, erkundete
+  Sektoren, gefundene Inseln, durchtauchte Höhlen. Gezählt wird pro Tauch-Tick in
+  `track_log` (Sektoren/Inseln/Höhlen als Index-Sets → kein Doppelzählen; Höhle
+  zählt, sobald man in ihrer Luftkammer atmet), zurückgesetzt pro Runde
+  (`reset_log`). Zeilen liefert `logbook_rows` (reine Methode → testbar).
 - **Bewegung (kontinuierlich, beide Achsen):** Es gibt keinen Übergang mehr — der
   Taucher bewegt sich in `depth_y` (vertikal) und `diver_global_x` (horizontal),
   die Kamera scrollt die Welt weich durch. Vertikal: nahe dem Grund ruht die
@@ -354,7 +386,10 @@ Screen-Positionen und werden nicht direkt gesetzt.
   `:eaten`. Er patrouilliert auf **Taucher-Tiefe** (`shark_patrol_y`, geclampt in
   die Wassersäule via `in_water`) — also auch im Graben gefährlich. **Fels stoppt
   ihn wie den Taucher:** vor der Insel dreht er um (`shark_blocked?`/`solid_at?`,
-  `dark_shark.dir`, Sprite spiegelt sich) statt hindurchzuschwimmen.
+  `dark_shark.dir`, Sprite spiegelt sich) statt hindurchzuschwimmen. `shark_blocked?`
+  prüft die **ganze Körperhöhe** (`shark_span_solid?`, drei y-Punkte), und die
+  vertikale Drift lehnt Ziel-`y` ab, die im Fels läge — sonst schlüpfte er in einen
+  dünnen freistehenden Skerry.
 - **Maßstab:** `PIXELS_PER_METRE = 14`. Der Anzug deckelt die *Meter*, also gibt
   ein großzügiger Meter dem Meer den Platz, sich tief anzufühlen: die Wassersäule
   ist im Median ~890 px — mehr als ein Bildschirm, man sieht von oben also nicht
@@ -372,7 +407,7 @@ Screen-Positionen und werden nicht direkt gesetzt.
 `SHORE_LIP`, `SHORE_HEIGHT`, `TUNNEL_HEIGHT`, `DOME_SPAN`, `DOME_RISE`,
 `AIR_DEPTH`, `CROWN_STEP`, `PLANT_SPACING`, `MARGIN`, `GULL_HEIGHT`, `SCALES`;
 Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
-`DOME_RISE`.
+`DOME_RISE`; Skerries: `SKERRY_LIP_MIN/MAX`, `SKERRY_DEPTH`.
 
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
 `CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=240`, `CAMERA_FLOOR_SLACK=60`,
@@ -385,7 +420,8 @@ Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
 `FOG_OF_WAR=true`, `DEBUG=false`.
 
 `app/world/world_generator.rb` (Geländeform): `FLOOR_TOP_Y`, `SHELF_*`,
-`BASIN_*`, `CHASM_*`, `CRAG_*`, `DUNE_*`, `ROUGH_*`, `FLOOR_STEP`, `TERRACE_BLOCK`,
+`BASIN_*`, `TROUGH_*` (breite tiefe Becken), `CHASM_*`, `CRAG_*`, `DUNE_*`,
+`ROUGH_*`, `FLOOR_STEP`, `TERRACE_BLOCK`,
 `TERRACE_WIDTHS`; `DIVER_FOOTPRINT` (main.rb) = wie breit der Taucher Grund fühlt.
 `app/world/world_renderer.rb` (Optik): `WATER_TWILIGHT`, `WATER_ABYSS`,
 `ABYSS_DIM`, `WATER_BANDS`, `FLOOR_FILL_DEPTH`, `ISLAND_ROCK`, `GREEN`,
