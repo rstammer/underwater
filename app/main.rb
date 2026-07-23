@@ -34,6 +34,11 @@ SURFACE_BOAT_X = 120 # world x of the diver's home boat, floating at the waterli
 OXYGEN_MAX = 100
 OXYGEN_DRAIN = 0.009 # per tick underwater (~3 min of air at 60 fps)
 OXYGEN_REFILL = 1.0 # per tick while breathing at the surface (fast top-up)
+SUIT_MAX = 100
+SUIT_DEPTH_LIMIT = 100 # metres this suit is rated for; below that the pressure works on it
+SUIT_DRAIN = 0.0025 # damage per tick, per metre past the rated depth
+SUIT_REPAIR = 0.4 # per tick while patching it up at the boat
+BOAT_REACH = 160 # how close to the boat counts as being back home
 SPRINT_MULTIPLIER = 2 # sprinting: this much faster, and this much thirstier for air
 SHARK_PATROL_SPREAD = 200 # how far above/below the diver's depth the shark comes back in
 DIVER_FOOTPRINT = 20 # how far to each side the diver's footing feels for sand to rest on
@@ -65,7 +70,10 @@ class Game
     update_characters(sprite_index)
     basic_movements_per_tick
     update_depth_and_camera
-    update_oxygen unless game_paused?
+    unless game_paused?
+      update_oxygen
+      update_suit
+    end
     send("#{state.game_scene}_tick")
     render_diver unless game_paused?
     render_panel # HUD last so it draws on top of the scene and fog
@@ -85,6 +93,7 @@ class Game
     state.dark_shark = { x: -300, y: 300 }
     state.game_scene = "title"
     state.oxygen = OXYGEN_MAX
+    state.suit = SUIT_MAX
     state.death_cause = nil
     state.sprinting = false
     state.speed = Diver::SPEED
@@ -125,6 +134,7 @@ class Game
     state.island_sectors = roll_island_sectors # a new round hides them somewhere else
     state.dark_shark = { x: -300, y: 300 }
     state.oxygen = OXYGEN_MAX
+    state.suit = SUIT_MAX
     state.death_cause = nil
     state.sprinting = false
     state.speed = Diver::SPEED
@@ -461,6 +471,34 @@ class Game
 
   def oxygen_drain
     state.sprinting ? OXYGEN_DRAIN * SPRINT_MULTIPLIER : OXYGEN_DRAIN
+  end
+
+  # The suit is rated for a depth. Below it the pressure works on the seams, the
+  # harder the deeper you are — so the deep is a gradient to feel out, not a wall.
+  # A failed suit ends the dive. Back at the boat you can patch it up again.
+  def update_suit
+    return repair_suit if at_the_boat?
+    return unless too_deep?
+
+    state.suit -= SUIT_DRAIN * (current_depth - SUIT_DEPTH_LIMIT)
+    return if state.suit > 0
+
+    state.suit = 0
+    state.game_scene = "game_over"
+    state.death_cause = :crushed
+  end
+
+  def repair_suit
+    state.suit = [state.suit + SUIT_REPAIR, SUIT_MAX].min
+  end
+
+  def too_deep?
+    current_depth > SUIT_DEPTH_LIMIT
+  end
+
+  # Back at the boat, up in the air beside it — the one place with tools aboard.
+  def at_the_boat?
+    at_open_surface? && (state.diver_global_x - SURFACE_BOAT_X).abs <= BOAT_REACH
   end
 
   # He breathes wherever his head is out of the water: up at the sea's surface,

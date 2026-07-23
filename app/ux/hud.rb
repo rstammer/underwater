@@ -8,7 +8,7 @@ class Game
     Panel.new(args, state.diver).to_a.each do |item|
       outputs.labels << item
     end
-    render_oxygen_bar
+    render_gauges
     render_locator
   end
 
@@ -39,19 +39,34 @@ class Game
     [(WATERLINE_Y - state.depth_y) / 10, 0].max.to_i
   end
 
-  def render_oxygen_bar
-    x = 20
-    y = 640
-    w = 220
-    h = 18
-    ratio = state.oxygen / OXYGEN_MAX
-    low = ratio < 0.3
+  GAUGE_Y = 640
+  GAUGE_W = 220
+  GAUGE_H = 18
+  OXYGEN_COLOR = [40, 170, 230]
+  SUIT_COLOR = [190, 160, 90]
 
-    outputs.labels << { x: x, y: y + h + 22, text: "Sauerstoff", r: 225, g: 238, b: 255 }
-    outputs.sprites << { x: x, y: y, w: w, h: h, r: 15, g: 25, b: 45, path: :solid } # track
-    outputs.sprites << {                                                             # fill
-      x: x, y: y, w: w * ratio, h: h,
-      r: (low ? 210 : 40), g: (low ? 70 : 170), b: (low ? 80 : 230),
+  # The two things that can run out on you, side by side: how long you can stay
+  # down, and how deep you can go.
+  def render_gauges
+    render_gauge(20, "Sauerstoff", state.oxygen / OXYGEN_MAX, OXYGEN_COLOR)
+    render_gauge(260, suit_label, state.suit / SUIT_MAX, SUIT_COLOR)
+  end
+
+  def suit_label
+    too_deep? ? "Anzug — Druck!" : "Anzug"
+  end
+
+  def render_gauge(x, label, ratio, color)
+    low = ratio < 0.3
+    ratio = 0 if ratio < 0
+
+    outputs.labels << { x: x, y: GAUGE_Y + GAUGE_H + 22, text: label,
+                        r: low ? 235 : 225, g: low ? 150 : 238, b: low ? 150 : 255 }
+    outputs.sprites << { x: x, y: GAUGE_Y, w: GAUGE_W, h: GAUGE_H,
+                         r: 15, g: 25, b: 45, path: :solid } # track
+    outputs.sprites << {                                     # fill
+      x: x, y: GAUGE_Y, w: GAUGE_W * ratio, h: GAUGE_H,
+      r: (low ? 210 : color[0]), g: (low ? 70 : color[1]), b: (low ? 80 : color[2]),
       path: :solid,
     }
   end

@@ -15,14 +15,21 @@
 # seamlessly, and every height snaps to FLOOR_STEP so the sand reads as chunky
 # pixel terraces instead of a smooth roof.
 class WorldGenerator
-  FLOOR_TOP_Y = 40 # world y the shallowest sand starts from (0 = the old floor level)
+  FLOOR_TOP_Y = 380 # world y the shallowest sand starts from (near the surface)
 
   SHELF_WAVELENGTH = 5120
-  SHELF_DROP = 1500
+  SHELF_DROP = 350
   SHELF_BIAS = 2.2 # >1 skews the shelf shallow: most of the sea is a bank, now and then it drops away
   BASIN_WAVELENGTH = 2560
-  BASIN_DROP = 520
+  BASIN_DROP = 180
   BASIN_BIAS = 1.6
+
+  # Now and then the shelf gives way completely. A chasm plunges far past what a
+  # standard suit can take — visible, reachable, and lethal to linger in. This is
+  # the deep you dive *toward* once you have better gear.
+  CHASM_WAVELENGTH = 3200
+  CHASM_THRESHOLD = 0.78 # only the top of the noise opens up, so chasms stay rare
+  CHASM_DROP = 2200
   CRAG_WAVELENGTH = 384
   CRAG_HEIGHT = 130
   DUNE_WAVELENGTH = 128
@@ -46,11 +53,12 @@ class WorldGenerator
   DUNE_SEED = 404
   ROUGH_SEED = 505
   TERRACE_SEED = 606
+  CHASM_SEED = 1010
 
   RELIEF = CRAG_HEIGHT + DUNE_HEIGHT / 2 + ROUGH_HEIGHT / 2
   FLOOR_CEILING = FLOOR_TOP_Y + RELIEF                              # shallowest sand
-  FLOOR_BOTTOM = FLOOR_TOP_Y - SHELF_DROP - BASIN_DROP -
-                 (DUNE_HEIGHT / 2 + ROUGH_HEIGHT / 2) - FLOOR_STEP  # deepest trench
+  FLOOR_BOTTOM = FLOOR_TOP_Y - SHELF_DROP - BASIN_DROP - CHASM_DROP -
+                 (DUNE_HEIGHT / 2 + ROUGH_HEIGHT / 2) - FLOOR_STEP  # bottom of the deepest chasm
 
   def self.columns
     SCREEN_WIDTH / World::COLUMN_WIDTH
@@ -75,7 +83,18 @@ class WorldGenerator
     y = FLOOR_TOP_Y
     y -= (Noise.value(world_x, SHELF_WAVELENGTH, SHELF_SEED)**SHELF_BIAS) * SHELF_DROP
     y -= (Noise.value(world_x, BASIN_WAVELENGTH, BASIN_SEED)**BASIN_BIAS) * BASIN_DROP
-    y.to_i
+    y.to_i + chasm_at(world_x)
+  end
+
+  # How far the floor has fallen away here, or 0 out on the ordinary shelf. Only
+  # the very top of the noise opens into a chasm, and the walls come down
+  # smoothly (the camera rides this, so it must not step).
+  def self.chasm_at(world_x)
+    depth = Noise.value(world_x, CHASM_WAVELENGTH, CHASM_SEED)
+    return 0 if depth < CHASM_THRESHOLD
+
+    t = (depth - CHASM_THRESHOLD) / (1.0 - CHASM_THRESHOLD)
+    (-CHASM_DROP * (t * t * (3 - 2 * t))).to_i
   end
 
   # World x where this position's terrace begins — every x on the same terrace

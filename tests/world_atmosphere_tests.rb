@@ -83,7 +83,8 @@ class WorldAtmosphereTests
     y = args.state.dark_shark.y
     assert.true! (y - args.state.depth_y).abs <= SHARK_PATROL_SPREAD + 30,
                  "the shark should come back in near the diver (#{y} vs #{args.state.depth_y})"
-    assert.true! y >= game.sea_floor_y, "and never inside the sand (#{y})"
+    nose = SCREEN_WIDTH + args.state.dark_shark.x # its own stretch of water, not the diver's
+    assert.false! game.solid_at?(nose, y), "and never inside the sand (#{y})"
   end
 
   def test_static_hook_defaults_to_generation(args, assert)

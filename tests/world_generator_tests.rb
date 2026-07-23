@@ -98,12 +98,43 @@ class WorldGeneratorTests
   end
 
   # The camera needs the broad shape of the ground, without the crags, dunes and
-  # jitter that would shake the view.
+  # jitter that would shake the view. (Chasm walls are steep by design, so they're
+  # measured out of it here — they're smooth, just not gentle.)
   def test_ground_level_is_the_smooth_shape_of_the_floor(args, assert)
-    steps = (0..400).map { |i| WorldGenerator.ground_level_at(i * 8 + 1) }
+    steps = (0..1200).map { |i| WorldGenerator.ground_level_at(i * 8 + 1) - WorldGenerator.chasm_at(i * 8 + 1) }
     jumps = (1...steps.length).map { |i| (steps[i] - steps[i - 1]).abs }
 
-    assert.true! jumps.max <= 8, "the broad ground shape must not step (#{jumps.max} px)"
+    assert.true! jumps.max <= 8, "the broad shelf must not step (#{jumps.max} px)"
+  end
+
+  # The ordinary sea floor is somewhere a standard suit can go. What lies past
+  # that limit are the chasms — the deep you can look into but not yet work in.
+  def test_the_shelf_is_within_suit_range_and_only_chasms_are_not(args, assert)
+    limit_y = WATERLINE_Y - SUIT_DEPTH_LIMIT * 10
+    too_deep = 0
+    chasms = 0
+
+    (0..2000).each do |i|
+      x = i * 32
+      chasm = WorldGenerator.chasm_at(x) < 0
+      chasms += 1 if chasm
+      next unless WorldGenerator.floor_y_at(x) < limit_y
+
+      too_deep += 1
+      assert.true! chasm, "only a chasm may reach past the suit's depth (world x #{x})"
+    end
+
+    assert.true! too_deep > 0, "there has to be somewhere out of reach to dive toward"
+    assert.true! chasms < 2001 / 2, "but chasms stay the exception, not the sea floor"
+  end
+
+  # And when the floor does give way, it gives way properly.
+  def test_a_chasm_plunges_far_past_the_suits_limit(args, assert)
+    deepest = (0..4000).map { |i| WorldGenerator.floor_y_at(i * 64) }.min
+    metres = (WATERLINE_Y - deepest) / 10
+
+    assert.true! metres > SUIT_DEPTH_LIMIT * 2,
+                 "a chasm should be twice the suit's rating deep (#{metres} m)"
   end
 
   # The terrain function is what the world (and the diver's footing) reads, so it

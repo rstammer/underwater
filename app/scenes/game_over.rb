@@ -37,10 +37,11 @@ class Game
     outputs.labels << labels
   end
 
-  # Cause-specific game-over message (shark vs. running out of air).
+  # Cause-specific game-over message (shark, air, or the pressure down there).
   def death_message
     case state.death_cause
     when :drowned then "Dir ging die Luft aus — du bist ertrunken!"
+    when :crushed then "Der Druck war zu groß — dein Anzug hat aufgegeben!"
     else "Oh nein! Du wurdest gefressen!"
     end
   end

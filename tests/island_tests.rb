@@ -248,7 +248,8 @@ class IslandTests
     args.state.island_sectors = [1]
     args.state.diver_global_x = SCREEN_WIDTH + 100 # the diver is in the island's sector
     rock_starts = island_for(1).first_column * World::COLUMN_WIDTH
-    args.state.dark_shark = { x: rock_starts - 120, y: 0, dir: 1 } # cruising at it
+    # ... at a depth where the island is solid rock but the open sea is not
+    args.state.dark_shark = { x: rock_starts - 120, y: WATERLINE_Y - 100, dir: 1 }
 
     60.times { game.update_shark(0) }
 

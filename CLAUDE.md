@@ -61,7 +61,7 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
   `Game`; zeichnet Wasser, Himmel, Boden, Fels, Luftblasen, Deko, Boot),
   `fog_of_war`
 - `app/ux/` — `panel` (Szenen-Label, eigenständige Klasse) und `hud` (reopenet
-  `Game`: O2-Balken, Locator, Tiefenanzeige)
+  `Game`: O2- und Anzug-Balken, Locator, Tiefenanzeige)
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
   Seetang, Fels, Boot; für die Inseln: Palme groß/klein, Busch, Gras, Treibholz,
@@ -274,7 +274,8 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `sprinting` | `true`, solange die Sprint-Taste gehalten wird *und* geschwommen wird |
 | `speed` | effektive Geschwindigkeit dieses Ticks (`Diver::SPEED`, beim Sprint ×`SPRINT_MULTIPLIER`); von Movement *und* `Diver#tick` gelesen |
 | `oxygen` | 0..`OXYGEN_MAX`; leer → ertrinken |
-| `death_cause` | `:eaten` (Hai) / `:drowned` (O2 leer) / `nil` — steuert Game-Over-Text |
+| `suit` | 0..`SUIT_MAX` — Zustand des Anzugs; nimmt unterhalb `SUIT_DEPTH_LIMIT` Schaden, bei 0 → zerdrückt |
+| `death_cause` | `:eaten` (Hai) / `:drowned` (O2 leer) / `:crushed` (Anzug hin) / `nil` — steuert Game-Over-Text |
 | `diver` / `shark` | Entity-Instanzen (`Diver` / `DarkShark`) |
 | `fish` | Array von `SloppyScalar` — Schwarm des aktiven Bioms; Positionen als **lokale** Chunk-`x` (0..`SCREEN_WIDTH`) + Welt-`y`, gerendert via `place_in_current_chunk`. Jeder Fisch patrouilliert nur seinen freien Wasserstreifen (`from_x`/`to_x` aus `open_water_span`, dreht an den Enden) und driftet `DRIFT` px um seine Spawn-Tiefe (kein Wrap!) |
 | `dark_shark` | `{x:, y:}`-Hash der Hai-Position: **lokale** Chunk-`x` (wrappt bei `SCREEN_WIDTH`) + Welt-`y` (von der `DarkShark`-Entity in `to_h` gelesen). Bei jeder neuen Runde kommt er auf **Taucher-Tiefe** ±`SHARK_PATROL_SPREAD` rein |
@@ -323,6 +324,14 @@ Screen-Positionen und werden nicht direkt gesetzt.
   weiter draußen. Drüber kommt man nicht — der Weg führt **unten durch den Tunnel**,
   mit einer **Luftkammer** auf halber Strecke, in der man auftaucht und den
   Sauerstoff auffüllt.
+- **Anzug & Druck (die zweite Uhr):** Der Anzug ist für `SUIT_DEPTH_LIMIT` (100 m)
+  ausgelegt. Tiefer nimmt er Schaden, **linear mit den Metern darunter**
+  (`update_suit`) — 120 m kostet fast nichts, 190 m die Hälfte, ab ~230 m stirbt
+  man auf dem Rückweg (`death_cause = :crushed`). Luft begrenzt, wie *lange* man
+  unten bleibt; der Anzug, wie *tief* man geht. Repariert wird **nur am Boot**
+  (`at_the_boat?`, `SUIT_REPAIR`) — das gibt dem Boot seinen Zweck. HUD: zwei
+  Balken nebeneinander (`render_gauges`), der Anzug-Balken warnt mit
+  „Anzug — Druck!", sobald man unter der Auslegungstiefe ist.
 - **Sauerstoff:** Drain unter Wasser (`OXYGEN_DRAIN`/Tick, ~3 min). Refill **nur**
   wenn `breathing?` — Kopf über *einer* Wasseroberfläche: der des Meeres **oder**
   der in einer Luftkammer. Leer → `game_over` /
@@ -340,10 +349,11 @@ Screen-Positionen und werden nicht direkt gesetzt.
   die Wassersäule via `in_water`) — also auch im Graben gefährlich. **Fels stoppt
   ihn wie den Taucher:** vor der Insel dreht er um (`shark_blocked?`/`solid_at?`,
   `dark_shark.dir`, Sprite spiegelt sich) statt hindurchzuschwimmen.
-- **Tiefe & Profil:** Der Meeresgrund ist keine Ebene mehr: flache Bänke (~80 m)
-  wechseln sich mit Gräben (~220 m) ab, das Relief ist zerklüftet/terrassiert.
-  Wo es tief wird, muss man erkunden. Je tiefer, desto dunkler das Wasser und
-  desto enger der Fog (`light_at`) — Sauerstoff (~3 min) ist die Grenze.
+- **Tiefe & Profil:** Der normale Meeresgrund liegt bei ~20–90 m, also **innerhalb**
+  dessen, was der Anzug aushält; das Relief ist zerklüftet/terrassiert. Dazwischen
+  reißt der Schelf gelegentlich auf: **Abgründe** (`chasm_at`) fallen auf ~190 m,
+  die tiefsten auf ~270 m — sichtbar, anschwimmbar, aber mit diesem Anzug nicht
+  auszuhalten. Je tiefer, desto dunkler das Wasser und enger der Fog (`light_at`).
 
 ### Tuning-Konstanten
 
@@ -356,13 +366,14 @@ Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
 `CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=90`, `CAMERA_EASE=0.1`,
 `SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`, `OXYGEN_DRAIN=0.009`,
-`OXYGEN_REFILL=1.0`, `SPRINT_MULTIPLIER=2`, `SHARK_PATROL_SPREAD=200`,
+`OXYGEN_REFILL=1.0`, `SUIT_MAX=100`, `SUIT_DEPTH_LIMIT=100`, `SUIT_DRAIN=0.0025`,
+`SUIT_REPAIR=0.4`, `BOAT_REACH=160`, `SPRINT_MULTIPLIER=2`, `SHARK_PATROL_SPREAD=200`,
 `SOLID_STEP_UP=48`, `ISLAND_MIN_SECTOR=2`, `ISLAND_MAX_SECTOR=10`, `ISLAND_NEAR_SECTOR=3`,
 `ISLAND_COUNT=3`,
 `FOG_OF_WAR=true`, `DEBUG=false`.
 
 `app/world/world_generator.rb` (Geländeform): `FLOOR_TOP_Y`, `SHELF_*`,
-`BASIN_*`, `CRAG_*`, `DUNE_*`, `ROUGH_*`, `FLOOR_STEP`, `TERRACE_BLOCK`,
+`BASIN_*`, `CHASM_*`, `CRAG_*`, `DUNE_*`, `ROUGH_*`, `FLOOR_STEP`, `TERRACE_BLOCK`,
 `TERRACE_WIDTHS`; `DIVER_FOOTPRINT` (main.rb) = wie breit der Taucher Grund fühlt.
 `app/world/world_renderer.rb` (Optik): `WATER_TWILIGHT`, `WATER_ABYSS`,
 `ABYSS_DIM`, `WATER_BANDS`, `FLOOR_FILL_DEPTH`, `ISLAND_ROCK`, `GREEN`,
