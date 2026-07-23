@@ -31,12 +31,21 @@ class WorldGenerator
   ROUGH_HEIGHT = 26
   FLOOR_STEP = 8 # sand heights snap to this grid (pixel terraces)
 
+  # Terraces: the floor is sampled once per terrace and held flat across it, and
+  # terraces come in different widths so the bottom doesn't read as one regular
+  # comb. A block is subdivided into equal terraces; the divisor is drawn per
+  # block, weighted toward the narrow end. Blocks tile SCREEN_WIDTH exactly, so a
+  # terrace never straddles a segment border.
+  TERRACE_BLOCK = 64
+  TERRACE_WIDTHS = [8, 8, 16, 16, 32, 64]
+
   # Distinct seeds so the layers don't rhyme with each other.
   SHELF_SEED = 101
   BASIN_SEED = 202
   CRAG_SEED = 303
   DUNE_SEED = 404
   ROUGH_SEED = 505
+  TERRACE_SEED = 606
 
   RELIEF = CRAG_HEIGHT + DUNE_HEIGHT / 2 + ROUGH_HEIGHT / 2
   FLOOR_CEILING = FLOOR_TOP_Y + RELIEF                              # shallowest sand
@@ -48,15 +57,36 @@ class WorldGenerator
   end
 
   # The sea floor's world y at any world x — the single source of terrain truth.
-  # Higher y = shallower; deep trenches are far below 0.
+  # Higher y = shallower; deep trenches are far below 0. Sampled once per terrace
+  # and held flat across it, so the sand steps instead of curving.
   def self.floor_y_at(world_x)
+    x = terrace_start(world_x)
+    y = ground_level_at(x)
+    y += crag_at(x)
+    y += (Noise.value(x, DUNE_WAVELENGTH, DUNE_SEED) - 0.5) * DUNE_HEIGHT
+    y += (Noise.jitter(x.idiv(ROUGH_CELL), ROUGH_SEED) - 0.5) * ROUGH_HEIGHT
+    (y / FLOOR_STEP).floor * FLOOR_STEP
+  end
+
+  # The broad shape of the sea floor: shelves and basins only, no crags, dunes or
+  # jitter. This is what the camera rides (Game#camera_floor_y) — following the
+  # actual sand would make every notch of terrain shake the view.
+  def self.ground_level_at(world_x)
     y = FLOOR_TOP_Y
     y -= (Noise.value(world_x, SHELF_WAVELENGTH, SHELF_SEED)**SHELF_BIAS) * SHELF_DROP
     y -= (Noise.value(world_x, BASIN_WAVELENGTH, BASIN_SEED)**BASIN_BIAS) * BASIN_DROP
-    y += crag_at(world_x)
-    y += (Noise.value(world_x, DUNE_WAVELENGTH, DUNE_SEED) - 0.5) * DUNE_HEIGHT
-    y += (Noise.jitter(world_x.idiv(ROUGH_CELL), ROUGH_SEED) - 0.5) * ROUGH_HEIGHT
-    (y / FLOOR_STEP).floor * FLOOR_STEP
+    y.to_i
+  end
+
+  # World x where this position's terrace begins — every x on the same terrace
+  # answers the same, which is what makes the sand flat across it.
+  def self.terrace_start(world_x)
+    block = world_x.idiv(TERRACE_BLOCK)
+    pick = (Noise.jitter(block, TERRACE_SEED) * TERRACE_WIDTHS.length).to_i
+    pick = TERRACE_WIDTHS.length - 1 if pick >= TERRACE_WIDTHS.length
+    width = TERRACE_WIDTHS[pick]
+    offset = world_x - block * TERRACE_BLOCK
+    block * TERRACE_BLOCK + offset.idiv(width) * width
   end
 
   # Ridged noise: folding the value around its midpoint turns soft hills into

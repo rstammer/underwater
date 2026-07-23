@@ -111,15 +111,17 @@ sind eine durchgehende Kamerafahrt (s. Kamera). `game_scene` steuert nur noch da
 Position ist **eine durchgehende Welt-Koordinate** pro Achse; eine Kamera folgt
 dem Taucher und projiziert auf die Screen-Position (`update_depth_and_camera`):
 
-- **Welt-Position:** `state.depth_y` (`0` = Meeresgrund, `WATERLINE_Y` =
-  `SCREEN_HEIGHT` = Wasserlinie, darüber Himmel) und `state.diver_global_x`
-  (unbegrenzt, Single source of truth für horizontal).
+- **Welt-Position:** `state.depth_y` (`WATERLINE_Y` = `SCREEN_HEIGHT` =
+  Wasserlinie, darüber Himmel; nach unten offen — der Grund liegt je nach Ort auf
+  ganz unterschiedlicher Tiefe) und `state.diver_global_x` (unbegrenzt, Single
+  source of truth für horizontal).
 - **Kamera:** `state.camera_y` = Welt-`y` am **unteren** Rand, Ziel ist
-  `max(depth_y - CAMERA_ANCHOR, sea_floor_y - FLOOR_VIEW_MARGIN)` → **Dead Zone
-  am Boden, die dem Boden folgt** (der Meeresgrund liegt je nach Ort auf ganz
-  unterschiedlicher Tiefe, deshalb relativ statt fix bei 0). Die Kamera **easet**
-  mit `CAMERA_EASE` ans Ziel, sonst würde der zerklüftete Boden das Bild zappeln
-  lassen; `center_camera` setzt sie hart (Spawn/Reset).
+  `max(depth_y - CAMERA_ANCHOR, camera_floor_y - FLOOR_VIEW_MARGIN)` → **Dead Zone
+  am Boden, die dem Bodenprofil folgt** (deshalb relativ statt fix bei 0).
+  `camera_floor_y` liest bewusst `WorldGenerator.ground_level_at` (nur
+  Shelf+Basin, **ohne** Crags/Dünen/Jitter): folgte die Kamera dem echten Sand,
+  ruckelt das Bild bei jeder Kerbe. Zusätzlich **easet** sie mit `CAMERA_EASE`
+  ans Ziel; `center_camera` setzt sie hart (Spawn/Reset).
   `state.camera_x` = Welt-`x` am **linken** Rand, zentriert den Taucher
   (`diver_global_x - CAMERA_ANCHOR_X`) → er steht bildschirm-mittig, die Welt
   scrollt seitlich.
@@ -154,7 +156,9 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   sind Bank oder fallen ab), `basin` (Becken), `crag` (ridged Noise → felsige
   Spitzen), `dune` (kleines Relief), `rough` (Jitter pro 16-px-Zelle → zerklüftete,
   pixelige Sandkante). Alles rastet auf `FLOOR_STEP = 8` px → **Pixel-Terrassen**
-  statt glattem Dach. `SHELF_BIAS`/`BASIN_BIAS` (>1) schieben die Verteilung
+  statt glattem Dach. Gesampelt wird **einmal pro Terrasse** (`terrace_start`),
+  und Terrassen sind **unterschiedlich breit** (8–64 px, `TERRACE_BLOCK` /
+  `TERRACE_WIDTHS`) — sonst sähe der Boden aus wie ein regelmäßiger Kamm. `SHELF_BIAS`/`BASIN_BIAS` (>1) schieben die Verteilung
   Richtung flach: meist Bank, ab und zu ein echter Graben (~80 m … ~220 m).
   Weil es eine Funktion der Welt-Position ist, passen **Nachbarsegmente
   nahtlos** aneinander.
@@ -170,9 +174,10 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   der Wasserlinie ab), Wasserlinie (`surface_line`), dann für **jedes sichtbare
   Segment** (`visible_world_indices`, gecacht via `world_at`/`world_cache`) Boden
   + Deko — jeweils um `chunk_offset_x(index)` verschoben, sodass die Welt über
-  Grenzen durchscrollt. `world_floor` füllt pro Spalte `FLOOR_FILL_DEPTH` px nach
-  unten (der Boden kann beliebig tief liegen), plus hellere Kappe und leichte
-  Spalten-Sprenkelung. Boot (`home_boat` + `surface_hint`) wenn Segment 0
+  Grenzen durchscrollt. `world_floor` fasst gleich hohe Spalten zu **Terrassen**
+  zusammen (`each_terrace`, ~3x weniger Rects) und füllt jede `FLOOR_FILL_DEPTH`
+  px nach unten (der Boden kann beliebig tief liegen), plus hellere Kappe und
+  Tönung **nach Höhe** (Schichten/Strata, nicht pro Spalte). Boot (`home_boat` + `surface_hint`) wenn Segment 0
   sichtbar (`home_visible?`). Fauna: `spawn_fauna` streut den Schwarm in die
   **Wassersäule des jeweiligen Segments** (über dessen eigenem Boden, `FAUNA_BAND`),
   `fauna_visible?`/`shark_present?` — Fisch **und** Hai an der Oberfläche
@@ -271,7 +276,8 @@ Screen-Positionen und werden nicht direkt gesetzt.
 `FOG_OF_WAR=true`, `DEBUG=false`.
 
 `app/world/world_generator.rb` (Geländeform): `FLOOR_TOP_Y`, `SHELF_*`,
-`BASIN_*`, `CRAG_*`, `DUNE_*`, `ROUGH_*`, `FLOOR_STEP`.
+`BASIN_*`, `CRAG_*`, `DUNE_*`, `ROUGH_*`, `FLOOR_STEP`, `TERRACE_BLOCK`,
+`TERRACE_WIDTHS`; `DIVER_FOOTPRINT` (main.rb) = wie breit der Taucher Grund fühlt.
 `app/world/world_renderer.rb` (Optik): `WATER_TWILIGHT`, `WATER_ABYSS`,
 `ABYSS_DIM`, `WATER_BANDS`, `FLOOR_FILL_DEPTH`, `FAUNA_BAND`.
 Per Playtest justierbar — siehe Notizen in [`TODO.md`](TODO.md).
@@ -318,6 +324,11 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
   ursprünglich), faltet Kreaturen aus dem Graben zurück an die Oberfläche.
   Vertikal wird geclampt (`in_water`, `DRIFT`), nicht gewrappt. Horizontal
   (lokale Chunk-`x`) ist der Wrap dagegen richtig.
+- **Kamera nie am rohen Boden festmachen.** Die Dead Zone am Grund muss auf der
+  *groben* Geländeform sitzen (`ground_level_at`), nicht auf `sea_floor_y` — sonst
+  springt das Kameraziel bei jeder Sandkerbe und das Bild wackelt sichtbar
+  (gemessen: 4 px/Tick, nach dem Fix 0,3). Ebenso fühlt der Taucher den Grund
+  über seine ganze Breite (`DIVER_FOOTPRINT`, Maximum) statt an genau einer Spalte.
 - **Boden = Funktion der Welt-`x`, nicht pro Segment gewürfelt.** Nur weil
   `WorldGenerator.floor_y_at` global ist, passen unabhängig generierte Segmente
   an der Naht zusammen. Wer für ein Segment eigene Kontrollpunkte würfelt,

@@ -74,6 +74,38 @@ class WorldGeneratorTests
                  "the sand edge should be ragged, not one smooth curve (#{steps} steps)"
   end
 
+  # The sand is cut into terraces of *varying* width, so the bottom doesn't read
+  # as one regular comb of equal-width steps.
+  def test_floor_terraces_vary_in_width(args, assert)
+    floor = WorldGenerator.generate(11).floor
+
+    runs = []
+    run = 1
+    (1...floor.length).each do |i|
+      if floor[i] == floor[i - 1]
+        run += 1
+      else
+        runs << run
+        run = 1
+      end
+    end
+    runs << run
+    widths = runs.map { |r| r * World::COLUMN_WIDTH }
+
+    assert.true! widths.uniq.length >= 3, "terraces should come in different widths (#{widths.uniq.sort})"
+    assert.true! widths.max >= 32, "some terraces should be broad (#{widths.max})"
+    assert.true! widths.min <= 16, "and some narrow (#{widths.min})"
+  end
+
+  # The camera needs the broad shape of the ground, without the crags, dunes and
+  # jitter that would shake the view.
+  def test_ground_level_is_the_smooth_shape_of_the_floor(args, assert)
+    steps = (0..400).map { |i| WorldGenerator.ground_level_at(i * 8 + 1) }
+    jumps = (1...steps.length).map { |i| (steps[i] - steps[i - 1]).abs }
+
+    assert.true! jumps.max <= 8, "the broad ground shape must not step (#{jumps.max} px)"
+  end
+
   # The terrain function is what the world (and the diver's footing) reads, so it
   # must answer for any world x, including left of the starting segment.
   def test_floor_y_at_works_anywhere_in_the_world(args, assert)

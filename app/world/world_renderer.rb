@@ -193,32 +193,45 @@ class Game
     end
   end
 
-  # The sea floor: one solid column per terrain step, filled downward from the
-  # sand surface, topped by a lighter cap. Columns are narrow and their heights
-  # snap to a grid, so the edge reads as chunky pixel terraces; a per-column tint
-  # breaks up the flat fill, and the whole thing darkens with depth.
+  # The sea floor, drawn as terraces: adjacent columns of the same height become
+  # one solid filled downward from the sand surface, topped by a lighter cap.
+  # Terraces vary in width and their heights snap to a grid, so the bottom reads
+  # as chunky pixel steps. Tinting follows the height (like strata) rather than
+  # the column, which keeps a terrace one flat colour, and everything darkens
+  # with depth.
   def world_floor(world, dx)
     base = world.biome.floor_colors[1]
     cap = world.biome.floor_colors[0]
-    cam = state.camera_y
     tiles = []
-    world.floor.each_with_index do |top, col|
-      y = top - cam
-      next if y < 0 || y - FLOOR_FILL_DEPTH > SCREEN_HEIGHT # this column is off screen
+    each_terrace(world.floor) do |top, first_col, width|
+      y = top - state.camera_y
+      next if y < 0 || y - FLOOR_FILL_DEPTH > SCREEN_HEIGHT # this terrace is off screen
 
-      x = col * World::COLUMN_WIDTH + dx
-      shade = ((col * 37 + world.index * 101) % 5 - 2) * 5 # deterministic mottling
+      x = first_col * World::COLUMN_WIDTH + dx
+      w = width * World::COLUMN_WIDTH + 1
+      shade = (top.idiv(WorldGenerator::FLOOR_STEP) % 5 - 2) * 4 # strata, not stripes
       dim = light_at(top)
-      tiles << { x: x, y: y - FLOOR_FILL_DEPTH, w: World::COLUMN_WIDTH + 1, h: FLOOR_FILL_DEPTH,
+      tiles << { x: x, y: y - FLOOR_FILL_DEPTH, w: w, h: FLOOR_FILL_DEPTH,
                  r: ((base[0] - 14 + shade) * dim).to_i,
                  g: ((base[1] - 14 + shade) * dim).to_i,
                  b: ((base[2] - 14 + shade) * dim).to_i, path: :solid }
-      tiles << { x: x, y: y - 4, w: World::COLUMN_WIDTH + 1, h: 4,
+      tiles << { x: x, y: y - 4, w: w, h: 4,
                  r: ((cap[0] + shade) * dim).to_i,
                  g: ((cap[1] + shade) * dim).to_i,
                  b: ((cap[2] + shade) * dim).to_i, path: :solid } # sunlit cap
     end
     tiles
+  end
+
+  # Walk the heightmap as runs of equal height: |height, first column, width|.
+  def each_terrace(floor)
+    first = 0
+    (1..floor.length).each do |col|
+      next if col < floor.length && floor[col] == floor[first]
+
+      yield(floor[first], first, col - first)
+      first = col
+    end
   end
 
   def world_decorations(world, dx)

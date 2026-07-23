@@ -19,10 +19,14 @@ class CameraTests
     settle(game)
 
     assert.equal! args.state.depth_y, game.sea_floor_y, "clamped to rest on the floor"
-    assert.true! (args.state.camera_y - (game.sea_floor_y - FLOOR_VIEW_MARGIN)).abs < 1,
-                 "the camera settles a margin below the floor"
+    assert.true! (args.state.camera_y - (game.camera_floor_y - FLOOR_VIEW_MARGIN)).abs < 1,
+                 "the camera settles a margin below the ground"
     assert.true! args.state.player_y > 0 && args.state.player_y < SCREEN_HEIGHT,
                  "and the diver stays on screen (#{args.state.player_y})"
+
+    sand_on_screen = game.sea_floor_y - args.state.camera_y
+    assert.true! sand_on_screen > 0 && sand_on_screen < SCREEN_HEIGHT,
+                 "with the sand he rests on in view (#{sand_on_screen})"
   end
 
   # Well above the floor the camera follows the diver and he sits at the anchor.
@@ -52,6 +56,28 @@ class CameraTests
 
     assert.true! moved > 0, "the camera starts moving after the diver"
     assert.true! moved < 600, "but does not snap there in one tick (#{moved})"
+  end
+
+  # Cruising along the bottom must not shake the view: the camera rides the broad
+  # shape of the ground, not every notch of sand — and it stays calm across a
+  # segment border too.
+  def test_camera_stays_steady_while_cruising_along_the_floor(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.depth_y = -99_999 # settle onto the sand
+    settle(game)
+
+    worst = 0
+    600.times do # 1200 px of sea floor, across the segment 0/1 border
+      before = args.state.camera_y
+      args.state.diver_global_x += 2
+      args.state.depth_y -= 0.15 # buoyancy keeps him down on the sand
+      game.update_depth_and_camera
+      jolt = (args.state.camera_y - before).abs
+      worst = jolt if jolt > worst
+    end
+
+    assert.true! worst < 1.5, "the camera should glide, not lurch (#{worst} px in one tick)"
   end
 
   # The diver can float up to head-out at the waterline, but no higher.

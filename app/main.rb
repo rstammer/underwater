@@ -33,6 +33,7 @@ OXYGEN_DRAIN = 0.009 # per tick underwater (~3 min of air at 60 fps)
 OXYGEN_REFILL = 1.0 # per tick while breathing at the surface (fast top-up)
 SPRINT_MULTIPLIER = 2 # sprinting: this much faster, and this much thirstier for air
 SHARK_PATROL_SPREAD = 200 # how far above/below the diver's depth the shark comes back in
+DIVER_FOOTPRINT = 20 # how far to each side the diver's footing feels for sand to rest on
 FOG_OF_WAR = true
 DEBUG = false
 
@@ -261,7 +262,14 @@ class Game
   # the world sliding. Since the floor's depth varies wildly, this target is
   # relative to the ground under him, not to a fixed world y.
   def camera_target_y
-    [state.depth_y - CAMERA_ANCHOR, sea_floor_y - FLOOR_VIEW_MARGIN].max
+    [state.depth_y - CAMERA_ANCHOR, camera_floor_y - FLOOR_VIEW_MARGIN].max
+  end
+
+  # The ground the *camera* rides: the broad shape of the sea floor, without the
+  # crags, dunes and jitter the diver actually swims over. Reading the real sand
+  # here made the view lurch with every notch of terrain.
+  def camera_floor_y
+    WorldGenerator.ground_level_at(state.diver_global_x) + Diver::HEIGHT
   end
 
   def project_diver
@@ -269,10 +277,18 @@ class Game
     state.player_x = state.diver_global_x - state.camera_x
   end
 
-  # World y of the sand right under the diver, so he rests on the floor instead
-  # of sinking through it. A little headroom keeps his body above the sand.
+  # World y of the sand under the diver, so he rests on the floor instead of
+  # sinking through it. The highest sand under his whole footprint counts, so he
+  # glides over the ragged notches instead of dropping into every one of them.
   def sea_floor_y
-    current_world.floor_y_at(state.diver_global_x % SCREEN_WIDTH) + Diver::HEIGHT
+    x = state.diver_global_x
+    [floor_at(x - DIVER_FOOTPRINT), floor_at(x), floor_at(x + DIVER_FOOTPRINT)].max + Diver::HEIGHT
+  end
+
+  # Sand world y at any world x, looked up in the segment it belongs to — so a
+  # footprint that reaches across a segment border reads the right world.
+  def floor_at(world_x)
+    world_at(world_x.idiv(SCREEN_WIDTH)).floor_y_at(world_x % SCREEN_WIDTH)
   end
 
   # Sprinting (holding the sprint key while actually swimming) makes the diver
