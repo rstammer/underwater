@@ -28,6 +28,9 @@ class IslandWorld
   CROWN_STEP = 16      # the island's own terrace grid — chunkier than the sea floor
   PLANT_SPACING = 90   # px of level ground each plant wants for itself
   SHORE_HEIGHT = 110   # crown height above the water that still counts as beach
+  SKERRY_LIP_MIN = 20  # lowest a skerry pokes out of the water ...
+  SKERRY_LIP_MAX = 76  # ... and highest — low rugged rock, never a summit
+  SKERRY_DEPTH = 160   # how far a skerry's base reaches below the waterline
   GULL_HEIGHT = 110    # how high over the water the gulls hang
   # How far out from the island's edges they range, in columns, and how much
   # higher each one flies. Negative = off the left shore, positive = off the right.
@@ -36,6 +39,7 @@ class IslandWorld
   SHAPE_SEED = 707
   DECOR_SEED = 808
   TUNNEL_SEED = 909
+  SKERRY_SEED = 1313
   TUNNEL_PLANTS = ["seaweed", "coral", "rock", "starfish"]
 
   SCALES = {
@@ -74,9 +78,54 @@ class IslandWorld
       roof[col] = { ceiling: ceiling, crown: crown_y(col) }
     end
 
+    skerry_columns.each { |col, rock| roof[col] = rock }
+
     World.new(index: @world.index, biome: @world.biome, floor: floor, roof: roof,
               decorations: decorations(roof) + tunnel_decor(floor),
               air_pockets: chambers.map { |chamber| chamber_air(chamber) })
+  end
+
+  # Rugged rocks that break the surface in the water off the island's shores.
+  # They are not the island itself — they make plain that the rock reaches out
+  # here and you can't swim straight through: you bump into them up top and dive
+  # under to pass. Solid like everything else, so the diver, shark and fish all
+  # respect them. Keyed by column so build can drop them straight into the roof.
+  def skerry_columns
+    @skerry_columns ||= begin
+      cols = {}
+      skerry_clusters.each do |start, width|
+        width.times do |w|
+          col = start + w
+          next unless col >= 1 && col < @world.columns - 1 # never touch the segment borders
+          next if island_column?(col)                      # nor overwrite the island itself
+
+          cols[col] = { ceiling: WATERLINE_Y - SKERRY_DEPTH, crown: skerry_crown(col) }
+        end
+      end
+      cols
+    end
+  end
+
+  # A skerry pokes out of the water by a rolled amount, its top snapped to the
+  # island's terrace grid so it reads as chunky rock rather than a spike.
+  def skerry_crown(col)
+    lip = SKERRY_LIP_MIN + (Noise.jitter(world_x(col), SKERRY_SEED) * (SKERRY_LIP_MAX - SKERRY_LIP_MIN)).to_i
+    ((WATERLINE_Y + lip) / CROWN_STEP).floor * CROWN_STEP
+  end
+
+  # Where the stacks stand: a cluster hugging each shore, just off the island's
+  # edge in the shallows — [first column, width in columns], rolled from the index
+  # so they scatter differently every round. They keep clear of the open water in
+  # the middle of the segment, so the rock reads plainly as *the island's*.
+  def skerry_clusters
+    [
+      [first_column - 6 - skerry_roll(1, 3), 3 + skerry_roll(2, 3)],
+      [last_column + 2 + skerry_roll(5, 3), 3 + skerry_roll(6, 3)],
+    ]
+  end
+
+  def skerry_roll(salt, span)
+    (Noise.jitter(@world.index * 131 + salt, SKERRY_SEED + 4) * span).to_i
   end
 
   def mouth_left

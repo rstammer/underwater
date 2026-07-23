@@ -13,8 +13,10 @@ class Game
   AIR_SURFACE_COLOR = [150, 190, 205] # the water surface trapped under it
   FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
 
-  GREEN = [96, 146, 74]       # the green cap on anything that breaks the surface
+  GREEN = [96, 146, 74]       # the green cap on rock that stands well out of the water
   GREEN_CAP = 10              # how thick that band of grass is
+  GREEN_MIN = 96             # rock must clear the water by this much to grow grass — bare wet
+                             # rock at the waterline and the low skerries stay stone
   ISLAND_ROCK = [138, 122, 102] # sun-bleached stone — an island wears its own colour,
                                 # not the palette of the sea floor around it
   CAVE_DIM = 0.5              # inside a cave it is dark whatever the depth says
@@ -219,6 +221,7 @@ class Game
       next if top <= bottom # this slab is off screen
 
       island = rock[:crown] > WATERLINE_Y
+      grassy = rock[:crown] > WATERLINE_Y + GREEN_MIN
       body = island ? ISLAND_ROCK : world.biome.floor_colors[2]
       x = first_col * World::COLUMN_WIDTH + dx
       w = width * World::COLUMN_WIDTH + 1
@@ -229,7 +232,7 @@ class Game
       tiles << sand({ x: x, y: rock[:ceiling] - state.camera_y, w: w, h: 4 },
                     world.biome.floor_colors[0], shade, dim) # lit rim under the rock
       tiles << sand({ x: x, y: rock[:crown] - state.camera_y - GREEN_CAP, w: w, h: GREEN_CAP },
-                    GREEN, shade, 1.0) if island # grass on top of the island
+                    GREEN, shade, 1.0) if grassy # grass on top of the island
     end
     tiles
   end

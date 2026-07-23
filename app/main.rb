@@ -191,7 +191,12 @@ class Game
     end
 
     if Kernel.tick_count % 30 == 0
-      shark.y = in_water(shark.y + ((-1)**rand(10) * rand(30)), shark_nose_x(shark))
+      candidate = in_water(shark.y + ((-1)**rand(10) * rand(30)), shark_nose_x(shark))
+      # Don't let the vertical drift settle the shark inside a slab — a skerry off
+      # the shore is rock the drift could otherwise wander into. Check both ends.
+      nose = shark_nose_x(shark)
+      tail = nose - shark.dir * DarkShark::WIDTH * DarkShark::SCALE_FACTOR
+      shark.y = candidate unless shark_span_solid?(nose, candidate) || shark_span_solid?(tail, candidate)
     end
 
     state.shark.tick(args, sprite_index)
@@ -204,8 +209,16 @@ class Game
   end
 
   def shark_blocked?(shark)
-    solid_at?(shark_nose_x(shark) + shark.dir * DarkShark::SPEED,
-              shark.y + DarkShark::HEIGHT)
+    shark_span_solid?(shark_nose_x(shark) + shark.dir * DarkShark::SPEED, shark.y)
+  end
+
+  # The shark is as tall as its body, so check rock across its whole height, not
+  # just one point — it must turn before any part of it slides into a slab
+  # (free-standing skerries are thin enough that a single sample can miss them).
+  def shark_span_solid?(world_x, y)
+    solid_at?(world_x, y - DarkShark::HEIGHT) ||
+      solid_at?(world_x, y) ||
+      solid_at?(world_x, y + DarkShark::HEIGHT)
   end
 
   # A depth to prowl at: near the diver, give or take, but never out of the water

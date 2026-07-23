@@ -23,6 +23,42 @@ class IslandTests
     assert.true! crowns.min > WATERLINE_Y, "and even the shore stands clear of the water"
   end
 
+  # Off the shores, rugged rocks break the surface: their top stands clear of the
+  # water, their base is rooted below it, and none of them sits on the island
+  # itself or on a segment border.
+  def test_skerries_break_the_surface_off_the_shore(args, assert)
+    built = island.build
+    skerries = island.skerry_columns
+
+    assert.true! skerries.length >= 4, "there are rocks out in the water off the shore (#{skerries.length})"
+    skerries.each do |col, rock|
+      assert.false! island.island_column?(col), "a skerry stands apart from the island (#{col})"
+      assert.true! col >= 1 && col < built.roof.length - 1, "and never on a border (#{col})"
+      assert.true! rock[:crown] > WATERLINE_Y, "its top breaks the surface (#{rock[:crown]})"
+      assert.true! rock[:crown] < WATERLINE_Y + IslandWorld::SHORE_HEIGHT, "but stays low, no summit (#{rock[:crown]})"
+      assert.true! rock[:ceiling] < WATERLINE_Y, "its base is under the water (#{rock[:ceiling]})"
+      assert.equal! built.roof[col], rock, "and it is really in the world's rock"
+    end
+  end
+
+  # The skerry is a real wall at the surface — you can't swim straight through it —
+  # but there is open water beneath to dive under and pass.
+  def test_a_surface_swimmer_is_stopped_by_a_skerry(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.island_sectors = [1]
+    isle = island_for(1)
+    col = isle.skerry_columns.keys.min_by { |c| c } # a skerry column
+    world_x = SCREEN_WIDTH + col * World::COLUMN_WIDTH
+    args.state.diver_global_x = world_x
+
+    args.state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH # up at the surface
+    assert.true! game.blocked?(world_x), "the rock blocks him at the surface"
+
+    args.state.depth_y = WATERLINE_Y - IslandWorld::SKERRY_DEPTH - Diver::HEIGHT * 3 # dived under it
+    assert.false! game.blocked?(world_x), "but there's open water to slip under"
+  end
+
   # A plain dome would be boring: the skyline steps in plateaus and has more than
   # one shoulder to it.
   def test_the_skyline_is_not_a_smooth_dome(args, assert)
@@ -247,17 +283,29 @@ class IslandTests
     game.initialize_game(0)
     args.state.island_sectors = [1]
     args.state.diver_global_x = SCREEN_WIDTH + 100 # the diver is in the island's sector
-    rock_starts = island_for(1).first_column * World::COLUMN_WIDTH
-    # ... at a depth where the island is solid rock but the open sea is not
-    args.state.dark_shark = { x: rock_starts - 120, y: WATERLINE_Y - 100, dir: 1 }
+    isle = island_for(1)
+    # The leftmost rock is now whichever skerry stands furthest off the shore.
+    leftmost_col = ([isle.first_column] + isle.skerry_columns.keys).min
+    rock_starts = leftmost_col * World::COLUMN_WIDTH
+    body = DarkShark::WIDTH * DarkShark::SCALE_FACTOR
+    # Spawn it a clear body-length to the left, in open water, swimming at the rock.
+    spawn_x = rock_starts - body - 40
+    args.state.dark_shark = { x: spawn_x, y: WATERLINE_Y - 100, dir: 1 }
+    assert.false! game.solid_at?(SCREEN_WIDTH + spawn_x, args.state.dark_shark.y),
+                  "the shark starts in open water (#{spawn_x})"
 
-    60.times { game.update_shark(0) }
+    turned = false
+    200.times do
+      game.update_shark(0)
+      turned = true if args.state.dark_shark.dir == -1
+      sx = SCREEN_WIDTH + args.state.dark_shark.x
+      # Never, on any tick, is any part of the shark inside solid rock.
+      assert.false! game.solid_at?(sx, args.state.dark_shark.y) ||
+                    game.solid_at?(sx + body, args.state.dark_shark.y),
+                    "the shark ended up inside the rock at #{args.state.dark_shark.x.to_i},#{args.state.dark_shark.y.to_i}"
+    end
 
-    shark_x = SCREEN_WIDTH + args.state.dark_shark.x
-    assert.false! game.solid_at?(shark_x, args.state.dark_shark.y),
-                  "the shark never ends up inside the island"
-    assert.equal! args.state.dark_shark.dir, -1, "it turned around at the rock"
-    assert.true! args.state.dark_shark.x < rock_starts, "and stayed on its side of it"
+    assert.true! turned, "and it turned away from the rock instead of ploughing on"
   end
 
   # Fish belong to the water they were spawned in. Left to drift they used to
