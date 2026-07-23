@@ -7,8 +7,8 @@ class Game
   WATER_ABYSS = 3400    # px below the waterline where the light is as good as gone
   ABYSS_DIM = 0.82      # how much of the light the abyss swallows
   WATER_BANDS = 24      # horizontal strips the water gradient is drawn in
-  BOAT_HINT_W = 420
-  BOAT_HINT_H = 62
+  BOAT_HINT_W = 460
+  BOAT_HINT_H = 104
   AIR_COLOR = [20, 26, 32]            # the gloom inside an air chamber
   AIR_SURFACE_COLOR = [150, 190, 205] # the water surface trapped under it
   FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
@@ -300,14 +300,25 @@ class Game
   def render_boat_hint
     x = SURFACE_BOAT_X - state.camera_x
     y = WATERLINE_Y + 150 - state.camera_y
+    left = x - BOAT_HINT_W / 2
 
-    outputs.sprites << { x: x - BOAT_HINT_W / 2, y: y, w: BOAT_HINT_W, h: BOAT_HINT_H,
-                         r: 18, g: 42, b: 66, a: 165, path: :solid }
-    outputs.sprites << { x: x - BOAT_HINT_W / 2, y: y + BOAT_HINT_H - 3, w: BOAT_HINT_W, h: 3,
-                         r: 120, g: 190, b: 220, a: 180, path: :solid }
+    # The card, with a bright rule along its top edge.
+    outputs.sprites << { x: left, y: y, w: BOAT_HINT_W, h: BOAT_HINT_H,
+                         r: 18, g: 42, b: 66, a: 175, path: :solid }
+    outputs.sprites << { x: left, y: y + BOAT_HINT_H - 3, w: BOAT_HINT_W, h: 3,
+                         r: 120, g: 190, b: 220, a: 190, path: :solid }
+
+    # Text laid out from the top down; each label's y is the top of its line
+    # (vertical_alignment_enum 2), so every line keeps its full height above the
+    # card's bottom edge instead of spilling past it.
     outputs.labels << { x: x, y: y + BOAT_HINT_H - 16, text: "Dein Boot — hier bist du zu Hause",
-                        size_enum: 2, alignment_enum: 1, r: 226, g: 240, b: 250 }
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 46, text: "Anzug wird repariert, Luft füllt sich auf",
-                        size_enum: 0, alignment_enum: 1, r: 176, g: 206, b: 226 }
+                        size_enum: 2, alignment_enum: 1, vertical_alignment_enum: 2,
+                        r: 232, g: 244, b: 252 }
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 48, text: "Anzug wird repariert · Luft füllt sich auf",
+                        size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
+                        r: 176, g: 206, b: 226 }
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 74, text: "Basis für deine Tauchgänge",
+                        size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
+                        r: 132, g: 168, b: 194 }
   end
 end
