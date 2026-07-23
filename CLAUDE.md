@@ -280,6 +280,10 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   rechts) zeigt Sektor + Tiefe, hinter `locator?` (später an ein Gerät koppelbar).
 
 Deko-Sprites für Welten liegen in `sprites/decor/` (seaweed/coral/starfish/rock).
+`decor_tint` (Renderer): **Fels-Deko nimmt die lokale Steinfarbe** (`biome.floor_colors[0]`)
+an, damit Felsen nicht als graue Kuppen auf dunklem Grund kleben; alle andere Deko
+behält ihre Farbe, verliert aber mit der Tiefe Licht (`light_at`) — nichts leuchtet
+unten im Dunkeln.
 
 ## State-Modell (`args.state`)
 

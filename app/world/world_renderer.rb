@@ -258,6 +258,7 @@ class Game
       sprite = DECOR_SPRITES[d[:kind]]
       sway = d[:kind] == "seaweed" ? Math.sin((Kernel.tick_count + d[:x]) / 45.0) * 3 : 0
       drift_x, drift_y = decor_drift(d)
+      tint = decor_tint(d, world)
       {
         x: d[:x] + dx + drift_x,
         y: d[:y] - state.camera_y + drift_y,
@@ -267,7 +268,21 @@ class Game
         anchor_x: 0.5,
         anchor_y: 0,
         angle: sway,
+        r: tint[0], g: tint[1], b: tint[2],
       }
+    end
+  end
+
+  # Boulders take the colour of the local stone, so they read as rock *of this sea
+  # floor* rather than grey intruders on the dark deep; everything else keeps its
+  # own colour but loses light with depth, so nothing glows down in the dark.
+  def decor_tint(d, world)
+    dim = light_at(d[:y])
+    if d[:kind] == "rock"
+      world.biome.floor_colors[0].map { |c| v = c * 1.25 * dim; v > 255 ? 255 : v.to_i }
+    else
+      v = (255 * dim).to_i
+      [v, v, v]
     end
   end
 
