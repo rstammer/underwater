@@ -8,6 +8,47 @@ class Game
     render_debug
     render_gauges
     render_locator
+    render_inventory
+    render_pickup_prompt
+  end
+
+  INV_X = 20
+  INV_SLOT = 46
+  INV_GAP = 8
+
+  # The three carry slots, top-left, each holding the icon of what's in it. Empty
+  # slots sit as dim frames so you can see how much room is left.
+  def render_inventory
+    outputs.labels << { x: INV_X, y: grid.h - 16, text: "Inventar",
+                        size_enum: 1, r: 210, g: 228, b: 245, a: 175 }
+    top = grid.h - 30 - INV_SLOT
+    INVENTORY_MAX.times do |i|
+      x = INV_X + i * (INV_SLOT + INV_GAP)
+      outputs.sprites << { x: x, y: top, w: INV_SLOT, h: INV_SLOT, r: 14, g: 30, b: 50, a: 185, path: :solid }
+      outputs.sprites << { x: x, y: top + INV_SLOT - 2, w: INV_SLOT, h: 2, r: 90, g: 140, b: 170, a: 150, path: :solid }
+
+      kind = state.inventory[i]
+      next unless kind
+
+      sprite = ITEM_SPRITES[kind]
+      outputs.sprites << { x: x + INV_SLOT / 2, y: top + INV_SLOT / 2,
+                           w: sprite[:w] * 2, h: sprite[:h] * 2, path: sprite[:path],
+                           anchor_x: 0.5, anchor_y: 0.5 }
+    end
+  end
+
+  # When an item is within reach, a line telling you what it is and how to take it
+  # — or, if the pack is full, that you need to stow something at the boat first.
+  def render_pickup_prompt
+    item = item_in_reach
+    return unless item
+
+    full = inventory_full?
+    text = full ? "Inventar voll — am Boot einlagern" : "[ E ]  #{ITEM_NAMES[item[:kind]]} aufheben"
+    cx = grid.w / 2
+    outputs.sprites << { x: cx - 260, y: 128, w: 520, h: 44, r: 12, g: 30, b: 48, a: 180, path: :solid }
+    outputs.labels << { x: cx, y: 150, text: text, size_enum: 2, alignment_enum: 1, vertical_alignment_enum: 1,
+                        r: full ? 240 : 232, g: full ? 200 : 244, b: full ? 150 : 252 }
   end
 
   # Only with DEBUG on: the diver's world and screen x, for chasing coordinate bugs.

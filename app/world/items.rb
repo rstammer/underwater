@@ -79,6 +79,21 @@ class Game
     state.inventory.length >= INVENTORY_MAX
   end
 
+  def update_pickup
+    grab_item if inputs.keyboard.key_down.e
+  end
+
+  # Pick up the item under the diver, if there is one and the pack has room. The
+  # state change on its own, so it's testable without faking the key press.
+  def grab_item
+    item = item_in_reach
+    return unless item
+    return if inventory_full?
+
+    item[:collected] = true
+    state.inventory << item[:kind]
+  end
+
   # Drawn in world space, shifted by the camera. Hidden from the surface like the
   # rest of the underwater world, and gone once collected. A slow bob so they
   # catch the eye on the sand.

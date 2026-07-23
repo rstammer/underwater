@@ -62,6 +62,59 @@ class ItemsTests
     assert.equal! game.item_in_reach, nil, "picked-up items don't linger"
   end
 
+  def test_grabbing_an_item_moves_it_into_the_pack(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    item = args.state.world_items.first
+    args.state.diver_global_x = item[:x]
+    args.state.depth_y = item[:y]
+
+    game.grab_item
+
+    assert.true! item[:collected], "the item is taken off the sea floor"
+    assert.equal! args.state.inventory, [item[:kind]], "and is now in the pack"
+    assert.equal! game.item_in_reach, nil, "so it's no longer there to grab"
+  end
+
+  def test_the_pack_holds_no_more_than_three(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.inventory = ["shoe", "can", "jewel"] # already full
+    item = args.state.world_items.first
+    args.state.diver_global_x = item[:x]
+    args.state.depth_y = item[:y]
+
+    game.grab_item
+
+    assert.false! item[:collected], "a full pack leaves the item where it lies"
+    assert.equal! args.state.inventory.length, Game::INVENTORY_MAX, "still just three"
+  end
+
+  def test_grabbing_with_nothing_in_reach_does_nothing(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.diver_global_x = 50 # home sector, no items here
+    args.state.depth_y = -300
+
+    game.grab_item
+
+    assert.equal! args.state.inventory.length, 0, "grabbing thin water yields nothing"
+  end
+
+  def test_the_inventory_hud_renders(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.inventory = ["bottle", "key"] # two of three slots filled
+    item = args.state.world_items.first
+    args.state.diver_global_x = item[:x] # over an item, so the prompt path runs too
+    args.state.depth_y = item[:y]
+
+    game.render_inventory
+    game.render_pickup_prompt
+
+    assert.true! args.outputs.sprites.length > 0, "slots and the prompt draw without error"
+  end
+
   def test_items_render_only_underwater(args, assert)
     game = build_game(args)
     game.initialize_game(0)

@@ -77,6 +77,7 @@ class Game
     unless game_paused?
       basic_movements_per_tick
       update_depth_and_camera
+      update_pickup # E near an item picks it up (if the pack has room)
       update_oxygen
       update_suit
       track_log # quietly record how deep you got and what you've seen
