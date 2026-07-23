@@ -320,8 +320,8 @@ class Game
     outputs.labels << { x: x, y: y + BOAT_HINT_H - 48, text: "Anzug wird repariert · Luft füllt sich auf",
                         size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: 176, g: 206, b: 226 }
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 74, text: "Basis für deine Tauchgänge",
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 74, text: "[ E ]  Logbuch öffnen",
                         size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
-                        r: 132, g: 168, b: 194 }
+                        r: 150, g: 198, b: 224 }
   end
 end

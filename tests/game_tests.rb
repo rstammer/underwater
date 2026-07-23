@@ -41,14 +41,13 @@ class GameTests
     assert.equal! args.state.game_scene, "area1"
   end
 
-  def test_game_paused_only_on_title_and_game_over(args, assert)
+  def test_game_paused_on_title_game_over_and_the_home_menu(args, assert)
     game = build_game(args)
 
-    args.state.game_scene = "title"
-    assert.true! game.game_paused?
-
-    args.state.game_scene = "game_over"
-    assert.true! game.game_paused?
+    ["title", "game_over", "home_menu"].each do |scene|
+      args.state.game_scene = scene
+      assert.true! game.game_paused?, "#{scene} pauses the world"
+    end
 
     args.state.game_scene = "area1"
     assert.false! game.game_paused?

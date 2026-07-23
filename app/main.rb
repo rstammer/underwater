@@ -4,6 +4,7 @@ require "app/scenes/title.rb"
 require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
 require "app/scenes/area2.rb"
+require "app/scenes/home_menu.rb"
 
 require "app/entities/dark_shark.rb"
 require "app/entities/sloppy_scalar.rb"
@@ -68,13 +69,15 @@ class Game
     ) || 0
 
     update_scene
+    update_home_menu # E at the boat opens the logbook; E/ESC closes it
     update_sprint
     update_characters(sprite_index)
-    basic_movements_per_tick
-    update_depth_and_camera
     unless game_paused?
+      basic_movements_per_tick
+      update_depth_and_camera
       update_oxygen
       update_suit
+      track_log # quietly record how deep you got and what you've seen
     end
     send("#{state.game_scene}_tick")
     render_diver unless game_paused?
@@ -104,6 +107,7 @@ class Game
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)
     state.fish = [] # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
+    reset_log       # the dive log starts empty each round
     center_camera   # frame the diver right away instead of gliding in on the first ticks
   end
 
@@ -140,6 +144,7 @@ class Game
     state.death_cause = nil
     state.sprinting = false
     state.speed = Diver::SPEED
+    reset_log        # a new round, a fresh log
     spawn_at_surface # sets position (player_x, diver_global_x, depth_y, camera_y)
   end
 
@@ -543,7 +548,50 @@ class Game
   end
 
   def game_paused?
-    ["title", "game_over"].include?(state.game_scene)
+    ["title", "game_over", "home_menu"].include?(state.game_scene)
+  end
+
+  # The home menu: press E at the boat to open the logbook, E or ESC to close it.
+  # Kept in one place so a single key press does exactly one thing — the frozen
+  # world sits behind it, so the world's own input is off while it's open.
+  def update_home_menu
+    toggle_home_menu(menu_key?, inputs.keyboard.key_down.escape)
+  end
+
+  # The state change on its own, so it's testable without faking key presses.
+  def toggle_home_menu(open_or_close, close_only)
+    if state.game_scene == "home_menu"
+      resume_scene if open_or_close || close_only
+    elsif !game_paused? && at_the_boat? && open_or_close
+      state.game_scene = "home_menu"
+    end
+  end
+
+  def menu_key?
+    inputs.keyboard.key_down.e
+  end
+
+  # Back to diving in whichever sector the diver is standing in.
+  def resume_scene
+    state.game_scene = state.diver_global_x < 1281 ? "area1" : "area2"
+  end
+
+  # The dive log for this round: how deep you got, and what you've come across.
+  def reset_log
+    state.log_deepest = 0
+    state.log_sectors = {}
+    state.log_islands = {}
+    state.log_caves = {}
+  end
+
+  # Recorded once per diving tick. Sectors and islands are keyed by index so
+  # revisiting one doesn't count twice; a cave counts once you've surfaced to
+  # breathe in its trapped air.
+  def track_log
+    state.log_deepest = current_depth if current_depth > state.log_deepest
+    state.log_sectors[world_index] = true
+    state.log_islands[world_index] = true if state.island_sectors.include?(world_index)
+    state.log_caves[world_index] = true if breathing? && !at_open_surface?
   end
 
   def render_diver
