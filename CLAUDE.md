@@ -189,14 +189,23 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   **keine Insel aus wie die andere**. Gelesen wird pro Terrasse
   (`WorldGenerator.terrace_start`), das gibt Plateaus und Schultern statt einer
   glatten Kuppe; nach oben deckelt `CROWN_MAX`, sonst schneidet der Bildrand den
-  Gipfel ab. Unten ein **Tunnel quer hindurch**, dessen Boden eine Rampe zwischen
-  dem Sand beider Mündungen ist (keine Stufe beim Rein-/Rausschwimmen); in der
-  Mitte hebt sich die Decke zur **Luftkammer** (`chamber_*`) — dort taucht man auf
-  und atmet. Bewuchs nach Lage (`plant_for`): Treibholz und Krabben am Strand,
-  Palmen nur wo es flach genug ist (`slope_at`), Büsche und Gras an den Hängen,
-  mit Lücken dazwischen; Möwen hängen **über dem Wasser an der Küste** (`gulls` —
-  über dem Gipfel wären sie außerhalb des Bildes), auf manchen Gipfeln steckt eine
-  Fahne. Die Bewegung von Möwe und Krabbe macht `decor_drift` im Renderer.
+  Gipfel ab.
+- **Der Tunnel** ist pro Insel anders: der Boden (`tunnel_floor_y`) ist eine Rampe
+  zwischen dem Sand beider Mündungen **plus ein Sack oder Buckel** (`@sag`, an den
+  Enden null — deshalb keine Stufe beim Rein-/Rausschwimmen), die Höhe
+  (`tunnel_height`) wechselt zwischen **Engstelle und Halle**
+  (`TUNNEL_MIN`..`TUNNEL_MAX`, nie enger als `MIN_GAP`), und unterwegs heben
+  **ein bis zwei Luftkammern** (`chambers`, Position gewürfelt) die Decke — dort
+  taucht man auf und atmet. Im Korridor wächst Seetang, Koralle, Fels
+  (`tunnel_decor`).
+- **Bewuchs oben** steht auf den **Plateaus** (`plateaus` = Läufe gleicher
+  Kronenhöhe; ein Platz je `PLANT_SPACING` px): Treibholz und Krabben am Strand,
+  weiter oben, was in die Lücke passt. Geprüft wird der **Fuß** der Pflanze
+  (`base_width`, ~⅓ der Sprite-Breite) — Wedel dürfen überhängen, Stämme nicht.
+  (Vorher standen Palmen in festen Abständen und damit halb über der Kante.)
+  Möwen hängen **über dem Wasser an der Küste** (`gulls` — über dem Gipfel wären
+  sie außerhalb des Bildes), auf manchen Gipfeln steckt eine Fahne. Die Bewegung
+  von Möwe und Krabbe macht `decor_drift` im Renderer.
 - **Wo die Inseln liegen:** `ISLAND_COUNT` Stück pro Runde, ausgewürfelt in
   `roll_island_sectors` (verschiedene Sektoren, beide Richtungen), gemerkt in
   `state.island_sectors`. Die **erste landet immer nah** (`1..ISLAND_NEAR_SECTOR`),
@@ -278,7 +287,9 @@ Screen-Positionen und werden nicht direkt gesetzt.
 - **Rundenstart (`spawn_at_surface`):** Jede Runde (erster Start *und* Neustart
   nach game_over) beginnt an der Wasserlinie neben dem Boot (`SURFACE_BOAT_X`),
   Kopf raus/atmend (`depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH`). Am Startsegment
-  schaukelt ein **Home-Boot** (`home_boat`) an der Wasserlinie, dazu ein dezenter
+  schaukelt das **Tauchboot** (`home_boat`/`BOAT_SPRITE`) an der Wasserlinie — ein
+  kleines Motorboot mit Kajüte, Außenborder und **Badeleiter**, die ins Wasser
+  reicht (gedacht als späteres Zuhause zum Anlegen/Einsteigen). Dazu ein dezenter
   Hinweis (`surface_hint`), der zum Abtauchen/Erkunden ermutigt.
 - **Bewegung (kontinuierlich, beide Achsen):** Es gibt keinen Übergang mehr — der
   Taucher bewegt sich in `depth_y` (vertikal) und `diver_global_x` (horizontal),
@@ -334,7 +345,9 @@ Screen-Positionen und werden nicht direkt gesetzt.
 
 `app/world/island_world.rb` (Inseln): `SPAN_MIN/MAX`, `PEAK_MIN/MAX`, `CROWN_MAX`,
 `SHORE_LIP`, `SHORE_HEIGHT`, `TUNNEL_HEIGHT`, `DOME_SPAN`, `DOME_RISE`,
-`AIR_DEPTH`, `CROWN_STEP`, `DECOR_EVERY`, `GULL_HEIGHT`, `SCALES`.
+`AIR_DEPTH`, `CROWN_STEP`, `PLANT_SPACING`, `MARGIN`, `GULL_HEIGHT`, `SCALES`;
+Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
+`DOME_RISE`.
 
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
 `CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=90`, `CAMERA_EASE=0.1`,

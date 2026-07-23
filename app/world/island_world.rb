@@ -17,16 +17,23 @@ class IslandWorld
   CROWN_MAX = 330      # ... and never higher than this, or the summit is cut off
                        # by the top of the screen when you look from the surface
   SHORE_LIP = 24       # how far the rock still stands out of the water at the shore
-  TUNNEL_HEIGHT = 200  # clear water between the tunnel floor and its roof
+  TUNNEL_MIN = 130     # tightest the corridor ever squeezes ...
+  TUNNEL_MAX = 300     # ... and the widest it opens out
+  TUNNEL_WAVE = 260    # px over which its height changes
+  MIN_GAP = 96         # never narrower than this — the diver is 64 tall
+  SAG_MAX = 150        # how far the corridor may dip below (or rise above) the straight ramp
   DOME_SPAN = 240      # width of the air chamber halfway through the tunnel
   DOME_RISE = 260      # how much higher the chamber's roof sits than the tunnel's
   AIR_DEPTH = 90       # how deep the air trapped under that roof reaches
   CROWN_STEP = 16      # the island's own terrace grid — chunkier than the sea floor
-  DECOR_EVERY = 40     # px between the slots plants and rocks may stand in
+  PLANT_SPACING = 90   # px of level ground each plant wants for itself
   SHORE_HEIGHT = 110   # crown height above the water that still counts as beach
   GULL_HEIGHT = 110    # how high over the water the gulls hang
+  MARGIN = 8           # px of bare ground kept at each side of a plant's base
   SHAPE_SEED = 707
   DECOR_SEED = 808
+  TUNNEL_SEED = 909
+  TUNNEL_PLANTS = ["seaweed", "coral", "rock", "starfish"]
 
   SCALES = {
     "palm" => 4, "palm_small" => 3, "bush" => 3, "grass" => 3,
@@ -45,26 +52,53 @@ class IslandWorld
     rng.next_u32 # warm past the seeded state
     @span = (SPAN_MIN + rng.int(SPAN_MAX - SPAN_MIN)).idiv(World::COLUMN_WIDTH) * World::COLUMN_WIDTH
     @peak = PEAK_MIN + rng.int(PEAK_MAX - PEAK_MIN)
-    @flagged = rng.int(3).zero? # somebody got here first — but not everywhere
+    @flagged = rng.int(3).zero?          # somebody got here first — but not everywhere
+    @sag = rng.int(SAG_MAX * 2) - SAG_MAX # this tunnel dips, or humps, on its way through
+    @chamber_count = 1 + rng.int(2)       # one big chamber, or two smaller stops
+    @spot_shift = rng.int(12) / 100.0     # and they aren't always in the same place
   end
 
   def build
     floor = @world.floor.dup
     roof = Array.new(@world.columns) { nil }
-    left = @world.floor[first_column]
-    right = @world.floor[last_column - 1]
-    # The chamber's roof is level even though the tunnel floor ramps, so the air
-    # under it is a clean pocket rather than a wedge.
-    dome = tunnel_floor(left, right, chamber_t) + TUNNEL_HEIGHT + DOME_RISE
 
     (first_column...last_column).each do |col|
-      base = tunnel_floor(left, right, span_t(col))
+      base = tunnel_floor_y(col)
       floor[col] = base
-      roof[col] = { ceiling: chamber?(col) ? dome : base + TUNNEL_HEIGHT, crown: crown_y(col) }
+      dome = chamber_roof_at(col)
+      ceiling = dome || base + tunnel_height(col)
+      ceiling = base + MIN_GAP if ceiling - base < MIN_GAP # always swimmable
+      roof[col] = { ceiling: ceiling, crown: crown_y(col) }
     end
 
     World.new(index: @world.index, biome: @world.biome, floor: floor, roof: roof,
-              decorations: decorations(roof), air_pockets: [chamber_air(dome)])
+              decorations: decorations(roof) + tunnel_decor(floor),
+              air_pockets: chambers.map { |chamber| chamber_air(chamber) })
+  end
+
+  def mouth_left
+    @world.floor[first_column]
+  end
+
+  def mouth_right
+    @world.floor[last_column - 1]
+  end
+
+  # The corridor's bottom: a ramp between the sand at both mouths, plus a sag (or
+  # a rise) along the way, so it isn't the same straight run through every island.
+  # The deflection is zero at both ends, so the mouths still meet the sea floor
+  # flush and there is no step to climb going in or out.
+  def tunnel_floor_y(col)
+    t = span_t(col)
+    y = mouth_left + (mouth_right - mouth_left) * t + @sag * Math.sin(Math::PI * t)
+    (y / WorldGenerator::FLOOR_STEP).floor * WorldGenerator::FLOOR_STEP
+  end
+
+  # How much clear water the corridor has here — it squeezes down to a crawl in
+  # places and opens into halls in others.
+  def tunnel_height(col)
+    (TUNNEL_MIN +
+      (TUNNEL_MAX - TUNNEL_MIN) * Noise.value(world_x(col), TUNNEL_WAVE, TUNNEL_SEED)).to_i
   end
 
   def first_column
@@ -82,14 +116,6 @@ class IslandWorld
   # How far along the island a column lies, 0..1.
   def span_t(col)
     (col - first_column) / (last_column - 1 - first_column).to_f
-  end
-
-  # The tunnel's bottom: a straight ramp from the sand at one mouth to the sand
-  # at the other, so the corridor meets the sea floor flush at both ends and the
-  # diver never has to climb a step to get in or out.
-  def tunnel_floor(left, right, t)
-    y = left + (right - left) * t
-    (y / WorldGenerator::FLOOR_STEP).floor * WorldGenerator::FLOOR_STEP
   end
 
   # The skyline. An envelope pins the rock down to the water at both ends —
@@ -126,35 +152,63 @@ class IslandWorld
     @world.index * SCREEN_WIDTH + col * World::COLUMN_WIDTH
   end
 
-  # Halfway through the tunnel the roof lifts into a chamber. The dome is flat so
-  # the air under it is a clean pocket — and leaving it means diving back under
-  # the lower tunnel roof.
-  def chamber?(col)
-    col >= chamber_first && col < chamber_last
+  # Along the way the roof lifts into one or two chambers. Each dome is level, so
+  # the air under it is a clean pocket — and leaving one means diving back under
+  # the lower corridor roof.
+  def chambers
+    @chambers ||= chamber_spots.map do |spot|
+      first = first_column + ((last_column - first_column) * spot).to_i
+      last = first + DOME_SPAN.idiv(World::COLUMN_WIDTH)
+      mid = (first + last).idiv(2)
+      { first: first, last: last, ceiling: tunnel_floor_y(mid) + tunnel_height(mid) + DOME_RISE }
+    end
   end
 
+  def chamber_spots
+    return [0.42 + @spot_shift] if @chamber_count == 1
+
+    [0.22 + @spot_shift, 0.64 + @spot_shift]
+  end
+
+  def chamber_roof_at(col)
+    chamber = chambers.find { |c| col >= c[:first] && col < c[:last] }
+    chamber && chamber[:ceiling]
+  end
+
+  # For anything that just wants "the" chamber — the first one along the tunnel.
   def chamber_first
-    (first_column + last_column).idiv(2) - DOME_SPAN.idiv(World::COLUMN_WIDTH).idiv(2)
+    chambers.first[:first]
   end
 
   def chamber_last
-    chamber_first + DOME_SPAN.idiv(World::COLUMN_WIDTH)
+    chambers.first[:last]
   end
 
-  def chamber_t
-    span_t((chamber_first + chamber_last).idiv(2))
-  end
-
-  # The air trapped under the dome: from the water surface inside the chamber up
-  # to the rock. Surfacing in here means breathing — the cave is a rest stop, not
-  # a one-way trip.
-  def chamber_air(ceiling)
+  # The air trapped under a dome: from the water surface inside the chamber up to
+  # the rock. Surfacing in here means breathing — the cave is a rest stop, not a
+  # one-way trip.
+  def chamber_air(chamber)
     {
-      x: chamber_first * World::COLUMN_WIDTH,
-      y: ceiling - AIR_DEPTH,
-      w: (chamber_last - chamber_first) * World::COLUMN_WIDTH,
+      x: chamber[:first] * World::COLUMN_WIDTH,
+      y: chamber[:ceiling] - AIR_DEPTH,
+      w: (chamber[:last] - chamber[:first]) * World::COLUMN_WIDTH,
       h: AIR_DEPTH,
     }
+  end
+
+  # The cave isn't barren: weed, coral and rocks along the corridor floor.
+  def tunnel_decor(floor)
+    items = []
+    col = first_column + 4
+    while col < last_column - 4
+      roll = Noise.jitter(world_x(col) + 3, DECOR_SEED + 2)
+      if roll > 0.45
+        kind = TUNNEL_PLANTS[(roll * TUNNEL_PLANTS.length).to_i]
+        items << { kind: kind, x: col * World::COLUMN_WIDTH, y: floor[col], scale: 2 }
+      end
+      col += 9
+    end
+    items
   end
 
   # The sea floor's own decorations survive outside the island (the ones inside
@@ -164,49 +218,76 @@ class IslandWorld
       plants(roof) + flag(roof) + gulls
   end
 
-  # A slot every DECOR_EVERY px along the crown, most of them filled — the gaps
-  # are what keeps it from reading as a row of teeth.
+  # Plants stand on the plateaus, spaced out along them. Placing them at fixed
+  # intervals put palms on the very lip of a terrace with half the crown hanging
+  # over the drop; a plant belongs on level ground wide enough to hold it.
   def plants(roof)
     items = []
-    col = first_column
-    while col < last_column
-      if Noise.jitter(world_x(col), DECOR_SEED) >= 0.22
-        kind = plant_for(roof, col)
-        items << { kind: kind, x: col * World::COLUMN_WIDTH, y: roof[col][:crown], scale: SCALES[kind] }
+    plateaus(roof).each do |flat|
+      ground = flat[:width] * World::COLUMN_WIDTH
+      slots = ground.idiv(PLANT_SPACING)
+      slots = 1 if slots < 1
+      room = ground.idiv(slots)
+
+      slots.times do |i|
+        seed = world_x(flat[:first]) + i * 37
+        next if Noise.jitter(seed, DECOR_SEED) < 0.18 # leave gaps
+
+        kind = plant_for(flat, room, seed)
+        next unless kind
+
+        items << { kind: kind, y: flat[:y], scale: SCALES[kind],
+                   x: flat[:first] * World::COLUMN_WIDTH + room * i + room.idiv(2) }
       end
-      col += DECOR_EVERY.idiv(World::COLUMN_WIDTH)
     end
     items
   end
 
-  # What belongs where: driftwood and crabs down on the beach, palms only on
-  # ground flat enough to stand on, bushes and grass up the steep parts.
-  def plant_for(roof, col)
-    height = roof[col][:crown] - WATERLINE_Y
-    kinds =
-      if height < SHORE_HEIGHT
-        ["grass", "driftwood", "rock", "crab", "grass", "bush"]
-      elsif slope_at(roof, col) <= CROWN_STEP
-        ["palm", "bush", "palm_small", "grass", "bush", "palm"]
-      else
-        ["bush", "grass", "rock", "bush", "grass", "palm_small"]
-      end
-    kinds[(Noise.jitter(world_x(col) + 7, DECOR_SEED + 1) * kinds.length).to_i]
+  # The crown as runs of equal height: |first column, width in columns, world y|.
+  def plateaus(roof)
+    runs = []
+    first = first_column
+    (first_column + 1..last_column).each do |col|
+      next if col < last_column && roof[col][:crown] == roof[first][:crown]
+
+      runs << { first: first, width: col - first, y: roof[first][:crown] }
+      first = col
+    end
+    runs
   end
 
-  # How much the crown rises or falls around a column — a palm needs level ground.
-  def slope_at(roof, col)
-    left = roof[[col - 2, first_column].max][:crown]
-    right = roof[[col + 2, last_column - 1].min][:crown]
-    (right - left).abs
+  # What belongs where: driftwood and crabs down on the beach, and further up
+  # whatever actually fits in the space — a palm needs room to stand, a tuft of
+  # grass doesn't.
+  def plant_for(flat, room, seed)
+    kinds =
+      if flat[:y] - WATERLINE_Y < SHORE_HEIGHT
+        ["grass", "driftwood", "rock", "crab", "grass", "bush"]
+      elsif room >= base_width("palm") + MARGIN
+        ["palm", "bush", "palm", "palm_small", "bush", "palm"]
+      elsif room >= base_width("palm_small") + MARGIN
+        ["palm_small", "bush", "grass", "bush", "palm_small", "grass"]
+      else
+        ["grass", "bush", "grass", "rock", "grass", "bush"]
+      end
+    kind = kinds[(Noise.jitter(seed + 7, DECOR_SEED + 1) * kinds.length).to_i]
+    room >= base_width(kind) + MARGIN ? kind : nil
+  end
+
+  # What a plant actually needs level ground for is its foot, not its crown — a
+  # palm's fronds may hang out over the drop, its trunk may not.
+  def base_width(kind)
+    foot = Game::DECOR_SPRITES[kind][:w] * SCALES[kind] / 3
+    foot < 16 ? 16 : foot
   end
 
   # Somebody got to the summit of some of these islands before you did.
   def flag(roof)
     return [] unless @flagged
 
-    col = (first_column...last_column).max_by { |c| roof[c][:crown] }
-    [{ kind: "flag", x: col * World::COLUMN_WIDTH, y: roof[col][:crown], scale: SCALES["flag"] }]
+    top = plateaus(roof).max_by { |flat| flat[:y] * 1000 + flat[:width] } # highest, then widest
+    [{ kind: "flag", y: top[:y], scale: SCALES["flag"],
+       x: (top[:first] * World::COLUMN_WIDTH) + (top[:width] * World::COLUMN_WIDTH).idiv(2) }]
   end
 
   # Gulls hang over the water just off the coast, low enough to actually be in

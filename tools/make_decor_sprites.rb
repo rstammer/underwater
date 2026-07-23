@@ -26,6 +26,18 @@ PALETTE = {
   "P" => [120, 96, 70],   # flag pole
   "F" => [214, 74, 64],   # flag cloth
   "f" => [172, 52, 46],   # flag cloth, shaded
+  "H" => [238, 240, 246], # boat hull, lit
+  "h" => [176, 186, 198], # boat hull, shaded
+  "S" => [52, 104, 164],  # boat stripe
+  "N" => [246, 248, 250], # cabin
+  "n" => [206, 214, 224], # cabin, shaded
+  "V" => [126, 190, 218], # cabin window
+  "v" => [78, 138, 170],  # window frame
+  "O" => [186, 150, 102], # deck planks
+  "M" => [72, 78, 90],    # outboard motor
+  "m" => [46, 50, 60],    # motor, shaded
+  "L" => [208, 214, 222], # ladder
+  "A" => [92, 98, 110],   # antenna
 }
 
 SPRITES = {
@@ -101,6 +113,30 @@ SPRITES = {
     ".....P......",
     ".....P......",
     "....PPP.....",
+  ],
+  # A small dive boat: cabin, outboard on the stern, and a ladder over the side
+  # for climbing back aboard. The bottom rows sit below the waterline.
+  "boat" => [
+    "..............................A...........",
+    "..............................A...........",
+    "............nnnnnnnnnnnnnn....A...........",
+    "............nNNNNNNNNNNNNn....A...........",
+    "............nNvvvvNNvvvvNn....A...........",
+    "............nNvVVvNNvVVvNn....A...........",
+    "............nNvvvvNNvvvvNn....A...........",
+    "............nNNNNNNNNNNNNn....A...........",
+    "mmm.........nNNNNNNNNNNNNn....A...........",
+    "MMM....OOOOOOOOOOOOOOOOOOOOOOOOOOOO.......",
+    "MMM...HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH.....",
+    "MMM...HSSSSSSSSSSSSSSSSSSSSSSSSSSSSSHH.LLLL",
+    "MMm...HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH.L..L",
+    "mMm....hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh..LLLL",
+    "mm......hhhhhhhhhhhhhhhhhhhhhhhhhhhhh...L..L",
+    "mm.......hhhhhhhhhhhhhhhhhhhhhhhhhh.....LLLL",
+    "m.........hhhhhhhhhhhhhhhhhhhhhhh.......L..L",
+    "...........hhhhhhhhhhhhhhhhhhhh.........LLLL",
+    "..............hhhhhhhhhhhhhh............L..L",
+    "........................................LLLL",
   ],
   "gull" => [
     "K..........K",

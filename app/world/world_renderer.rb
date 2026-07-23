@@ -18,6 +18,8 @@ class Game
   CAVE_DIM = 0.5              # inside a cave it is dark whatever the depth says
   ROOF_FADE = 300             # px under the surface over which rock loses the daylight
 
+  BOAT_SPRITE = { path: "sprites/decor/boat.png", w: 44, h: 20 }
+
   DECOR_SPRITES = {
     "seaweed"  => { path: "sprites/decor/seaweed.png",  w: 14, h: 44 },
     "coral"    => { path: "sprites/decor/coral.png",    w: 28, h: 30 },
@@ -269,14 +271,14 @@ class Game
   # The diver's home: a small boat bobbing on the waterline over the starting
   # segment (world x SURFACE_BOAT_X). The diver spawns right next to it.
   def home_boat
-    scale = 3
+    scale = 4
     bob = Math.sin(Kernel.tick_count / 45.0) * 4
     {
       x: SURFACE_BOAT_X - state.camera_x,
-      y: WATERLINE_Y - 24 + bob - state.camera_y,
-      w: 48 * scale,
-      h: 34 * scale,
-      path: "sprites/decor/boat.png",
+      y: WATERLINE_Y - 20 + bob - state.camera_y, # hull and ladder reach into the water
+      w: BOAT_SPRITE[:w] * scale,
+      h: BOAT_SPRITE[:h] * scale,
+      path: BOAT_SPRITE[:path],
     }
   end
 

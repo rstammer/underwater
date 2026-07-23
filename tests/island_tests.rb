@@ -94,11 +94,17 @@ class IslandTests
     built.decorations.each do |d|
       col = d[:x].idiv(World::COLUMN_WIDTH)
       next unless island.island_column?(col)
-      next if d[:kind] == "gull"
+      next if d[:kind] == "gull" # those fly
 
-      assert.equal! d[:y], built.roof[col][:crown], "#{d[:kind]} stands on the crown"
-      assert.true! d[:y] > WATERLINE_Y, "and above the water"
+      if d[:y] > WATERLINE_Y
+        assert.equal! d[:y], built.roof[col][:crown], "#{d[:kind]} stands on the crown"
+      else
+        assert.equal! d[:y], built.floor[col], "#{d[:kind]} grows on the tunnel floor"
+      end
     end
+
+    in_cave = built.decorations.select { |d| island.island_column?(d[:x].idiv(World::COLUMN_WIDTH)) && d[:y] < WATERLINE_Y }
+    assert.true! in_cave.length > 0, "the cave isn't barren either"
 
     kinds = built.decorations.map { |d| d[:kind] }
     assert.true! kinds.include?("palm") || kinds.include?("bush"), "the island is not bare rock"
@@ -158,6 +164,44 @@ class IslandTests
     assert.true! built.air_at?(air[:x] + 10, ceiling - 10), "air right under the dome"
     assert.false! built.air_at?(air[:x] + 10, air[:y] - 10), "water below its surface"
     assert.false! built.air_at?(air[:x] - 200, ceiling - 10), "and none out in the tunnel"
+  end
+
+  # Every island's corridor runs differently: it dips or humps on its way through,
+  # squeezes in places and opens out in others — but it always stays swimmable.
+  def test_tunnels_differ_but_stay_swimmable(args, assert)
+    profiles = []
+
+    [2, -4, 7, -9].each do |sector|
+      isle = island_for(sector)
+      world = isle.build
+      cols = (isle.first_column...isle.last_column)
+      gaps = cols.map { |col| world.roof[col][:ceiling] - world.floor[col] }
+
+      assert.true! gaps.min >= IslandWorld::MIN_GAP,
+                   "sector #{sector} has a gap of #{gaps.min} — the diver is #{Diver::HEIGHT * 2} tall"
+      assert.true! gaps.max - gaps.min > 60, "sector #{sector}'s corridor should vary in height"
+      profiles << cols.map { |col| world.floor[col] }
+    end
+
+    assert.equal! profiles.uniq.length, profiles.length, "no two tunnels run the same"
+  end
+
+  # Wherever a chamber lifts the roof, the air under it is really under rock.
+  def test_every_chamber_holds_its_air_under_the_roof(args, assert)
+    [2, -4, 7, -9].each do |sector|
+      isle = island_for(sector)
+      world = isle.build
+
+      world.air_pockets.each do |air|
+        first = air[:x].idiv(World::COLUMN_WIDTH)
+        last = (air[:x] + air[:w]).idiv(World::COLUMN_WIDTH)
+        (first...last).each do |col|
+          assert.equal! world.roof[col][:ceiling], air[:y] + air[:h],
+                        "sector #{sector}: the air reaches exactly up to the rock at column #{col}"
+          assert.true! world.floor[col] < air[:y], "and floats above the corridor floor"
+        end
+      end
+    end
   end
 
   # The whole point of the chamber: half way through the cave you can surface and
