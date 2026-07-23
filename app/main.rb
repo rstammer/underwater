@@ -78,6 +78,7 @@ class Game
       basic_movements_per_tick
       update_depth_and_camera
       update_pickup # E near an item picks it up (if the pack has room)
+      update_boat_stash # I at the boat empties the pack into the hold
       update_oxygen
       update_suit
       track_log # quietly record how deep you got and what you've seen

@@ -1,6 +1,6 @@
 class Game
   MENU_W = 560
-  MENU_H = 380
+  MENU_H = 476
   MENU_BG = [14, 34, 54]
   MENU_ACCENT = [120, 190, 220]
   MENU_INK = [232, 244, 252]
@@ -23,6 +23,8 @@ class Game
       ["Inseln gefunden", "#{state.log_islands.length} / #{ISLAND_COUNT}"],
       ["Sektoren erkundet", "#{state.log_sectors.length}"],
       ["Höhlen durchtaucht", "#{state.log_caves.length}"],
+      ["Gegenstände dabei", "#{state.inventory.length} / #{INVENTORY_MAX}"],
+      ["Eingelagert", "#{state.stash.length}"],
     ]
   end
 
@@ -52,7 +54,7 @@ class Game
                           vertical_alignment_enum: 2, r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
       outputs.labels << { x: right - pad, y: row_y, text: value, size_enum: 3, alignment_enum: 2,
                           vertical_alignment_enum: 2, r: MENU_INK[0], g: MENU_INK[1], b: MENU_INK[2] }
-      row_y -= 62
+      row_y -= 58
     end
 
     outputs.labels << { x: (left + right) / 2, y: bottom + pad, text: "E / ESC  —  schließen",

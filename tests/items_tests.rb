@@ -101,6 +101,42 @@ class ItemsTests
     assert.equal! args.state.inventory.length, 0, "grabbing thin water yields nothing"
   end
 
+  def test_storing_at_the_boat_empties_the_pack_into_the_hold(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.inventory = ["bottle", "jewel"]
+
+    game.store_items
+
+    assert.equal! args.state.inventory.length, 0, "the pack is empty again"
+    assert.equal! args.state.stash, ["bottle", "jewel"], "and both are in the hold"
+
+    args.state.inventory = ["can"]
+    game.store_items
+    assert.equal! args.state.stash, ["bottle", "jewel", "can"], "storing again adds to the hold"
+  end
+
+  def test_storing_an_empty_pack_does_nothing(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    game.store_items
+
+    assert.equal! args.state.stash.length, 0, "nothing to store, nothing stored"
+  end
+
+  def test_the_logbook_counts_carried_and_stored_items(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.inventory = ["shoe", "can"]
+    args.state.stash = ["bottle", "jewel", "key"]
+
+    rows = Hash[game.logbook_rows]
+
+    assert.equal! rows["Gegenstände dabei"], "2 / #{Game::INVENTORY_MAX}"
+    assert.equal! rows["Eingelagert"], "3"
+  end
+
   def test_the_inventory_hud_renders(args, assert)
     game = build_game(args)
     game.initialize_game(0)

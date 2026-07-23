@@ -8,7 +8,7 @@ class Game
   ABYSS_DIM = 0.82      # how much of the light the abyss swallows
   WATER_BANDS = 24      # horizontal strips the water gradient is drawn in
   BOAT_HINT_W = 460
-  BOAT_HINT_H = 164
+  BOAT_HINT_H = 210
   AIR_COLOR = [20, 26, 32]            # the gloom inside an air chamber
   AIR_SURFACE_COLOR = [150, 190, 205] # the water surface trapped under it
   FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
@@ -326,7 +326,11 @@ class Game
     outputs.labels << { x: x, y: y + BOAT_HINT_H - 110, text: "[ E ]  Logbuch öffnen",
                         size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: 150, g: 198, b: 224 }
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 136, text: "[ Q ]  Spiel beenden",
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 136,
+                        text: "[ I ]  Items einlagern (#{state.inventory.length})",
+                        size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
+                        r: 150, g: 198, b: 224 }
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 162, text: "[ Q ]  Spiel beenden",
                         size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: 150, g: 198, b: 224 }
   end

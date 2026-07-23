@@ -83,6 +83,20 @@ class Game
     grab_item if inputs.keyboard.key_down.e
   end
 
+  def update_boat_stash
+    store_items if at_the_boat? && inputs.keyboard.key_down.i
+  end
+
+  # Everything you're carrying goes into the boat's hold — an unlimited stash at
+  # home — and the pack is empty again for the next dive. Pure state change so
+  # it's testable without a key press.
+  def store_items
+    return if state.inventory.empty?
+
+    state.stash.concat(state.inventory)
+    state.inventory = []
+  end
+
   # Pick up the item under the diver, if there is one and the pack has room. The
   # state change on its own, so it's testable without faking the key press.
   def grab_item
