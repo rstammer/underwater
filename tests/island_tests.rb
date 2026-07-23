@@ -5,26 +5,56 @@ class IslandTests
     game
   end
 
-  def island
-    IslandWorld.build(WorldGenerator.generate(4))
+  # Each island is built from its own segment, so tests have to ask for the one
+  # in the sector they're standing in.
+  def island_for(sector)
+    IslandWorld.new(WorldGenerator.generate(sector))
   end
 
-  def island_columns
-    (IslandWorld.first_column...IslandWorld.last_column)
+  def island
+    island_for(4)
   end
 
   def test_the_island_breaks_the_surface(args, assert)
-    crowns = island_columns.map { |col| island.roof[col][:crown] }
+    built = island.build
+    crowns = (island.first_column...island.last_column).map { |col| built.roof[col][:crown] }
 
     assert.true! crowns.max > WATERLINE_Y + 100, "the summit rises well out of the sea"
     assert.true! crowns.min > WATERLINE_Y, "and even the shore stands clear of the water"
+  end
+
+  # A plain dome would be boring: the skyline steps in plateaus and has more than
+  # one shoulder to it.
+  def test_the_skyline_is_not_a_smooth_dome(args, assert)
+    built = island.build
+    crowns = (island.first_column...island.last_column).map { |col| built.roof[col][:crown] }
+
+    plateaus = (1...crowns.length).count { |i| crowns[i] == crowns[i - 1] }
+    assert.true! plateaus > crowns.length / 3, "the crown should sit in flat steps (#{plateaus})"
+
+    rises = (1...crowns.length).count { |i| crowns[i] > crowns[i - 1] }
+    falls = (1...crowns.length).count { |i| crowns[i] < crowns[i - 1] }
+    assert.true! rises > 3 && falls > 3, "and go up and down more than once (#{rises}/#{falls})"
+  end
+
+  # Islands are rolled from their own index, so no two are the same lump of rock.
+  def test_islands_differ_from_one_another(args, assert)
+    a = island_for(3)
+    b = island_for(-7)
+    shape = lambda do |isle|
+      world = isle.build
+      (isle.first_column...isle.last_column).map { |col| world.roof[col][:crown] }
+    end
+
+    assert.true! [a.span, a.peak] != [b.span, b.peak] || shape.call(a) != shape.call(b),
+                 "two islands should not share a silhouette"
   end
 
   # The segment borders must stay exactly as generated, or the island tears a
   # seam into its neighbours.
   def test_the_island_leaves_the_segment_borders_alone(args, assert)
     plain = WorldGenerator.generate(4)
-    built = island
+    built = island.build
 
     assert.equal! built.floor.first, plain.floor.first
     assert.equal! built.floor.last, plain.floor.last
@@ -34,9 +64,9 @@ class IslandTests
 
   # A corridor runs the whole way through, wide enough to swim in.
   def test_a_tunnel_runs_through_the_island(args, assert)
-    built = island
+    built = island.build
 
-    island_columns.each do |col|
+    (island.first_column...island.last_column).each do |col|
       rock = built.roof[col]
       assert.false! rock.nil?, "column #{col} should be part of the island"
       gap = rock[:ceiling] - built.floor[col]
@@ -49,63 +79,79 @@ class IslandTests
   # climb on the way in or out.
   def test_the_tunnel_mouths_meet_the_sea_floor(args, assert)
     plain = WorldGenerator.generate(4)
-    built = island
-    first = IslandWorld.first_column
-    last = IslandWorld.last_column
+    built = island.build
 
-    assert.equal! built.floor[first], plain.floor[first], "flush at the left mouth"
-    assert.true! (built.floor[last - 1] - plain.floor[last - 1]).abs <= WorldGenerator::FLOOR_STEP,
+    assert.equal! built.floor[island.first_column], plain.floor[island.first_column],
+                  "flush at the left mouth"
+    last = island.last_column - 1
+    assert.true! (built.floor[last] - plain.floor[last]).abs <= WorldGenerator::FLOOR_STEP,
                  "and flush at the right mouth"
   end
 
-  def test_decorations_do_not_sit_inside_the_rock(args, assert)
-    built = island
+  def test_plants_stand_on_the_island_and_gulls_over_the_water(args, assert)
+    built = island.build
 
     built.decorations.each do |d|
       col = d[:x].idiv(World::COLUMN_WIDTH)
-      next unless island_columns.include?(col)
-      next if d[:kind] == "gull" # those fly above it
+      next unless island.island_column?(col)
+      next if d[:kind] == "gull"
 
-      assert.equal! d[:y], built.roof[col][:crown], "plants stand on the island (#{d[:kind]})"
+      assert.equal! d[:y], built.roof[col][:crown], "#{d[:kind]} stands on the crown"
       assert.true! d[:y] > WATERLINE_Y, "and above the water"
     end
 
     kinds = built.decorations.map { |d| d[:kind] }
     assert.true! kinds.include?("palm") || kinds.include?("bush"), "the island is not bare rock"
-    assert.true! kinds.include?("gull"), "and gulls hang over it"
-  end
 
-  # Where the island lands is rolled per round: far enough from home to be a
-  # find, close enough to reach.
-  def test_the_island_lands_near_home_but_not_on_it(args, assert)
-    game = build_game(args)
-
-    20.times do
-      sector = game.roll_island_sector
-      assert.true! sector.abs >= ISLAND_MIN_SECTOR, "not right next to the boat (#{sector})"
-      assert.true! sector.abs <= ISLAND_MAX_SECTOR, "still within reach (#{sector})"
+    gulls = built.decorations.select { |d| d[:kind] == "gull" }
+    assert.true! gulls.length >= 2, "gulls hang around the coast"
+    gulls.each do |gull|
+      assert.true! gull[:y] > WATERLINE_Y, "a gull flies above the water (#{gull[:y]})"
+      assert.true! gull[:y] < WATERLINE_Y + 300, "and low enough to be in frame (#{gull[:y]})"
     end
   end
 
-  def test_the_island_is_stamped_onto_its_sector_only(args, assert)
+  # Where the islands land is rolled per round: far enough from home to be a
+  # find, close enough to reach, and never twice on the same sector.
+  def test_the_islands_land_near_home_but_not_on_it(args, assert)
     game = build_game(args)
-    game.initialize_game(0)
-    args.state.island_sector = 3
 
-    assert.false! game.world_for(3).roof.nil?, "the island sector has rock overhead"
-    assert.equal! game.world_for(4).roof, nil, "its neighbour is open sea"
+    10.times do
+      sectors = game.roll_island_sectors
+      assert.equal! sectors.length, ISLAND_COUNT
+      assert.equal! sectors.uniq.length, ISLAND_COUNT, "each island gets its own sector"
+      sectors.each do |sector|
+        assert.true! sector.abs >= ISLAND_MIN_SECTOR, "not right next to the boat (#{sector})"
+        assert.true! sector.abs <= ISLAND_MAX_SECTOR, "still within reach (#{sector})"
+      end
+    end
   end
 
-  # World x of the middle of the air chamber, for an island in sector `sector`.
+  def test_islands_are_stamped_onto_their_sectors_only(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.island_sectors = [3, -5]
+
+    assert.false! game.world_for(3).roof.nil?, "an island sector has rock overhead"
+    assert.false! game.world_for(-5).roof.nil?, "so does the other one"
+    assert.equal! game.world_for(4).roof, nil, "their neighbours are open sea"
+  end
+
+  # World x of the middle of the air chamber of the island in `sector`.
   def chamber_x(sector)
-    col = (IslandWorld.chamber_first + IslandWorld.chamber_last) / 2
+    isle = island_for(sector)
+    col = (isle.chamber_first + isle.chamber_last).idiv(2)
     sector * SCREEN_WIDTH + col * World::COLUMN_WIDTH
   end
 
   def test_the_chamber_traps_air_under_its_roof(args, assert)
-    built = island
+    built = island.build
+
+    # Columns are array indices: in DragonRuby `Integer / Integer` is a Float,
+    # and a fractional column silently reads the wrong one.
+    assert.equal! island.chamber_first, island.chamber_first.to_i, "columns stay whole numbers"
     air = built.air_pockets.first
-    ceiling = built.roof[IslandWorld.chamber_first][:ceiling]
+    ceiling = built.roof[island.chamber_first][:ceiling]
 
     assert.true! built.air_at?(air[:x] + 10, ceiling - 10), "air right under the dome"
     assert.false! built.air_at?(air[:x] + 10, air[:y] - 10), "water below its surface"
@@ -117,7 +163,7 @@ class IslandTests
   def test_the_diver_breathes_in_the_chamber(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    args.state.island_sector = 1
+    args.state.island_sectors = [1]
     args.state.diver_global_x = chamber_x(1)
     args.state.depth_y = 99_999 # float up as far as the rock allows
     game.update_depth_and_camera
@@ -134,8 +180,8 @@ class IslandTests
   def test_the_tunnel_itself_has_no_air(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    args.state.island_sector = 1
-    args.state.diver_global_x = 1280 + IslandWorld.first_column * World::COLUMN_WIDTH + 40
+    args.state.island_sectors = [1]
+    args.state.diver_global_x = SCREEN_WIDTH + island_for(1).first_column * World::COLUMN_WIDTH + 40
     args.state.depth_y = -99_999 # down on the tunnel floor
     game.update_depth_and_camera
 
@@ -146,14 +192,14 @@ class IslandTests
   def test_the_shark_turns_around_at_the_island(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    args.state.island_sector = 1
-    args.state.diver_global_x = 1280 + 100 # the diver is in the island's sector
-    rock_starts = IslandWorld.first_column * World::COLUMN_WIDTH
+    args.state.island_sectors = [1]
+    args.state.diver_global_x = SCREEN_WIDTH + 100 # the diver is in the island's sector
+    rock_starts = island_for(1).first_column * World::COLUMN_WIDTH
     args.state.dark_shark = { x: rock_starts - 120, y: 0, dir: 1 } # cruising at it
 
     60.times { game.update_shark(0) }
 
-    shark_x = 1280 + args.state.dark_shark.x
+    shark_x = SCREEN_WIDTH + args.state.dark_shark.x
     assert.false! game.solid_at?(shark_x, args.state.dark_shark.y),
                   "the shark never ends up inside the island"
     assert.equal! args.state.dark_shark.dir, -1, "it turned around at the rock"
@@ -163,9 +209,9 @@ class IslandTests
   def test_renders_the_island_without_error(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    args.state.island_sector = 1
-    args.state.diver_global_x = SCREEN_WIDTH + SCREEN_WIDTH / 2 # in front of the island
-    args.state.depth_y = 300
+    args.state.island_sectors = [1]
+    args.state.diver_global_x = SCREEN_WIDTH + 60 # in the water beside the island
+    args.state.depth_y = WATERLINE_Y
     game.center_camera
     args.state.game_scene = "area2"
 

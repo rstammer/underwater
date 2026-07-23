@@ -18,6 +18,14 @@ PALETTE = {
   "K" => [52, 58, 70],    # gull, wing tip
   "y" => [222, 196, 118], # dune grass, dry
   "Y" => [180, 200, 110], # dune grass, green
+  "D" => [138, 116, 88],  # driftwood, lit
+  "d" => [104, 84, 62],   # driftwood, shadow
+  "R" => [186, 72, 54],   # crab shell
+  "r" => [232, 120, 96],  # crab highlight
+  "e" => [28, 26, 32],    # eye
+  "P" => [120, 96, 70],   # flag pole
+  "F" => [214, 74, 64],   # flag cloth
+  "f" => [172, 52, 46],   # flag cloth, shaded
 }
 
 SPRITES = {
@@ -54,6 +62,45 @@ SPRITES = {
     ".Yy..Yy.YY..",
     ".yy..yy.yy..",
     "yy...yy..yy.",
+  ],
+  "palm_small" => [
+    "....gg..gg....",
+    "..gllggllllg..",
+    ".glGG.lTt.GGg.",
+    "gGG...lTt..GGg",
+    "......TTt.....",
+    ".....TTt......",
+    ".....TTt......",
+    "....TTt.......",
+    "....TTt.......",
+    "...TTt........",
+  ],
+  "driftwood" => [
+    "..dddddddddd..",
+    ".dDDDDDDDDDDd.",
+    "dDDdDDDDdDDDDd",
+    ".dDDDDDDDDDDd.",
+    "..dddddddddd..",
+  ],
+  "crab" => [
+    "..R......R..",
+    "...RRRRRR...",
+    "..RreRRerR..",
+    ".RRrrRRrrRR.",
+    "..R.RRRR.R..",
+    ".R..R..R..R.",
+  ],
+  "flag" => [
+    ".....PFFFFF.",
+    ".....PFFFf..",
+    ".....PFff...",
+    ".....Pf.....",
+    ".....P......",
+    ".....P......",
+    ".....P......",
+    ".....P......",
+    ".....P......",
+    "....PPP.....",
   ],
   "gull" => [
     "K..........K",

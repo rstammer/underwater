@@ -38,8 +38,9 @@ SPRINT_MULTIPLIER = 2 # sprinting: this much faster, and this much thirstier for
 SHARK_PATROL_SPREAD = 200 # how far above/below the diver's depth the shark comes back in
 DIVER_FOOTPRINT = 20 # how far to each side the diver's footing feels for sand to rest on
 SOLID_STEP_UP = 48 # ledge he still slips over sideways; anything higher is a wall
-ISLAND_MIN_SECTOR = 2 # the island never lands right next to the boat ...
+ISLAND_MIN_SECTOR = 2 # no island lands right next to the boat ...
 ISLAND_MAX_SECTOR = 10 # ... nor further out than this
+ISLAND_COUNT = 3 # how many of them are out there in a round
 FOG_OF_WAR = true
 DEBUG = false
 
@@ -79,7 +80,7 @@ class Game
     state.player_y = CAMERA_ANCHOR                    # on-screen y, derived each tick from depth_y - camera_y
     state.direction = :right
     state.world_cache = {}
-    state.island_sector = roll_island_sector
+    state.island_sectors = roll_island_sectors
     state.dark_shark = { x: -300, y: 300 }
     state.game_scene = "title"
     state.oxygen = OXYGEN_MAX
@@ -94,8 +95,14 @@ class Game
     center_camera   # frame the diver right away instead of gliding in on the first ticks
   end
 
-  # Where the island lies this round: a random sector to either side of home,
+  # Where the islands lie this round: distinct sectors to either side of home,
   # near enough to reach on one tank of air, far enough that you have to explore.
+  def roll_island_sectors
+    sectors = []
+    sectors << roll_island_sector until sectors.uniq.length == ISLAND_COUNT
+    sectors.uniq
+  end
+
   def roll_island_sector
     sector = ISLAND_MIN_SECTOR + rand(ISLAND_MAX_SECTOR - ISLAND_MIN_SECTOR + 1)
     rand(2).zero? ? -sector : sector
@@ -112,7 +119,7 @@ class Game
     state.angle = 0
     state.direction = :right
     state.world_cache = {}
-    state.island_sector = roll_island_sector # a new round hides the island somewhere else
+    state.island_sectors = roll_island_sectors # a new round hides them somewhere else
     state.dark_shark = { x: -300, y: 300 }
     state.oxygen = OXYGEN_MAX
     state.death_cause = nil

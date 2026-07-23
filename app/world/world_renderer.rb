@@ -27,6 +27,10 @@ class Game
     "bush"     => { path: "sprites/decor/bush.png",     w: 12, h: 7 },
     "grass"    => { path: "sprites/decor/grass.png",    w: 12, h: 5 },
     "gull"     => { path: "sprites/decor/gull.png",     w: 12, h: 4 },
+    "palm_small" => { path: "sprites/decor/palm_small.png", w: 14, h: 10 },
+    "driftwood"  => { path: "sprites/decor/driftwood.png",  w: 14, h: 5 },
+    "crab"       => { path: "sprites/decor/crab.png",       w: 12, h: 6 },
+    "flag"       => { path: "sprites/decor/flag.png",       w: 12, h: 10 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up
@@ -251,13 +255,15 @@ class Game
     end
   end
 
-  # Most decor stands still. Gulls don't: they drift back and forth over the
-  # island on a long, lazy loop.
+  # Most decor stands still. Gulls don't — they drift over the coast on a long,
+  # lazy loop — and the crabs scuttle a few steps along the beach.
   def decor_drift(d)
-    return [0, 0] unless d[:kind] == "gull"
-
     phase = Kernel.tick_count + d[:x]
-    [Math.sin(phase / 150.0) * 190, Math.sin(phase / 47.0) * 14]
+    case d[:kind]
+    when "gull" then [Math.sin(phase / 150.0) * 190, Math.sin(phase / 47.0) * 14]
+    when "crab" then [Math.sin(phase / 90.0) * 26, 0]
+    else [0, 0]
+    end
   end
 
   # The diver's home: a small boat bobbing on the waterline over the starting

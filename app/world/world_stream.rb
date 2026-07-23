@@ -33,7 +33,11 @@ class Game
 
   def open_sea_or_island(index)
     world = WorldGenerator.generate(index)
-    index == state.island_sector ? IslandWorld.build(world) : world
+    island_here?(index) ? IslandWorld.build(world) : world
+  end
+
+  def island_here?(index)
+    !!state.island_sectors && state.island_sectors.include?(index)
   end
 
   def world_index

@@ -64,7 +64,8 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
   `Game`: O2-Balken, Locator, Tiefenanzeige)
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
-  Seetang, Fels, Boot; für die Insel: Palme, Busch, Gras, Möwe)
+  Seetang, Fels, Boot; für die Inseln: Palme groß/klein, Busch, Gras, Treibholz,
+  Krabbe, Fahne, Möwe)
 - `tools/make_decor_sprites.rb` — erzeugt diese PNGs aus ASCII-Art + Palette,
   nur mit Ruby-Stdlib (`ruby tools/make_decor_sprites.rb sprites/decor`).
   Läuft in **MRI**, nicht in DragonRuby — reines Autoren-Werkzeug.
@@ -179,17 +180,26 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   Fels von `ceiling` (Unterkante, wo der Taucher anstößt) bis `crown` (Oberkante);
   `nil` = offenes Wasser. Dazu `air_pockets`: Rechtecke eingeschlossener Luft,
   deren **Unterkante die Wasseroberfläche darin** ist (`air_line_at`, `air_at?`).
-- **`IslandWorld`** — die Insel: wird **auf** eine generierte Welt gestempelt
+- **`IslandWorld`** — eine Insel: wird **auf** eine generierte Welt gestempelt
   (`IslandWorld.build(world)`), nicht statt ihrer — so bleiben die Segmentränder
-  unangetastet und nahtlos. Über Wasser ein felsiger, terrassierter Buckel
-  (`crown_y`, steht immer klar aus dem Wasser); unten ein **Tunnel quer
-  hindurch**, dessen Boden eine Rampe zwischen dem Sand beider Mündungen ist
-  (keine Stufe beim Rein-/Rausschwimmen). In der Mitte hebt sich die Decke zur
-  **Luftkammer** (`chamber_*`) — dort taucht man auf und atmet. Oben wachsen
-  Palmen, Büsche und Gras (`summit_decor`, Fels nur noch am Ufer), darüber
-  kreisen zwei Möwen (`gulls`, die Bewegung macht `decor_drift` im Renderer). Ihr Sektor wird
-  **pro Runde** ausgewürfelt (`roll_island_sector`, `ISLAND_MIN_SECTOR`..
-  `ISLAND_MAX_SECTOR`, beide Richtungen) und liegt in `state.island_sector`.
+  unangetastet und nahtlos. Es ist eine **Klasse pro Insel**: Spannweite (`span`)
+  und Höhe (`peak`) werden aus dem Segment-Index gewürfelt, die Silhouette
+  (`crown_y`) ist Noise **an der Welt-Position** mal einer Hüllkurve
+  (`envelope`), die den Fels an beiden Enden ans Wasser bindet — deshalb sieht
+  **keine Insel aus wie die andere**. Gelesen wird pro Terrasse
+  (`WorldGenerator.terrace_start`), das gibt Plateaus und Schultern statt einer
+  glatten Kuppe; nach oben deckelt `CROWN_MAX`, sonst schneidet der Bildrand den
+  Gipfel ab. Unten ein **Tunnel quer hindurch**, dessen Boden eine Rampe zwischen
+  dem Sand beider Mündungen ist (keine Stufe beim Rein-/Rausschwimmen); in der
+  Mitte hebt sich die Decke zur **Luftkammer** (`chamber_*`) — dort taucht man auf
+  und atmet. Bewuchs nach Lage (`plant_for`): Treibholz und Krabben am Strand,
+  Palmen nur wo es flach genug ist (`slope_at`), Büsche und Gras an den Hängen,
+  mit Lücken dazwischen; Möwen hängen **über dem Wasser an der Küste** (`gulls` —
+  über dem Gipfel wären sie außerhalb des Bildes), auf manchen Gipfeln steckt eine
+  Fahne. Die Bewegung von Möwe und Krabbe macht `decor_drift` im Renderer.
+- **Wo die Inseln liegen:** `ISLAND_COUNT` Stück pro Runde, ausgewürfelt in
+  `roll_island_sectors` (verschiedene Sektoren, `ISLAND_MIN_SECTOR`..
+  `ISLAND_MAX_SECTOR` in beide Richtungen), gemerkt in `state.island_sectors`.
 - **`world_stream.rb`** (reopenet `Game`) — die Segment-Verwaltung: `current_world`
   wählt das Chunk des Tauchers (`world_index = diver_global_x / SCREEN_WIDTH`) für
   Biom/Fauna/Fog, `world_at`/`world_for` cachen bzw. bauen Segmente,
@@ -243,7 +253,7 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `camera_x` / `camera_y` | Welt-`x`/`y` am linken/unteren Screenrand; folgen dem Taucher (`camera_x` zentriert; `camera_y` easet ans Ziel, Dead Zone **relativ zum Boden**) |
 | `player_x` / `player_y` | **abgeleitete** Screen-Position des Tauchers = `global_x/depth_y - camera_x/y`; jeden Tick in `update_depth_and_camera` gesetzt (Diver + Fog lesen daraus) |
 | `world_cache` | Hash `{index → World}` — memoisiert Segmente fürs kontinuierliche Rendern der Nachbar-Chunks; wird bei jedem Rundenstart geleert |
-| `island_sector` | Segment-Index, auf dem diese Runde die Insel liegt (pro Runde gewürfelt) |
+| `island_sectors` | Segment-Indizes, auf denen diese Runde die Inseln liegen (pro Runde gewürfelt) |
 | `direction` | `:left` / `:right` (Blickrichtung, hält beim Idle) |
 | `angle` | Sprite-Neigung beim Diagonal-Schwimmen |
 | `sprinting` | `true`, solange die Sprint-Taste gehalten wird *und* geschwommen wird |
@@ -291,8 +301,8 @@ Screen-Positionen und werden nicht direkt gesetzt.
   `SOLID_STEP_UP` (48 px) gleitet er hoch — natürliches Gelände hat p99 = 32 px,
   also bremst nur echter Fels. **Eine Wand ist nie eine Falle:** hochschwimmen
   geht immer.
-- **Insel & Höhle:** Irgendwo 2–10 Sektoren neben zuhause ragt eine Felsinsel aus
-  dem Wasser. Drüber kommt man nicht — der Weg führt **unten durch den Tunnel**,
+- **Inseln & Höhlen:** 2–10 Sektoren neben zuhause ragen `ISLAND_COUNT` bewachsene
+  Inseln aus dem Wasser, jede mit eigener Form und Größe. Drüber kommt man nicht — der Weg führt **unten durch den Tunnel**,
   mit einer **Luftkammer** auf halber Strecke, in der man auftaucht und den
   Sauerstoff auffüllt.
 - **Sauerstoff:** Drain unter Wasser (`OXYGEN_DRAIN`/Tick, ~3 min). Refill **nur**
@@ -319,15 +329,15 @@ Screen-Positionen und werden nicht direkt gesetzt.
 
 ### Tuning-Konstanten
 
-`app/world/island_world.rb` (Insel): `SPAN`, `PEAK`, `SHORE_LIP`, `TUNNEL_HEIGHT`,
-`DOME_SPAN`, `DOME_RISE`, `AIR_DEPTH`, `CROWN_STEP`, `CROWN_ROUGH`,
-`SUMMIT_DECOR`, `GULLS`, `GULL_HEIGHT`.
+`app/world/island_world.rb` (Inseln): `SPAN_MIN/MAX`, `PEAK_MIN/MAX`, `CROWN_MAX`,
+`SHORE_LIP`, `SHORE_HEIGHT`, `TUNNEL_HEIGHT`, `DOME_SPAN`, `DOME_RISE`,
+`AIR_DEPTH`, `CROWN_STEP`, `DECOR_EVERY`, `GULL_HEIGHT`, `SCALES`.
 
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
 `CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=90`, `CAMERA_EASE=0.1`,
 `SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`, `OXYGEN_DRAIN=0.009`,
 `OXYGEN_REFILL=1.0`, `SPRINT_MULTIPLIER=2`, `SHARK_PATROL_SPREAD=200`,
-`SOLID_STEP_UP=48`, `ISLAND_MIN_SECTOR=2`, `ISLAND_MAX_SECTOR=10`,
+`SOLID_STEP_UP=48`, `ISLAND_MIN_SECTOR=2`, `ISLAND_MAX_SECTOR=10`, `ISLAND_COUNT=3`,
 `FOG_OF_WAR=true`, `DEBUG=false`.
 
 `app/world/world_generator.rb` (Geländeform): `FLOOR_TOP_Y`, `SHELF_*`,
@@ -365,6 +375,11 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
 
 ## Gotchas & Lektionen (nicht nochmal reintappen)
 
+- **`Integer / Integer` ist in DragonRuby ein `Float`.** `(a + b) / 2` liefert
+  `64.5` — als Array-Index gelesen wird daraus stillschweigend die falsche
+  Spalte, und ein Vergleich wie `col >= 64.5` verschiebt einen ganzen Bereich um
+  eine halbe Spalte. Für Spalten, Indizes und Segmente **immer `idiv`**. (Genau
+  so ist die Luftkammer einmal neben ihrer eigenen Luftblase gelandet.)
 - **`args.state`-Property ≠ Methodenname.** Eine `state.foo`-Property, die wie
   eine `Game`-Methode heißt, ruft die **Methode** auf statt Daten zu lesen →
   Crash `wrong number of arguments`. Deshalb heißen State-Caches bewusst anders
