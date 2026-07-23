@@ -25,9 +25,19 @@ class Game
   end
 
   # A hand-built static world overrides generation when one is registered for
-  # this index; otherwise we generate procedurally.
+  # this index; otherwise we generate procedurally — and stamp the island onto
+  # the segment it landed on this round.
   def world_for(index)
-    StaticWorlds.for(index) || WorldGenerator.generate(index)
+    StaticWorlds.for(index) || open_sea_or_island(index)
+  end
+
+  def open_sea_or_island(index)
+    world = WorldGenerator.generate(index)
+    island_here?(index) ? IslandWorld.build(world) : world
+  end
+
+  def island_here?(index)
+    !!state.island_sectors && state.island_sectors.include?(index)
   end
 
   def world_index
@@ -67,13 +77,33 @@ class Game
     state.fish = biome.fish_count.times.map do
       col = rand(world.columns)
       floor_y = world.floor[col]
-      headroom = WATERLINE_Y - floor_y - 120
+      rock = world.roof && world.roof[col]
+      top = rock ? rock[:ceiling] : WATERLINE_Y # under a cave roof they stay in the tunnel
+      headroom = top - floor_y - 100
       headroom = FAUNA_BAND if headroom > FAUNA_BAND
-      headroom = 40 if headroom < 40
+      headroom = 30 if headroom < 30
+      y = floor_y + 30 + rand(headroom)
+      from_x, to_x = open_water_span(world, col, y)
       SloppyScalar.new(args, 0,
-                       x: col * World::COLUMN_WIDTH,
-                       y: floor_y + 40 + rand(headroom),
+                       x: col * World::COLUMN_WIDTH, y: y,
+                       from_x: from_x, to_x: to_x,
                        color: biome.fish_colors.sample.to_sym)
     end
+  end
+
+  # How far a fish can swim either way from where it spawned before it would run
+  # into rock. Checked across the whole band it drifts through, so it can't rise
+  # into a cave roof on the way either.
+  def open_water_span(world, col, y)
+    left = col
+    left -= 1 while left > 0 && open_water?(world, left - 1, y)
+    right = col
+    right += 1 while right < world.columns - 1 && open_water?(world, right + 1, y)
+    [left * World::COLUMN_WIDTH, right * World::COLUMN_WIDTH]
+  end
+
+  def open_water?(world, col, y)
+    x = col * World::COLUMN_WIDTH
+    !world.solid_at?(x, y - SloppyScalar::DRIFT) && !world.solid_at?(x, y + SloppyScalar::DRIFT)
   end
 end

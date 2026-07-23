@@ -7,25 +7,44 @@ class Game
   WATER_ABYSS = 2600    # px below the waterline where the light is as good as gone
   ABYSS_DIM = 0.82      # how much of the light the abyss swallows
   WATER_BANDS = 24      # horizontal strips the water gradient is drawn in
+  AIR_COLOR = [20, 26, 32]            # the gloom inside an air chamber
+  AIR_SURFACE_COLOR = [150, 190, 205] # the water surface trapped under it
   FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
+
+  GREEN = [96, 146, 74]       # the green cap on anything that breaks the surface
+  GREEN_CAP = 10              # how thick that band of grass is
+  ISLAND_ROCK = [138, 122, 102] # sun-bleached stone — an island wears its own colour,
+                                # not the palette of the sea floor around it
+  CAVE_DIM = 0.5              # inside a cave it is dark whatever the depth says
+  ROOF_FADE = 300             # px under the surface over which rock loses the daylight
+
+  BOAT_SPRITE = { path: "sprites/decor/boat.png", w: 41, h: 20 }
 
   DECOR_SPRITES = {
     "seaweed"  => { path: "sprites/decor/seaweed.png",  w: 14, h: 44 },
     "coral"    => { path: "sprites/decor/coral.png",    w: 28, h: 30 },
     "starfish" => { path: "sprites/decor/starfish.png", w: 16, h: 16 },
     "rock"     => { path: "sprites/decor/rock.png",     w: 22, h: 15 },
+    "palm"     => { path: "sprites/decor/palm.png",     w: 20, h: 16 },
+    "bush"     => { path: "sprites/decor/bush.png",     w: 12, h: 7 },
+    "grass"    => { path: "sprites/decor/grass.png",    w: 12, h: 5 },
+    "gull"     => { path: "sprites/decor/gull.png",     w: 12, h: 4 },
+    "palm_small" => { path: "sprites/decor/palm_small.png", w: 14, h: 10 },
+    "driftwood"  => { path: "sprites/decor/driftwood.png",  w: 14, h: 5 },
+    "crab"       => { path: "sprites/decor/crab.png",       w: 12, h: 6 },
+    "flag"       => { path: "sprites/decor/flag.png",       w: 12, h: 10 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up
   # breathing at the surface.
   def shark_present?
-    !breathing? && current_world.biome.shark
+    !at_open_surface? && current_world.biome.shark
   end
 
   # At the surface you only see the water surface and the sky — the fish below
   # are out of view. Underwater the swarm is drawn.
   def fauna_visible?
-    !breathing?
+    !at_open_surface?
   end
 
   # Brighter biomes (low fog) let the diver see farther; the dark deep closes in.
@@ -54,11 +73,13 @@ class Game
       world = world_at(index)
       dx = chunk_offset_x(index)
       outputs.sprites << world_floor(world, dx)
+      outputs.sprites << world_roof(world, dx)
+      outputs.sprites << world_air(world, dx)
       outputs.sprites << world_decorations(world, dx)
     end
     if home_visible?
       outputs.sprites << home_boat
-      outputs.labels << surface_hint if breathing?
+      outputs.labels << surface_hint if at_open_surface?
     end
   end
 
@@ -126,7 +147,7 @@ class Game
     body = world.biome.floor_colors[1].map { |c| c - 14 }
     cap = world.biome.floor_colors[0]
     tiles = []
-    each_terrace(world.floor) do |top, first_col, width|
+    each_run(world.floor) do |top, first_col, width|
       y = top - state.camera_y
       next if y < 0 || y - FLOOR_FILL_DEPTH > SCREEN_HEIGHT # this terrace is off screen
 
@@ -149,14 +170,72 @@ class Game
                path: :solid)
   end
 
-  # Walk the heightmap as runs of equal height: |height, first column, width|.
-  def each_terrace(floor)
-    first = 0
-    (1..floor.length).each do |col|
-      next if col < floor.length && floor[col] == floor[first]
+  # How lit a slab of rock is, judged by the highest point of it you can see: an
+  # island's flank standing in the sun is bright, the same rock below the surface
+  # is the inside of a mountain and goes dark.
+  def roof_light(top)
+    above = (top - (WATERLINE_Y - ROOF_FADE)) / ROOF_FADE.to_f
+    above = 1.0 if above > 1.0
+    above = 0.0 if above < 0.0
+    (CAVE_DIM + (1.0 - CAVE_DIM) * above) * light_at(top)
+  end
 
-      yield(floor[first], first, col - first)
+  # Walk a per-column array as runs of equal value: |value, first column, width|.
+  # Merging equal columns is what turns the heightmap into terraces to draw.
+  def each_run(values)
+    first = 0
+    (1..values.length).each do |col|
+      next if col < values.length && values[col] == values[first]
+
+      yield(values[first], first, col - first)
       first = col
+    end
+  end
+
+  # Rock hanging overhead — a cave roof, or a whole island seen from the side.
+  # Only the part inside the camera's view is drawn, and it takes its light from
+  # the top of *that*: an island's flank above the water is in daylight while the
+  # same slab is pitch dark down at the tunnel. A slab that breaks the surface
+  # gets earth colours and a band of green along its crown.
+  def world_roof(world, dx)
+    return [] unless world.roof
+
+    tiles = []
+    each_run(world.roof) do |rock, first_col, width|
+      next unless rock
+
+      top = [rock[:crown], state.camera_y + SCREEN_HEIGHT].min
+      bottom = [rock[:ceiling], state.camera_y].max
+      next if top <= bottom # this slab is off screen
+
+      island = rock[:crown] > WATERLINE_Y
+      body = island ? ISLAND_ROCK : world.biome.floor_colors[2]
+      x = first_col * World::COLUMN_WIDTH + dx
+      w = width * World::COLUMN_WIDTH + 1
+      shade = (rock[:ceiling].idiv(WorldGenerator::FLOOR_STEP) % 5 - 2) * 4
+      dim = roof_light(top)
+
+      tiles << sand({ x: x, y: bottom - state.camera_y, w: w, h: top - bottom }, body, shade, dim)
+      tiles << sand({ x: x, y: rock[:ceiling] - state.camera_y, w: w, h: 4 },
+                    world.biome.floor_colors[0], shade, dim) # lit rim under the rock
+      tiles << sand({ x: x, y: rock[:crown] - state.camera_y - GREEN_CAP, w: w, h: GREEN_CAP },
+                    GREEN, shade, 1.0) if island # grass on top of the island
+    end
+    tiles
+  end
+
+  # Air trapped under rock — the cave's own little sky, with the water surface
+  # inside drawn as a bright line along its bottom edge.
+  def world_air(world, dx)
+    world.air_pockets.flat_map do |air|
+      x = air[:x] + dx
+      y = air[:y] - state.camera_y
+      [
+        { x: x, y: y, w: air[:w], h: air[:h],
+          r: AIR_COLOR[0], g: AIR_COLOR[1], b: AIR_COLOR[2], path: :solid },
+        { x: x, y: y - 2, w: air[:w], h: 4,
+          r: AIR_SURFACE_COLOR[0], g: AIR_SURFACE_COLOR[1], b: AIR_SURFACE_COLOR[2], path: :solid },
+      ]
     end
   end
 
@@ -164,9 +243,10 @@ class Game
     world.decorations.map do |d|
       sprite = DECOR_SPRITES[d[:kind]]
       sway = d[:kind] == "seaweed" ? Math.sin((Kernel.tick_count + d[:x]) / 45.0) * 3 : 0
+      drift_x, drift_y = decor_drift(d)
       {
-        x: d[:x] + dx,
-        y: d[:y] - state.camera_y,
+        x: d[:x] + dx + drift_x,
+        y: d[:y] - state.camera_y + drift_y,
         w: sprite[:w] * d[:scale],
         h: sprite[:h] * d[:scale],
         path: sprite[:path],
@@ -177,17 +257,28 @@ class Game
     end
   end
 
+  # Most decor stands still. Gulls don't — they drift over the coast on a long,
+  # lazy loop — and the crabs scuttle a few steps along the beach.
+  def decor_drift(d)
+    phase = Kernel.tick_count + d[:x]
+    case d[:kind]
+    when "gull" then [Math.sin(phase / 150.0) * 190, Math.sin(phase / 47.0) * 14]
+    when "crab" then [Math.sin(phase / 90.0) * 26, 0]
+    else [0, 0]
+    end
+  end
+
   # The diver's home: a small boat bobbing on the waterline over the starting
   # segment (world x SURFACE_BOAT_X). The diver spawns right next to it.
   def home_boat
-    scale = 3
+    scale = 4
     bob = Math.sin(Kernel.tick_count / 45.0) * 4
     {
       x: SURFACE_BOAT_X - state.camera_x,
-      y: WATERLINE_Y - 24 + bob - state.camera_y,
-      w: 48 * scale,
-      h: 34 * scale,
-      path: "sprites/decor/boat.png",
+      y: WATERLINE_Y - 20 + bob - state.camera_y, # hull and ladder reach into the water
+      w: BOAT_SPRITE[:w] * scale,
+      h: BOAT_SPRITE[:h] * scale,
+      path: BOAT_SPRITE[:path],
     }
   end
 

@@ -7,23 +7,36 @@ class SloppyScalar
   SPEEDS = [0.25, 0.5, 0.75, 0.65, 0.35, 0.15]
   DRIFT = 60 # how far the fish wanders from the depth it was spawned at
 
-  def initialize(current_args, sprite_index, x: 10, y: 200, color: nil)
+  # from_x/to_x bound the stretch of open water this fish was spawned in — it
+  # turns around at the ends rather than swimming on into rock.
+  def initialize(current_args, sprite_index, x: 10, y: 200, color: nil,
+                 from_x: 0, to_x: SCREEN_WIDTH)
     @sprite_index = sprite_index
     @current_args = current_args
     @x = x
     @y = y
     @home_y = y # world y of its patch of water — it never strays far from this
+    @from_x = from_x
+    @to_x = to_x
+    @heading = 1
     @color = color || COLORS.sample
     @speed = SPEEDS.sample
   end
 
-  # x wraps inside the segment; y drifts around the fish's home depth. It's a
-  # world y, so a fish spawned in a trench keeps swimming down there instead of
-  # being folded back into the top screen height.
+  # It patrols its stretch of water and turns at both ends; y drifts around its
+  # home depth. Both are world coordinates, so a fish spawned in a trench keeps
+  # swimming down there instead of being folded back into the top screen height.
   def tick(current_args, sprite_index)
     @sprite_index = sprite_index
     @current_args = current_args
-    @x = (@x + @speed) % SCREEN_WIDTH
+    @x += @speed * @heading
+    if @x >= @to_x
+      @x = @to_x
+      @heading = -1
+    elsif @x <= @from_x
+      @x = @from_x
+      @heading = 1
+    end
 
     if (sprite_index + rand(100)) % 180 == 0 # don't jump too often
       @y += (-1)**rand(10) * rand(5)
@@ -44,6 +57,7 @@ class SloppyScalar
     {
       x: @x,
       y: @y,
+      flip_horizontally: @heading < 0,
       w: WIDTH * size,
       h: HEIGHT * size,
       path: path,

@@ -23,6 +23,7 @@ class DarkShark
       w: WIDTH * SCALE_FACTOR,
       h: HEIGHT * SCALE_FACTOR,
       angle: 0,
+      flip_horizontally: @current_args.state.dark_shark.dir.to_i < 0,
       path: PATH,
       source_x: WIDTH * @sprite_index,
       source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor,

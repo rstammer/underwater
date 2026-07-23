@@ -55,16 +55,20 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
 - `app/entities/` — `diver` (Spieler), `dark_shark`, `sloppy_scalar` — eigene
   Klassen, bekommen `args` übergeben, lesen Position aus `state`
 - `app/world/` — **Welt-System** (s. u.): `rng`, `noise`, `biome`, `world`,
-  `world_generator`, `static_worlds`, `world_stream` (reopenet `Game`; welche
-  Segmente es gibt, welche sichtbar sind, Welt→Screen-Offsets, Fauna-Spawn),
-  `world_renderer` (reopenet `Game`; zeichnet Wasser, Himmel, Boden, Deko, Boot),
+  `world_generator`, `static_worlds`, `island_world` (die handgebaute Insel mit
+  Höhle), `world_stream` (reopenet `Game`; welche Segmente es gibt, welche
+  sichtbar sind, Welt→Screen-Offsets, Fauna-Spawn), `world_renderer` (reopenet
+  `Game`; zeichnet Wasser, Himmel, Boden, Fels, Luftblasen, Deko, Boot),
   `fog_of_war`
 - `app/ux/` — `panel` (Szenen-Label, eigenständige Klasse) und `hud` (reopenet
   `Game`: O2-Balken, Locator, Tiefenanzeige)
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
-  Seetang, Boot); erzeugt per Stdlib-PNG-Skript, im Titel + an der Oberfläche
-  genutzt und für später wiederverwendbar
+  Seetang, Fels, Boot; für die Inseln: Palme groß/klein, Busch, Gras, Treibholz,
+  Krabbe, Fahne, Möwe)
+- `tools/make_decor_sprites.rb` — erzeugt diese PNGs aus ASCII-Art + Palette,
+  nur mit Ruby-Stdlib (`ruby tools/make_decor_sprites.rb sprites/decor`).
+  Läuft in **MRI**, nicht in DragonRuby — reines Autoren-Werkzeug.
 - `sounds/` — Audio
 
 ### Spiel-Loop (`Game#tick`)
@@ -145,7 +149,8 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
 
 - **`World`** (`app/world/world.rb`) — reine Daten: Boden (`floor` = **Welt-`y`
   pro Spalte**, `COLUMN_WIDTH = 8` px), Deko-Platzierungen (`decorations`),
-  `biome`. Rührt nie `outputs` an → testbar. `deepest_y` = tiefster Punkt.
+  `biome`, dazu **optional** `roof` und `air_pockets` (s. u.). Rührt nie
+  `outputs` an → testbar. `deepest_y` = tiefster Punkt.
 - **`Rng`** — seedbarer xorshift-PRNG: gleiche Seed → gleiche Welt (deterministisch,
   stabil beim Zurückschwimmen, unit-testbar).
 - **`Noise`** — deterministisches 1-D-Value-Noise über der **Welt-x-Achse**:
@@ -169,12 +174,53 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   des Segments und würfelt (per `Rng`) Deko dazu; Biom pro Index gemischt gewählt.
 - **`StaticWorlds`** — Registry, um einzelne Indizes mit **handgebauten** Welten zu
   überschreiben (`world_for` = statisch ?: generiert). Der „Mix"-Hook; aktuell leer.
+- **Höhlen: `roof` + `air_pockets`.** Eine Heightmap kann **keine** Höhle
+  beschreiben (sie kennt nur „Sand bis hierhin"). Deshalb kann eine Welt pro
+  Spalte eine **zweite Fels-Spanne** tragen: `roof[col] = { ceiling:, crown: }` —
+  Fels von `ceiling` (Unterkante, wo der Taucher anstößt) bis `crown` (Oberkante);
+  `nil` = offenes Wasser. Dazu `air_pockets`: Rechtecke eingeschlossener Luft,
+  deren **Unterkante die Wasseroberfläche darin** ist (`air_line_at`, `air_at?`).
+- **`IslandWorld`** — eine Insel: wird **auf** eine generierte Welt gestempelt
+  (`IslandWorld.build(world)`), nicht statt ihrer — so bleiben die Segmentränder
+  unangetastet und nahtlos. Es ist eine **Klasse pro Insel**: Spannweite (`span`)
+  und Höhe (`peak`) werden aus dem Segment-Index gewürfelt, die Silhouette
+  (`crown_y`) ist Noise **an der Welt-Position** mal einer Hüllkurve
+  (`envelope`), die den Fels an beiden Enden ans Wasser bindet — deshalb sieht
+  **keine Insel aus wie die andere**. Gelesen wird pro Terrasse
+  (`WorldGenerator.terrace_start`), das gibt Plateaus und Schultern statt einer
+  glatten Kuppe; nach oben deckelt `CROWN_MAX`, sonst schneidet der Bildrand den
+  Gipfel ab.
+- **Der Tunnel** ist pro Insel anders: der Boden (`tunnel_floor_y`) ist eine Rampe
+  zwischen dem Sand beider Mündungen **plus ein Sack oder Buckel** (`@sag`, an den
+  Enden null — deshalb keine Stufe beim Rein-/Rausschwimmen), die Höhe
+  (`tunnel_height`) wechselt zwischen **Engstelle und Halle**
+  (`TUNNEL_MIN`..`TUNNEL_MAX`, nie enger als `MIN_GAP`), und unterwegs heben
+  **ein bis zwei Luftkammern** (`chambers`, Position gewürfelt) die Decke — dort
+  taucht man auf und atmet. Im Korridor wächst Seetang, Koralle, Fels
+  (`tunnel_decor`).
+- **Bewuchs oben** steht auf den **Plateaus** (`plateaus` = Läufe gleicher
+  Kronenhöhe; ein Platz je `PLANT_SPACING` px): Treibholz und Krabben am Strand,
+  weiter oben, was in die Lücke passt. Geprüft wird der **Fuß** der Pflanze
+  (`base_width`, ~⅓ der Sprite-Breite) — Wedel dürfen überhängen, Stämme nicht.
+  (Vorher standen Palmen in festen Abständen und damit halb über der Kante.)
+  Möwen kreisen **weit draußen über dem Wasser** (`gulls`/`GULL_OFFSETS`, beide
+  Seiten, 320–1600 px vor der Küste): Vögel am Horizont sind der erste Hinweis,
+  dass da Land ist — über dem Gipfel wären sie außerhalb des Bildes. Auf manchen
+  Gipfeln steckt eine Fahne. Die Bewegung
+  von Möwe und Krabbe macht `decor_drift` im Renderer.
+- **Wo die Inseln liegen:** `ISLAND_COUNT` Stück pro Runde, ausgewürfelt in
+  `roll_island_sectors` (verschiedene Sektoren, beide Richtungen), gemerkt in
+  `state.island_sectors`. Die **erste landet immer nah** (`1..ISLAND_NEAR_SECTOR`),
+  damit man beim Rausschwimmen in *irgendeine* Richtung auf eine trifft; die
+  übrigen liegen weiter draußen (`ISLAND_MIN_SECTOR`..`ISLAND_MAX_SECTOR`).
 - **`world_stream.rb`** (reopenet `Game`) — die Segment-Verwaltung: `current_world`
   wählt das Chunk des Tauchers (`world_index = diver_global_x / SCREEN_WIDTH`) für
   Biom/Fauna/Fog, `world_at`/`world_for` cachen bzw. bauen Segmente,
   `visible_world_indices` sagt, was im Bild ist, `chunk_offset_x`/
   `place_in_current_chunk` rechnen Welt→Screen, `spawn_fauna` besetzt ein neues
-  Segment.
+  Segment — jeder Fisch bekommt dabei den **freien Wasserstreifen** seiner Höhe
+  mit (`open_water_span`, über sein ganzes Driftband geprüft), sonst schwimmen
+  sie durch Inseln und Höhlenwände hindurch.
 - **`world_renderer.rb`** (reopenet `Game`) — zeichnet daraus das Bild.
   `render_world` malt **kamera-versetzt** (`camera_x`/`camera_y`): Wasser
   (`world_water` — füllt den ganzen Screen, jede Bande nimmt ihre Farbe aus der
@@ -190,6 +236,13 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   **Wassersäule des jeweiligen Segments** (über dessen eigenem Boden, `FAUNA_BAND`),
   `fauna_visible?`/`shark_present?` — Fisch **und** Hai an der Oberfläche
   (`breathing?`) unsichtbar.
+- **Fels über dem Wasser sieht anders aus als Fels darin.** `world_roof` zeichnet
+  nur den **sichtbaren** Ausschnitt eines Slabs und nimmt sein Licht aus dessen
+  Oberkante (`roof_light`): in der Sonne hell, unter Wasser über `ROOF_FADE`
+  abdunkelnd, im Inneren eines Berges `CAVE_DIM`. Bricht ein Slab die Oberfläche
+  (Insel), bekommt er eigenes, warmes Gestein (`ISLAND_ROCK`) statt der Biom-
+  Palette — sonst trägt eine Insel im Tiefsee-Sektor deren Schiefergrau — plus
+  einen grünen Streifen (`GREEN`/`GREEN_CAP`) auf der Kuppe.
 - **Licht & Tiefe:** `light_at(world_y)` ist die gemeinsame Tageslicht-Kurve
   (voll bis `WATER_TWILIGHT`, dann Abfall bis `WATER_ABYSS`, max. `ABYSS_DIM`
   geschluckt). Wasserfarbe (`water_color_at`), Sandfarbe **und** Fog
@@ -214,7 +267,8 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `depth_y` | **vertikale Welt-Position (Single source of truth).** `WATERLINE_Y` = Wasserlinie, darüber Himmel; nach unten offen (Gräben liegen weit unter `0`, `0` ist nur das historische „Grund"-Niveau). Hoch schwimmen = `depth_y` steigt = flacher |
 | `camera_x` / `camera_y` | Welt-`x`/`y` am linken/unteren Screenrand; folgen dem Taucher (`camera_x` zentriert; `camera_y` easet ans Ziel, Dead Zone **relativ zum Boden**) |
 | `player_x` / `player_y` | **abgeleitete** Screen-Position des Tauchers = `global_x/depth_y - camera_x/y`; jeden Tick in `update_depth_and_camera` gesetzt (Diver + Fog lesen daraus) |
-| `world_cache` | Hash `{index → World}` — memoisiert Segmente fürs kontinuierliche Rendern der Nachbar-Chunks |
+| `world_cache` | Hash `{index → World}` — memoisiert Segmente fürs kontinuierliche Rendern der Nachbar-Chunks; wird bei jedem Rundenstart geleert |
+| `island_sectors` | Segment-Indizes, auf denen diese Runde die Inseln liegen (pro Runde gewürfelt) |
 | `direction` | `:left` / `:right` (Blickrichtung, hält beim Idle) |
 | `angle` | Sprite-Neigung beim Diagonal-Schwimmen |
 | `sprinting` | `true`, solange die Sprint-Taste gehalten wird *und* geschwommen wird |
@@ -222,7 +276,7 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `oxygen` | 0..`OXYGEN_MAX`; leer → ertrinken |
 | `death_cause` | `:eaten` (Hai) / `:drowned` (O2 leer) / `nil` — steuert Game-Over-Text |
 | `diver` / `shark` | Entity-Instanzen (`Diver` / `DarkShark`) |
-| `fish` | Array von `SloppyScalar` — Schwarm des aktiven Bioms; Positionen als **lokale** Chunk-`x` (0..`SCREEN_WIDTH`) + Welt-`y`, gerendert via `place_in_current_chunk`. Jeder Fisch driftet nur `DRIFT` px um seine Spawn-Tiefe (kein Wrap auf Screen-Höhe!) |
+| `fish` | Array von `SloppyScalar` — Schwarm des aktiven Bioms; Positionen als **lokale** Chunk-`x` (0..`SCREEN_WIDTH`) + Welt-`y`, gerendert via `place_in_current_chunk`. Jeder Fisch patrouilliert nur seinen freien Wasserstreifen (`from_x`/`to_x` aus `open_water_span`, dreht an den Enden) und driftet `DRIFT` px um seine Spawn-Tiefe (kein Wrap!) |
 | `dark_shark` | `{x:, y:}`-Hash der Hai-Position: **lokale** Chunk-`x` (wrappt bei `SCREEN_WIDTH`) + Welt-`y` (von der `DarkShark`-Entity in `to_h` gelesen). Bei jeder neuen Runde kommt er auf **Taucher-Tiefe** ±`SHARK_PATROL_SPREAD` rein |
 | `active_world` / `active_world_index` | gecachtes aktuelles Chunk (Biom/Fauna) + sein Segment-Index (Neu-Setzen nur bei Segmentwechsel) |
 
@@ -237,7 +291,9 @@ Screen-Positionen und werden nicht direkt gesetzt.
 - **Rundenstart (`spawn_at_surface`):** Jede Runde (erster Start *und* Neustart
   nach game_over) beginnt an der Wasserlinie neben dem Boot (`SURFACE_BOAT_X`),
   Kopf raus/atmend (`depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH`). Am Startsegment
-  schaukelt ein **Home-Boot** (`home_boat`) an der Wasserlinie, dazu ein dezenter
+  schaukelt das **Tauchboot** (`home_boat`/`BOAT_SPRITE`) an der Wasserlinie — ein
+  kleines Motorboot mit Kajüte, Außenborder und **Badeleiter**, die ins Wasser
+  reicht (gedacht als späteres Zuhause zum Anlegen/Einsteigen). Dazu ein dezenter
   Hinweis (`surface_hint`), der zum Abtauchen/Erkunden ermutigt.
 - **Bewegung (kontinuierlich, beide Achsen):** Es gibt keinen Übergang mehr — der
   Taucher bewegt sich in `depth_y` (vertikal) und `diver_global_x` (horizontal),
@@ -256,8 +312,20 @@ Screen-Positionen und werden nicht direkt gesetzt.
   (0.15/Tick), solange man nicht ↑ hält. **Ausnahme:** ragt sein Kopf aus dem
   Wasser (`breathing?`, `depth_y + Diver::HEIGHT >= WATERLINE_Y`), sinkt er nicht
   — Ruhe-/Atem-Modus. Sobald er wieder untertaucht, sinkt er weiter.
+- **Fels ist fest.** Seitwärts kommt der Taucher nur in Wasser, in das er
+  wirklich passt (`swim_sideways`/`blocked?`): zu hoher Sand, eine Höhlendecke
+  vorm Gesicht oder ein zu schmaler Spalt halten ihn auf. Kanten bis
+  `SOLID_STEP_UP` (48 px) gleitet er hoch — natürliches Gelände hat p99 = 32 px,
+  also bremst nur echter Fels. **Eine Wand ist nie eine Falle:** hochschwimmen
+  geht immer.
+- **Inseln & Höhlen:** `ISLAND_COUNT` bewachsene Inseln ragen aus dem Wasser, jede
+  mit eigener Form und Größe — eine davon in Sichtweite (1–3 Sektoren), der Rest
+  weiter draußen. Drüber kommt man nicht — der Weg führt **unten durch den Tunnel**,
+  mit einer **Luftkammer** auf halber Strecke, in der man auftaucht und den
+  Sauerstoff auffüllt.
 - **Sauerstoff:** Drain unter Wasser (`OXYGEN_DRAIN`/Tick, ~3 min). Refill **nur**
-  wenn `breathing?` — also Kopf über der Wasserlinie. Leer → `game_over` /
+  wenn `breathing?` — Kopf über *einer* Wasseroberfläche: der des Meeres **oder**
+  der in einer Luftkammer. Leer → `game_over` /
   `:drowned`. O2-Balken-HUD wird bei <30 % rot.
 - **Sprint:** Sprint-Taste (Leertaste) halten *während* man schwimmt →
   Geschwindigkeit ×`SPRINT_MULTIPLIER` und O2-Verbrauch ×`SPRINT_MULTIPLIER`.
@@ -269,7 +337,9 @@ Screen-Positionen und werden nicht direkt gesetzt.
 - **Hai:** in Hai-Biomen (Tiefsee) unterwegs; **Kollision in Welt-Koordinaten**
   (Taucher auf `depth_y` vs. Hai-Welt-`y`, `intersect_rect?`) → `game_over` /
   `:eaten`. Er patrouilliert auf **Taucher-Tiefe** (`shark_patrol_y`, geclampt in
-  die Wassersäule via `in_water`) — also auch im Graben gefährlich.
+  die Wassersäule via `in_water`) — also auch im Graben gefährlich. **Fels stoppt
+  ihn wie den Taucher:** vor der Insel dreht er um (`shark_blocked?`/`solid_at?`,
+  `dark_shark.dir`, Sprite spiegelt sich) statt hindurchzuschwimmen.
 - **Tiefe & Profil:** Der Meeresgrund ist keine Ebene mehr: flache Bänke (~80 m)
   wechseln sich mit Gräben (~220 m) ab, das Relief ist zerklüftet/terrassiert.
   Wo es tief wird, muss man erkunden. Je tiefer, desto dunkler das Wasser und
@@ -277,17 +347,26 @@ Screen-Positionen und werden nicht direkt gesetzt.
 
 ### Tuning-Konstanten
 
+`app/world/island_world.rb` (Inseln): `SPAN_MIN/MAX`, `PEAK_MIN/MAX`, `CROWN_MAX`,
+`SHORE_LIP`, `SHORE_HEIGHT`, `TUNNEL_HEIGHT`, `DOME_SPAN`, `DOME_RISE`,
+`AIR_DEPTH`, `CROWN_STEP`, `PLANT_SPACING`, `MARGIN`, `GULL_HEIGHT`, `SCALES`;
+Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
+`DOME_RISE`.
+
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
 `CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=90`, `CAMERA_EASE=0.1`,
 `SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`, `OXYGEN_DRAIN=0.009`,
 `OXYGEN_REFILL=1.0`, `SPRINT_MULTIPLIER=2`, `SHARK_PATROL_SPREAD=200`,
+`SOLID_STEP_UP=48`, `ISLAND_MIN_SECTOR=2`, `ISLAND_MAX_SECTOR=10`, `ISLAND_NEAR_SECTOR=3`,
+`ISLAND_COUNT=3`,
 `FOG_OF_WAR=true`, `DEBUG=false`.
 
 `app/world/world_generator.rb` (Geländeform): `FLOOR_TOP_Y`, `SHELF_*`,
 `BASIN_*`, `CRAG_*`, `DUNE_*`, `ROUGH_*`, `FLOOR_STEP`, `TERRACE_BLOCK`,
 `TERRACE_WIDTHS`; `DIVER_FOOTPRINT` (main.rb) = wie breit der Taucher Grund fühlt.
 `app/world/world_renderer.rb` (Optik): `WATER_TWILIGHT`, `WATER_ABYSS`,
-`ABYSS_DIM`, `WATER_BANDS`, `FLOOR_FILL_DEPTH`; `FAUNA_BAND` in `world_stream.rb`.
+`ABYSS_DIM`, `WATER_BANDS`, `FLOOR_FILL_DEPTH`, `ISLAND_ROCK`, `GREEN`,
+`GREEN_CAP`, `CAVE_DIM`, `ROOF_FADE`; `FAUNA_BAND` in `world_stream.rb`.
 Per Playtest justierbar — siehe Notizen in [`TODO.md`](TODO.md).
 
 ## Tests
@@ -317,6 +396,11 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
 
 ## Gotchas & Lektionen (nicht nochmal reintappen)
 
+- **`Integer / Integer` ist in DragonRuby ein `Float`.** `(a + b) / 2` liefert
+  `64.5` — als Array-Index gelesen wird daraus stillschweigend die falsche
+  Spalte, und ein Vergleich wie `col >= 64.5` verschiebt einen ganzen Bereich um
+  eine halbe Spalte. Für Spalten, Indizes und Segmente **immer `idiv`**. (Genau
+  so ist die Luftkammer einmal neben ihrer eigenen Luftblase gelandet.)
 - **`args.state`-Property ≠ Methodenname.** Eine `state.foo`-Property, die wie
   eine `Game`-Methode heißt, ruft die **Methode** auf statt Daten zu lesen →
   Crash `wrong number of arguments`. Deshalb heißen State-Caches bewusst anders
@@ -332,6 +416,11 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
   ursprünglich), faltet Kreaturen aus dem Graben zurück an die Oberfläche.
   Vertikal wird geclampt (`in_water`, `DRIFT`), nicht gewrappt. Horizontal
   (lokale Chunk-`x`) ist der Wrap dagegen richtig.
+- **`breathing?` ≠ „an der Oberfläche".** `breathing?` heißt nur „Kopf über
+  *einer* Wasseroberfläche" (Meer **oder** Luftkammer) und steuert Sauerstoff und
+  Auftrieb. Alles, was mit **Tageslicht** zu tun hat — Fog aus, Fauna unsichtbar,
+  Oberflächen-Hinweis — muss `at_open_surface?` fragen, sonst wird die Höhle
+  taghell und leer.
 - **Kamera nie am rohen Boden festmachen.** Die Dead Zone am Grund muss auf der
   *groben* Geländeform sitzen (`ground_level_at`), nicht auf `sea_floor_y` — sonst
   springt das Kameraziel bei jeder Sandkerbe und das Bild wackelt sichtbar

@@ -5,16 +5,48 @@
 class World
   COLUMN_WIDTH = 8 # width in px of one floor column (small = finely stepped sand)
 
-  attr_reader :index, :biome, :floor, :decorations
+  attr_reader :index, :biome, :floor, :decorations, :roof, :air_pockets
 
   # floor:       array of sand *world y* values, one per column across the
   #              segment. Higher = shallower; deep trenches are far below 0.
   # decorations: array of { kind:, x:, y:, scale: } resting on the floor
-  def initialize(index:, biome:, floor:, decorations:)
+  # roof:        optional second solid span per column — nil for open water, or
+  #              { ceiling:, crown: }: rock from `ceiling` (its underside, what
+  #              the diver bumps his head on) up to `crown` (its top). A
+  #              heightmap alone cannot describe a cave; this is the other half.
+  # air_pockets: rects { x:, y:, w:, h: } of air trapped under rock. Their bottom
+  #              edge is the water surface inside; a diver whose head is in one
+  #              can breathe there.
+  def initialize(index:, biome:, floor:, decorations:, roof: nil, air_pockets: [])
     @index = index
     @biome = biome
     @floor = floor
     @decorations = decorations
+    @roof = roof
+    @air_pockets = air_pockets
+  end
+
+  # The water surface inside an air pocket over this segment-local x — the level
+  # a diver floats at in there — or nil where there is no trapped air.
+  def air_line_at(x)
+    over = air_pockets.select { |air| x >= air[:x] && x < air[:x] + air[:w] }
+    over.empty? ? nil : over.map { |air| air[:y] }.min
+  end
+
+  # Is this segment-local point inside rock — sand below the floor, or the body
+  # of a slab hanging above it?
+  def solid_at?(x, y)
+    return true if y < floor_y_at(x)
+
+    rock = roof_at(x)
+    !!(rock && y >= rock[:ceiling] && y <= rock[:crown])
+  end
+
+  # Is this segment-local point inside trapped air?
+  def air_at?(x, y)
+    air_pockets.any? do |air|
+      x >= air[:x] && x < air[:x] + air[:w] && y >= air[:y] && y <= air[:y] + air[:h]
+    end
   end
 
   def columns
@@ -23,9 +55,20 @@ class World
 
   # World y of the sand surface at a given segment-local x.
   def floor_y_at(x)
+    floor[column_at(x)]
+  end
+
+  # The rock overhead at a segment-local x — { ceiling:, crown: } or nil where
+  # the water is open all the way to the surface.
+  def roof_at(x)
+    roof && roof[column_at(x)]
+  end
+
+  def column_at(x)
     col = x / COLUMN_WIDTH
-    col = 0 if col < 0
-    col = columns - 1 if col >= columns
-    floor[col]
+    return 0 if col < 0
+    return columns - 1 if col >= columns
+
+    col
   end
 end
