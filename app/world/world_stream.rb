@@ -82,10 +82,28 @@ class Game
       headroom = top - floor_y - 100
       headroom = FAUNA_BAND if headroom > FAUNA_BAND
       headroom = 30 if headroom < 30
+      y = floor_y + 30 + rand(headroom)
+      from_x, to_x = open_water_span(world, col, y)
       SloppyScalar.new(args, 0,
-                       x: col * World::COLUMN_WIDTH,
-                       y: floor_y + 30 + rand(headroom),
+                       x: col * World::COLUMN_WIDTH, y: y,
+                       from_x: from_x, to_x: to_x,
                        color: biome.fish_colors.sample.to_sym)
     end
+  end
+
+  # How far a fish can swim either way from where it spawned before it would run
+  # into rock. Checked across the whole band it drifts through, so it can't rise
+  # into a cave roof on the way either.
+  def open_water_span(world, col, y)
+    left = col
+    left -= 1 while left > 0 && open_water?(world, left - 1, y)
+    right = col
+    right += 1 while right < world.columns - 1 && open_water?(world, right + 1, y)
+    [left * World::COLUMN_WIDTH, right * World::COLUMN_WIDTH]
+  end
+
+  def open_water?(world, col, y)
+    x = col * World::COLUMN_WIDTH
+    !world.solid_at?(x, y - SloppyScalar::DRIFT) && !world.solid_at?(x, y + SloppyScalar::DRIFT)
   end
 end

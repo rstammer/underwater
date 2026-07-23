@@ -33,6 +33,15 @@ class World
     over.empty? ? nil : over.map { |air| air[:y] }.min
   end
 
+  # Is this segment-local point inside rock — sand below the floor, or the body
+  # of a slab hanging above it?
+  def solid_at?(x, y)
+    return true if y < floor_y_at(x)
+
+    rock = roof_at(x)
+    !!(rock && y >= rock[:ceiling] && y <= rock[:crown])
+  end
+
   # Is this segment-local point inside trapped air?
   def air_at?(x, y)
     air_pockets.any? do |air|

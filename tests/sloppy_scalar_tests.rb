@@ -19,15 +19,29 @@ class SloppyScalarTests
     assert.true! [SloppyScalar::HEIGHT, SloppyScalar::HEIGHT * 2].include?(h[:h])
   end
 
-  def test_tick_wraps_x_at_screen_width(args, assert)
+  # A fish given a stretch of open water turns around at its ends instead of
+  # carrying on into whatever rock is there.
+  def test_tick_turns_around_at_the_ends_of_its_water(args, assert)
+    scalar = SloppyScalar.new(args, 0, x: 300, y: 0, color: :blue, from_x: 280, to_x: 340)
+
+    400.times do
+      scalar.tick(args, 0)
+      x = scalar.to_h[:x]
+      assert.true! x >= 280 && x <= 340, "the fish should stay in its water, was #{x}"
+    end
+  end
+
+  def test_tick_turns_around_at_the_segment_edge(args, assert)
     # Start just shy of the right edge; any speed (>= 0.15) pushes it past
-    # SCREEN_WIDTH and it must wrap back to a small positive x.
+    # SCREEN_WIDTH, where it has to turn rather than carry on.
     scalar = SloppyScalar.new(args, 0, x: SCREEN_WIDTH - 0.05, y: 0, color: :orange)
     scalar.tick(args, 0)
-    x = scalar.to_h[:x]
+    scalar.tick(args, 0)
+    h = scalar.to_h
 
-    assert.true! x >= 0,               "x should stay non-negative, was #{x}"
-    assert.true! x < 1.0,              "x should have wrapped near 0, was #{x}"
+    assert.true! h[:x] <= SCREEN_WIDTH, "it stays in the segment, was #{h[:x]}"
+    assert.true! h[:x] < SCREEN_WIDTH, "and is heading back, was #{h[:x]}"
+    assert.true! h[:flip_horizontally], "swimming left, so the sprite faces left"
   end
 
   # Fish live at whatever depth they were spawned at — including far below the

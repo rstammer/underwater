@@ -218,7 +218,9 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   Biom/Fauna/Fog, `world_at`/`world_for` cachen bzw. bauen Segmente,
   `visible_world_indices` sagt, was im Bild ist, `chunk_offset_x`/
   `place_in_current_chunk` rechnen Welt→Screen, `spawn_fauna` besetzt ein neues
-  Segment.
+  Segment — jeder Fisch bekommt dabei den **freien Wasserstreifen** seiner Höhe
+  mit (`open_water_span`, über sein ganzes Driftband geprüft), sonst schwimmen
+  sie durch Inseln und Höhlenwände hindurch.
 - **`world_renderer.rb`** (reopenet `Game`) — zeichnet daraus das Bild.
   `render_world` malt **kamera-versetzt** (`camera_x`/`camera_y`): Wasser
   (`world_water` — füllt den ganzen Screen, jede Bande nimmt ihre Farbe aus der
@@ -274,7 +276,7 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `oxygen` | 0..`OXYGEN_MAX`; leer → ertrinken |
 | `death_cause` | `:eaten` (Hai) / `:drowned` (O2 leer) / `nil` — steuert Game-Over-Text |
 | `diver` / `shark` | Entity-Instanzen (`Diver` / `DarkShark`) |
-| `fish` | Array von `SloppyScalar` — Schwarm des aktiven Bioms; Positionen als **lokale** Chunk-`x` (0..`SCREEN_WIDTH`) + Welt-`y`, gerendert via `place_in_current_chunk`. Jeder Fisch driftet nur `DRIFT` px um seine Spawn-Tiefe (kein Wrap auf Screen-Höhe!) |
+| `fish` | Array von `SloppyScalar` — Schwarm des aktiven Bioms; Positionen als **lokale** Chunk-`x` (0..`SCREEN_WIDTH`) + Welt-`y`, gerendert via `place_in_current_chunk`. Jeder Fisch patrouilliert nur seinen freien Wasserstreifen (`from_x`/`to_x` aus `open_water_span`, dreht an den Enden) und driftet `DRIFT` px um seine Spawn-Tiefe (kein Wrap!) |
 | `dark_shark` | `{x:, y:}`-Hash der Hai-Position: **lokale** Chunk-`x` (wrappt bei `SCREEN_WIDTH`) + Welt-`y` (von der `DarkShark`-Entity in `to_h` gelesen). Bei jeder neuen Runde kommt er auf **Taucher-Tiefe** ±`SHARK_PATROL_SPREAD` rein |
 | `active_world` / `active_world_index` | gecachtes aktuelles Chunk (Biom/Fauna) + sein Segment-Index (Neu-Setzen nur bei Segmentwechsel) |
 

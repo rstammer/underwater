@@ -259,6 +259,25 @@ class IslandTests
     assert.true! args.state.dark_shark.x < rock_starts, "and stayed on its side of it"
   end
 
+  # Fish belong to the water they were spawned in. Left to drift they used to
+  # swim straight into the island — through solid rock.
+  def test_fish_never_swim_into_the_rock(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.island_sectors = [1]
+    args.state.diver_global_x = SCREEN_WIDTH + 100
+    world = game.world_for(1)
+
+    game.spawn_fauna(world)
+    900.times { args.state.fish.each { |fish| fish.tick(args, 0) } }
+
+    args.state.fish.each do |fish|
+      spot = fish.to_h
+      assert.false! world.solid_at?(spot[:x], spot[:y]),
+                    "a fish ended up inside the rock at #{spot[:x].to_i},#{spot[:y].to_i}"
+    end
+  end
+
   def test_renders_the_island_without_error(args, assert)
     game = build_game(args)
     game.initialize_game(0)

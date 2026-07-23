@@ -213,15 +213,9 @@ class Game
     y
   end
 
-  # Is there rock at this point of the world — sand below the floor, or the body
-  # of a slab hanging over it?
+  # Is there rock at this point of the world?
   def solid_at?(world_x, y)
-    world = world_at(world_x.idiv(SCREEN_WIDTH))
-    local = world_x % SCREEN_WIDTH
-    return true if y < world.floor_y_at(local)
-
-    rock = world.roof_at(local)
-    !!(rock && y >= rock[:ceiling] && y <= rock[:crown])
+    world_at(world_x.idiv(SCREEN_WIDTH)).solid_at?(world_x % SCREEN_WIDTH, y)
   end
 
   def basic_movements_per_tick
