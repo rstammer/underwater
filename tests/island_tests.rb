@@ -64,9 +64,15 @@ class IslandTests
     built.decorations.each do |d|
       col = d[:x].idiv(World::COLUMN_WIDTH)
       next unless island_columns.include?(col)
+      next if d[:kind] == "gull" # those fly above it
 
-      assert.equal! d[:y], built.roof[col][:crown], "only summit rocks stand on the island (#{d[:kind]})"
+      assert.equal! d[:y], built.roof[col][:crown], "plants stand on the island (#{d[:kind]})"
+      assert.true! d[:y] > WATERLINE_Y, "and above the water"
     end
+
+    kinds = built.decorations.map { |d| d[:kind] }
+    assert.true! kinds.include?("palm") || kinds.include?("bush"), "the island is not bare rock"
+    assert.true! kinds.include?("gull"), "and gulls hang over it"
   end
 
   # Where the island lands is rolled per round: far enough from home to be a
@@ -134,6 +140,24 @@ class IslandTests
     game.update_depth_and_camera
 
     assert.false! game.breathing?, "the tunnel is flooded"
+  end
+
+  # The island is solid to everything, not just to the diver.
+  def test_the_shark_turns_around_at_the_island(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.island_sector = 1
+    args.state.diver_global_x = 1280 + 100 # the diver is in the island's sector
+    rock_starts = IslandWorld.first_column * World::COLUMN_WIDTH
+    args.state.dark_shark = { x: rock_starts - 120, y: 0, dir: 1 } # cruising at it
+
+    60.times { game.update_shark(0) }
+
+    shark_x = 1280 + args.state.dark_shark.x
+    assert.false! game.solid_at?(shark_x, args.state.dark_shark.y),
+                  "the shark never ends up inside the island"
+    assert.equal! args.state.dark_shark.dir, -1, "it turned around at the rock"
+    assert.true! args.state.dark_shark.x < rock_starts, "and stayed on its side of it"
   end
 
   def test_renders_the_island_without_error(args, assert)

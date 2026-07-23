@@ -11,11 +11,22 @@ class Game
   AIR_SURFACE_COLOR = [150, 190, 205] # the water surface trapped under it
   FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
 
+  GREEN = [96, 146, 74]       # the green cap on anything that breaks the surface
+  GREEN_CAP = 10              # how thick that band of grass is
+  ISLAND_ROCK = [138, 122, 102] # sun-bleached stone — an island wears its own colour,
+                                # not the palette of the sea floor around it
+  CAVE_DIM = 0.5              # inside a cave it is dark whatever the depth says
+  ROOF_FADE = 300             # px under the surface over which rock loses the daylight
+
   DECOR_SPRITES = {
     "seaweed"  => { path: "sprites/decor/seaweed.png",  w: 14, h: 44 },
     "coral"    => { path: "sprites/decor/coral.png",    w: 28, h: 30 },
     "starfish" => { path: "sprites/decor/starfish.png", w: 16, h: 16 },
     "rock"     => { path: "sprites/decor/rock.png",     w: 22, h: 15 },
+    "palm"     => { path: "sprites/decor/palm.png",     w: 20, h: 16 },
+    "bush"     => { path: "sprites/decor/bush.png",     w: 12, h: 7 },
+    "grass"    => { path: "sprites/decor/grass.png",    w: 12, h: 5 },
+    "gull"     => { path: "sprites/decor/gull.png",     w: 12, h: 4 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up
@@ -153,6 +164,16 @@ class Game
                path: :solid)
   end
 
+  # How lit a slab of rock is, judged by the highest point of it you can see: an
+  # island's flank standing in the sun is bright, the same rock below the surface
+  # is the inside of a mountain and goes dark.
+  def roof_light(top)
+    above = (top - (WATERLINE_Y - ROOF_FADE)) / ROOF_FADE.to_f
+    above = 1.0 if above > 1.0
+    above = 0.0 if above < 0.0
+    (CAVE_DIM + (1.0 - CAVE_DIM) * above) * light_at(top)
+  end
+
   # Walk a per-column array as runs of equal value: |value, first column, width|.
   # Merging equal columns is what turns the heightmap into terraces to draw.
   def each_run(values)
@@ -165,28 +186,34 @@ class Game
     end
   end
 
-  # Rock hanging overhead — the roof of a cave, filled upward from the underside
-  # the diver bumps his head on to the top of the slab. Same terraces and strata
-  # tint as the floor, with a lighter rim so the edge reads in the dark.
+  # Rock hanging overhead — a cave roof, or a whole island seen from the side.
+  # Only the part inside the camera's view is drawn, and it takes its light from
+  # the top of *that*: an island's flank above the water is in daylight while the
+  # same slab is pitch dark down at the tunnel. A slab that breaks the surface
+  # gets earth colours and a band of green along its crown.
   def world_roof(world, dx)
     return [] unless world.roof
 
-    body = world.biome.floor_colors[2]
-    rim = world.biome.floor_colors[0]
     tiles = []
     each_run(world.roof) do |rock, first_col, width|
       next unless rock
 
-      y = rock[:ceiling] - state.camera_y
-      h = rock[:crown] - rock[:ceiling]
-      next if y > SCREEN_HEIGHT || y + h < 0 # this slab is off screen
+      top = [rock[:crown], state.camera_y + SCREEN_HEIGHT].min
+      bottom = [rock[:ceiling], state.camera_y].max
+      next if top <= bottom # this slab is off screen
 
+      island = rock[:crown] > WATERLINE_Y
+      body = island ? ISLAND_ROCK : world.biome.floor_colors[2]
       x = first_col * World::COLUMN_WIDTH + dx
       w = width * World::COLUMN_WIDTH + 1
       shade = (rock[:ceiling].idiv(WorldGenerator::FLOOR_STEP) % 5 - 2) * 4
-      dim = light_at(rock[:ceiling])
-      tiles << sand({ x: x, y: y, w: w, h: h }, body, shade, dim)
-      tiles << sand({ x: x, y: y, w: w, h: 4 }, rim, shade, dim)
+      dim = roof_light(top)
+
+      tiles << sand({ x: x, y: bottom - state.camera_y, w: w, h: top - bottom }, body, shade, dim)
+      tiles << sand({ x: x, y: rock[:ceiling] - state.camera_y, w: w, h: 4 },
+                    world.biome.floor_colors[0], shade, dim) # lit rim under the rock
+      tiles << sand({ x: x, y: rock[:crown] - state.camera_y - GREEN_CAP, w: w, h: GREEN_CAP },
+                    GREEN, shade, 1.0) if island # grass on top of the island
     end
     tiles
   end
@@ -210,9 +237,10 @@ class Game
     world.decorations.map do |d|
       sprite = DECOR_SPRITES[d[:kind]]
       sway = d[:kind] == "seaweed" ? Math.sin((Kernel.tick_count + d[:x]) / 45.0) * 3 : 0
+      drift_x, drift_y = decor_drift(d)
       {
-        x: d[:x] + dx,
-        y: d[:y] - state.camera_y,
+        x: d[:x] + dx + drift_x,
+        y: d[:y] - state.camera_y + drift_y,
         w: sprite[:w] * d[:scale],
         h: sprite[:h] * d[:scale],
         path: sprite[:path],
@@ -221,6 +249,15 @@ class Game
         angle: sway,
       }
     end
+  end
+
+  # Most decor stands still. Gulls don't: they drift back and forth over the
+  # island on a long, lazy loop.
+  def decor_drift(d)
+    return [0, 0] unless d[:kind] == "gull"
+
+    phase = Kernel.tick_count + d[:x]
+    [Math.sin(phase / 150.0) * 190, Math.sin(phase / 47.0) * 14]
   end
 
   # The diver's home: a small boat bobbing on the waterline over the starting

@@ -151,38 +151,67 @@ class Game
     end
   end
 
-  # Shark cruises across the segment, drifting vertically, and wraps around. It
-  # hunts: each pass comes back in at roughly the diver's depth, so it's a threat
-  # on a shallow bank and down in a trench alike.
+  # Shark cruises across the segment, drifting vertically, and wraps around at the
+  # far side. It hunts: each pass comes back in at roughly the diver's depth, so
+  # it's a threat on a shallow bank and down in a trench alike. Rock stops it as
+  # surely as it stops the diver — at the island it turns and patrols back.
   def update_shark(sprite_index)
-    if state.dark_shark.x > SCREEN_WIDTH
-      state.dark_shark.x = -300
-      state.dark_shark.y = shark_patrol_y
+    shark = state.dark_shark
+    shark.dir = 1 if shark.dir.nil?
+
+    if shark.x > SCREEN_WIDTH || shark.x < -300
+      shark.x = shark.dir > 0 ? -300 : SCREEN_WIDTH
+      shark.y = shark_patrol_y
+    elsif shark_blocked?(shark)
+      shark.dir = -shark.dir
     else
-      state.dark_shark.x += DarkShark::SPEED
+      shark.x += DarkShark::SPEED * shark.dir
     end
 
     if Kernel.tick_count % 30 == 0
-      state.dark_shark.y = in_water(state.dark_shark.y + ((-1)**rand(10) * rand(30)))
+      shark.y = in_water(shark.y + ((-1)**rand(10) * rand(30)), shark_nose_x(shark))
     end
 
     state.shark.tick(args, sprite_index)
   end
 
+  # World x of the end of the shark it swims with — where it would hit rock.
+  def shark_nose_x(shark)
+    nose = shark.dir > 0 ? DarkShark::WIDTH * DarkShark::SCALE_FACTOR : 0
+    world_index * SCREEN_WIDTH + shark.x + nose
+  end
+
+  def shark_blocked?(shark)
+    solid_at?(shark_nose_x(shark) + shark.dir * DarkShark::SPEED,
+              shark.y + DarkShark::HEIGHT)
+  end
+
   # A depth to prowl at: near the diver, give or take, but never out of the water
   # or inside the sand.
   def shark_patrol_y
-    in_water(state.depth_y + rand(2 * SHARK_PATROL_SPREAD) - SHARK_PATROL_SPREAD)
+    in_water(state.depth_y + rand(2 * SHARK_PATROL_SPREAD) - SHARK_PATROL_SPREAD,
+             shark_nose_x(state.dark_shark))
   end
 
-  # Keep a world y inside the local water column.
-  def in_water(y)
+  # Keep a world y inside the water column at a world x.
+  def in_water(y, world_x)
     top = WATERLINE_Y - 40
-    floor = sea_floor_y
+    floor = floor_y_at(world_x) + DarkShark::HEIGHT
     return floor if y < floor
     return top if y > top
 
     y
+  end
+
+  # Is there rock at this point of the world — sand below the floor, or the body
+  # of a slab hanging over it?
+  def solid_at?(world_x, y)
+    world = world_at(world_x.idiv(SCREEN_WIDTH))
+    local = world_x % SCREEN_WIDTH
+    return true if y < world.floor_y_at(local)
+
+    rock = world.roof_at(local)
+    !!(rock && y >= rock[:ceiling] && y <= rock[:crown])
   end
 
   def basic_movements_per_tick

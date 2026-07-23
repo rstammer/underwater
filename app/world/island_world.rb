@@ -6,8 +6,8 @@
 # hump you can swim up to; at its base a tunnel runs all the way through, so the
 # way past the island is *under* it.
 module IslandWorld
-  SPAN = 720           # px of island across, centred in the segment (borders stay untouched)
-  PEAK = 200           # how far above the waterline the summit rises
+  SPAN = 960           # px of island across, centred in the segment (borders stay untouched)
+  PEAK = 300           # how far above the waterline the summit rises
   SHORE_LIP = 24       # how far the rock still stands out of the water at the shore
   TUNNEL_HEIGHT = 200  # clear water between the tunnel floor and its roof
   DOME_SPAN = 240      # width of the air chamber halfway through the tunnel
@@ -16,7 +16,10 @@ module IslandWorld
   CROWN_STEP = 16      # the island's own terrace grid — chunkier than the sea floor
   CROWN_ROUGH = 56     # how much the summit line breaks up
   CROWN_SEED = 707
-  SUMMIT_ROCKS = 5     # decor sprites scattered along the crown
+  SUMMIT_DECOR = 15    # plants and rocks scattered along the crown
+  GULLS = 2            # ... and a couple of birds over it
+  GULL_HEIGHT = 150    # how far above the summit they circle
+  DECOR_SEED = 808
 
   def self.build(world)
     first = first_column
@@ -116,14 +119,34 @@ module IslandWorld
       col = d[:x].idiv(World::COLUMN_WIDTH)
       col >= first && col < last
     end
-    outside + summit_rocks(roof, first, last)
+    outside + summit_decor(roof, first, last) + gulls(roof, first, last)
   end
 
-  def self.summit_rocks(roof, first, last)
-    step = (last - first) / (SUMMIT_ROCKS + 1)
-    (1..SUMMIT_ROCKS).map do |i|
+  # What grows up there: bare rock and dune grass down by the shore, palms and
+  # bushes further up where an island would actually hold soil.
+  def self.summit_decor(roof, first, last)
+    step = (last - first) / (SUMMIT_DECOR + 1)
+    (1..SUMMIT_DECOR).map do |i|
       col = first + i * step
-      { kind: "rock", x: col * World::COLUMN_WIDTH, y: roof[col][:crown], scale: 3 }
+      crown = roof[col][:crown]
+      kind = plant_at(col, crown)
+      { kind: kind, x: col * World::COLUMN_WIDTH, y: crown, scale: kind == "palm" ? 4 : 3 }
+    end
+  end
+
+  def self.plant_at(col, crown)
+    shore = crown < WATERLINE_Y + PEAK / 3
+    kinds = shore ? ["grass", "rock", "grass", "bush", "grass"] : ["palm", "bush", "palm", "grass", "bush"]
+    kinds[(Noise.jitter(col, DECOR_SEED) * kinds.length).to_i]
+  end
+
+  # A couple of gulls hanging over the summit — they drift on their own in the
+  # renderer, nothing here but where their loop is centred.
+  def self.gulls(roof, first, last)
+    step = (last - first) / (GULLS + 1)
+    (1..GULLS).map do |i|
+      col = first + i * step
+      { kind: "gull", x: col * World::COLUMN_WIDTH, y: roof[col][:crown] + GULL_HEIGHT, scale: 2 }
     end
   end
 end

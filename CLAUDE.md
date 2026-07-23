@@ -64,8 +64,10 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
   `Game`: O2-Balken, Locator, Tiefenanzeige)
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
-  Seetang, Boot); erzeugt per Stdlib-PNG-Skript, im Titel + an der Oberfläche
-  genutzt und für später wiederverwendbar
+  Seetang, Fels, Boot; für die Insel: Palme, Busch, Gras, Möwe)
+- `tools/make_decor_sprites.rb` — erzeugt diese PNGs aus ASCII-Art + Palette,
+  nur mit Ruby-Stdlib (`ruby tools/make_decor_sprites.rb sprites/decor`).
+  Läuft in **MRI**, nicht in DragonRuby — reines Autoren-Werkzeug.
 - `sounds/` — Audio
 
 ### Spiel-Loop (`Game#tick`)
@@ -183,7 +185,9 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   (`crown_y`, steht immer klar aus dem Wasser); unten ein **Tunnel quer
   hindurch**, dessen Boden eine Rampe zwischen dem Sand beider Mündungen ist
   (keine Stufe beim Rein-/Rausschwimmen). In der Mitte hebt sich die Decke zur
-  **Luftkammer** (`chamber_*`) — dort taucht man auf und atmet. Ihr Sektor wird
+  **Luftkammer** (`chamber_*`) — dort taucht man auf und atmet. Oben wachsen
+  Palmen, Büsche und Gras (`summit_decor`, Fels nur noch am Ufer), darüber
+  kreisen zwei Möwen (`gulls`, die Bewegung macht `decor_drift` im Renderer). Ihr Sektor wird
   **pro Runde** ausgewürfelt (`roll_island_sector`, `ISLAND_MIN_SECTOR`..
   `ISLAND_MAX_SECTOR`, beide Richtungen) und liegt in `state.island_sector`.
 - **`world_stream.rb`** (reopenet `Game`) — die Segment-Verwaltung: `current_world`
@@ -207,6 +211,13 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   **Wassersäule des jeweiligen Segments** (über dessen eigenem Boden, `FAUNA_BAND`),
   `fauna_visible?`/`shark_present?` — Fisch **und** Hai an der Oberfläche
   (`breathing?`) unsichtbar.
+- **Fels über dem Wasser sieht anders aus als Fels darin.** `world_roof` zeichnet
+  nur den **sichtbaren** Ausschnitt eines Slabs und nimmt sein Licht aus dessen
+  Oberkante (`roof_light`): in der Sonne hell, unter Wasser über `ROOF_FADE`
+  abdunkelnd, im Inneren eines Berges `CAVE_DIM`. Bricht ein Slab die Oberfläche
+  (Insel), bekommt er eigenes, warmes Gestein (`ISLAND_ROCK`) statt der Biom-
+  Palette — sonst trägt eine Insel im Tiefsee-Sektor deren Schiefergrau — plus
+  einen grünen Streifen (`GREEN`/`GREEN_CAP`) auf der Kuppe.
 - **Licht & Tiefe:** `light_at(world_y)` ist die gemeinsame Tageslicht-Kurve
   (voll bis `WATER_TWILIGHT`, dann Abfall bis `WATER_ABYSS`, max. `ABYSS_DIM`
   geschluckt). Wasserfarbe (`water_color_at`), Sandfarbe **und** Fog
@@ -298,7 +309,9 @@ Screen-Positionen und werden nicht direkt gesetzt.
 - **Hai:** in Hai-Biomen (Tiefsee) unterwegs; **Kollision in Welt-Koordinaten**
   (Taucher auf `depth_y` vs. Hai-Welt-`y`, `intersect_rect?`) → `game_over` /
   `:eaten`. Er patrouilliert auf **Taucher-Tiefe** (`shark_patrol_y`, geclampt in
-  die Wassersäule via `in_water`) — also auch im Graben gefährlich.
+  die Wassersäule via `in_water`) — also auch im Graben gefährlich. **Fels stoppt
+  ihn wie den Taucher:** vor der Insel dreht er um (`shark_blocked?`/`solid_at?`,
+  `dark_shark.dir`, Sprite spiegelt sich) statt hindurchzuschwimmen.
 - **Tiefe & Profil:** Der Meeresgrund ist keine Ebene mehr: flache Bänke (~80 m)
   wechseln sich mit Gräben (~220 m) ab, das Relief ist zerklüftet/terrassiert.
   Wo es tief wird, muss man erkunden. Je tiefer, desto dunkler das Wasser und
@@ -307,7 +320,8 @@ Screen-Positionen und werden nicht direkt gesetzt.
 ### Tuning-Konstanten
 
 `app/world/island_world.rb` (Insel): `SPAN`, `PEAK`, `SHORE_LIP`, `TUNNEL_HEIGHT`,
-`DOME_SPAN`, `DOME_RISE`, `AIR_DEPTH`, `CROWN_STEP`, `CROWN_ROUGH`, `SUMMIT_ROCKS`.
+`DOME_SPAN`, `DOME_RISE`, `AIR_DEPTH`, `CROWN_STEP`, `CROWN_ROUGH`,
+`SUMMIT_DECOR`, `GULLS`, `GULL_HEIGHT`.
 
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
 `CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=90`, `CAMERA_EASE=0.1`,
@@ -320,7 +334,8 @@ Screen-Positionen und werden nicht direkt gesetzt.
 `BASIN_*`, `CRAG_*`, `DUNE_*`, `ROUGH_*`, `FLOOR_STEP`, `TERRACE_BLOCK`,
 `TERRACE_WIDTHS`; `DIVER_FOOTPRINT` (main.rb) = wie breit der Taucher Grund fühlt.
 `app/world/world_renderer.rb` (Optik): `WATER_TWILIGHT`, `WATER_ABYSS`,
-`ABYSS_DIM`, `WATER_BANDS`, `FLOOR_FILL_DEPTH`; `FAUNA_BAND` in `world_stream.rb`.
+`ABYSS_DIM`, `WATER_BANDS`, `FLOOR_FILL_DEPTH`, `ISLAND_ROCK`, `GREEN`,
+`GREEN_CAP`, `CAVE_DIM`, `ROOF_FADE`; `FAUNA_BAND` in `world_stream.rb`.
 Per Playtest justierbar — siehe Notizen in [`TODO.md`](TODO.md).
 
 ## Tests
