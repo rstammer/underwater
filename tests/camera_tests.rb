@@ -181,6 +181,23 @@ class CameraTests
     assert.true! game.fauna_visible?, "fish are visible underwater"
   end
 
+  # From the surface you look at the water, not through it: no sea floor, nothing
+  # growing on it, no fish — only what stands above the waterline.
+  def test_nothing_submerged_shows_while_you_are_up_top(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.spawn_at_surface
+
+    assert.false! game.submerged_visible?, "at the surface the underwater world is out of view"
+    assert.equal! game.world_floor(game.current_world, 0), [], "no sand is drawn"
+
+    args.state.depth_y = -99_999 # dive down to the sand
+    settle(game)
+
+    assert.true! game.submerged_visible?, "under water it's all there again"
+    assert.false! game.world_floor(game.current_world, 0) == [], "including the sand"
+  end
+
   # Smoke test: a full underwater render at the surface and deep in a shark biome
   # must not blow up (boat, hint, camera-shifted fauna, sky, floor all exercised).
   def test_renders_without_error_at_surface_and_deep(args, assert)

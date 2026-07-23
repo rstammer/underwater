@@ -49,6 +49,13 @@ class Game
     !at_open_surface?
   end
 
+  # From up in the air you don't see *through* the water: the sea floor, the
+  # things growing on it and anything in a cave are all out of view, and rock
+  # only shows where it breaks the surface. Dip your head under and it's there.
+  def submerged_visible?
+    !at_open_surface?
+  end
+
   # Brighter biomes (low fog) let the diver see farther; the dark deep closes in.
   # Depth tightens it further: the deeper you go, the less you see coming.
   def fog_radius(biome)
@@ -74,9 +81,9 @@ class Game
     visible_world_indices.each do |index|
       world = world_at(index)
       dx = chunk_offset_x(index)
-      outputs.sprites << world_floor(world, dx)
+      outputs.sprites << world_floor(world, dx) if submerged_visible?
       outputs.sprites << world_roof(world, dx)
-      outputs.sprites << world_air(world, dx)
+      outputs.sprites << world_air(world, dx) if submerged_visible?
       outputs.sprites << world_decorations(world, dx)
     end
     if home_visible?
@@ -208,6 +215,7 @@ class Game
 
       top = [rock[:crown], state.camera_y + SCREEN_HEIGHT].min
       bottom = [rock[:ceiling], state.camera_y].max
+      bottom = WATERLINE_Y if !submerged_visible? && bottom < WATERLINE_Y # only what's above water
       next if top <= bottom # this slab is off screen
 
       island = rock[:crown] > WATERLINE_Y
@@ -242,7 +250,9 @@ class Game
   end
 
   def world_decorations(world, dx)
-    world.decorations.map do |d|
+    decorations = world.decorations
+    decorations = decorations.select { |d| d[:y] >= WATERLINE_Y } unless submerged_visible?
+    decorations.map do |d|
       sprite = DECOR_SPRITES[d[:kind]]
       sway = d[:kind] == "seaweed" ? Math.sin((Kernel.tick_count + d[:x]) / 45.0) * 3 : 0
       drift_x, drift_y = decor_drift(d)
