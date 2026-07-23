@@ -329,8 +329,8 @@ Screen-Positionen und werden nicht direkt gesetzt.
   (`update_suit`) — 120 m kostet fast nichts, 190 m die Hälfte, ab ~230 m stirbt
   man auf dem Rückweg (`death_cause = :crushed`). Luft begrenzt, wie *lange* man
   unten bleibt; der Anzug, wie *tief* man geht. Repariert wird **nur am Boot**
-  (`at_the_boat?`, `SUIT_REPAIR`) — das gibt dem Boot seinen Zweck. HUD: zwei
-  Balken nebeneinander (`render_gauges`), der Anzug-Balken warnt mit
+  (`at_the_boat?`, `SUIT_REPAIR`) — das gibt dem Boot seinen Zweck. HUD: Anzug-
+  Balken **unter** dem O2-Balken (`render_gauges`), er warnt mit
   „Anzug — Druck!", sobald man unter der Auslegungstiefe ist.
 - **Sauerstoff:** Drain unter Wasser (`OXYGEN_DRAIN`/Tick, ~3 min). Refill **nur**
   wenn `breathing?` — Kopf über *einer* Wasseroberfläche: der des Meeres **oder**
@@ -351,9 +351,10 @@ Screen-Positionen und werden nicht direkt gesetzt.
   `dark_shark.dir`, Sprite spiegelt sich) statt hindurchzuschwimmen.
 - **Tiefe & Profil:** Der normale Meeresgrund liegt bei ~20–90 m, also **innerhalb**
   dessen, was der Anzug aushält; das Relief ist zerklüftet/terrassiert. Dazwischen
-  reißt der Schelf gelegentlich auf: **Abgründe** (`chasm_at`) fallen auf ~190 m,
-  die tiefsten auf ~270 m — sichtbar, anschwimmbar, aber mit diesem Anzug nicht
-  auszuhalten. Je tiefer, desto dunkler das Wasser und enger der Fog (`light_at`).
+  reißt der Schelf immer wieder auf: **Abgründe** (`chasm_at`) fallen auf ~150–290 m
+  — sichtbar, anschwimmbar, aber mit diesem Anzug nicht auszuhalten. Sie sind
+  schmal und häufig genug, dass man in beide Richtungen binnen weniger Sektoren
+  auf einen trifft (ca. ein Fünftel des Meeresbodens liegt jenseits der Grenze). Je tiefer, desto dunkler das Wasser und enger der Fog (`light_at`).
 
 ### Tuning-Konstanten
 
