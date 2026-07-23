@@ -5,11 +5,20 @@ class Game
   def render_panel
     return if game_paused?
 
-    Panel.new(args, state.diver).to_a.each do |item|
-      outputs.labels << item
-    end
+    render_debug
     render_gauges
     render_locator
+  end
+
+  # Only with DEBUG on: the diver's world and screen x, for chasing coordinate bugs.
+  def render_debug
+    return unless !!DEBUG
+
+    outputs.labels << {
+      x: 140, y: grid.h - 10, anchor_y: 100,
+      text: "x: #{state.diver_global_x} (screen #{state.player_x})",
+      r: 200, g: 100, b: 100,
+    }
   end
 
   # A discreet position readout, top-right. Later this can be gated behind

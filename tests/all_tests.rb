@@ -2,7 +2,6 @@
 require "tests/diver_tests.rb"
 require "tests/sloppy_scalar_tests.rb"
 require "tests/fog_of_war_tests.rb"
-require "tests/panel_tests.rb"
 require "tests/game_tests.rb"
 require "tests/camera_tests.rb"
 require "tests/cave_tests.rb"

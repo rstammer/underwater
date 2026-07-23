@@ -67,17 +67,44 @@ class CameraTests
     args.state.depth_y = -99_999 # settle onto the sand
     settle(game)
 
-    worst = 0
+    # Panning along a slope is fine — a *change* in that pan is what reads as a
+    # jolt, so measure the camera's acceleration rather than its speed.
+    previous = args.state.camera_y
+    speed = 0
+    worst_jolt = 0
+    worst_speed = 0
+
     600.times do # 1200 px of sea floor, across the segment 0/1 border
-      before = args.state.camera_y
       args.state.diver_global_x += 2
       args.state.depth_y -= 0.15 # buoyancy keeps him down on the sand
       game.update_depth_and_camera
-      jolt = (args.state.camera_y - before).abs
-      worst = jolt if jolt > worst
+      moved = args.state.camera_y - previous
+      previous = args.state.camera_y
+      jolt = (moved - speed).abs
+      speed = moved
+      worst_jolt = jolt if jolt > worst_jolt
+      worst_speed = moved.abs if moved.abs > worst_speed
     end
 
-    assert.true! worst < 1.5, "the camera should glide, not lurch (#{worst} px in one tick)"
+    assert.true! worst_jolt < 1.5, "the camera should glide, not jolt (#{worst_jolt} px/tick²)"
+    assert.true! worst_speed < 6, "and never race off (#{worst_speed} px/tick)"
+  end
+
+  # Wherever he comes to rest — on a rocky rise or at the bottom of a chasm — the
+  # diver should be framed the same way, not pinned to the bottom edge.
+  def test_the_diver_is_framed_the_same_on_any_ground(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    [Diver::START_X, deep_world_x, shallow_world_x].each do |x|
+      args.state.diver_global_x = x
+      args.state.depth_y = -99_999 # settle on whatever floor is here
+      settle(game)
+
+      assert.true! args.state.player_y > 150,
+                   "resting at world x #{x} leaves him at #{args.state.player_y.to_i} — too low in frame"
+      assert.true! args.state.player_y < 420, "and not too high either (#{args.state.player_y.to_i})"
+    end
   end
 
   # The diver can float up to head-out at the waterline, but no higher.
@@ -171,8 +198,13 @@ class CameraTests
     assert.true! true, "rendered both frames without raising"
   end
 
-  # A world x whose sea floor lies deep — used to test diving into a trench.
+  # A world x whose sea floor lies deep — used to test diving into a chasm.
   def deep_world_x
     (0..400).map { |i| i * 256 }.min_by { |x| WorldGenerator.floor_y_at(x) }
+  end
+
+  # ... and one up on a shallow rise.
+  def shallow_world_x
+    (0..400).map { |i| i * 256 }.max_by { |x| WorldGenerator.floor_y_at(x) }
   end
 end

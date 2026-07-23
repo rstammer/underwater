@@ -26,13 +26,32 @@ class IntroTests
     assert.true! game.breathing?
   end
 
-  def test_surface_hint_encourages_exploration(args, assert)
+  # Alongside the boat a little card explains what home is for. It only shows up
+  # there — everywhere else the screen stays clear of captions.
+  def test_the_boat_greets_you_when_you_are_alongside(args, assert)
     game = build_game(args)
     game.initialize_game(0)
+    game.spawn_at_surface
+    args.state.game_scene = "area1"
 
-    hint = game.surface_hint
+    game.area1_tick
+    text = args.outputs.labels.map { |label| label[:text] }.join(" ")
 
-    assert.true! hint[:text].length > 0, "hint should carry text"
-    assert.true! hint[:text].downcase.include?("erkunde"), "hint should encourage exploring"
+    assert.true! text.include?("Boot"), "the card names the boat"
+    assert.true! text.downcase.include?("anzug"), "and says the suit gets repaired here"
+  end
+
+  def test_no_card_once_you_have_left_the_boat(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.spawn_at_surface
+    args.state.diver_global_x = SURFACE_BOAT_X + 600 # swum off along the surface
+    game.update_depth_and_camera
+    args.state.game_scene = "area1"
+
+    game.area1_tick
+    text = args.outputs.labels.map { |label| label[:text] }.join(" ")
+
+    assert.false! text.include?("zu Hause"), "no caption once you're away from it"
   end
 end

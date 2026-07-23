@@ -60,8 +60,8 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
   sichtbar sind, Welt→Screen-Offsets, Fauna-Spawn), `world_renderer` (reopenet
   `Game`; zeichnet Wasser, Himmel, Boden, Fels, Luftblasen, Deko, Boot),
   `fog_of_war`
-- `app/ux/` — `panel` (Szenen-Label, eigenständige Klasse) und `hud` (reopenet
-  `Game`: O2- und Anzug-Balken, Locator, Tiefenanzeige)
+- `app/ux/` — `hud` (reopenet
+  `Game`: O2- und Anzug-Balken, Locator, Tiefenanzeige, Debug-Readout)
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
   Seetang, Fels, Boot; für die Inseln: Palme groß/klein, Busch, Gras, Treibholz,
@@ -125,9 +125,10 @@ dem Taucher und projiziert auf die Screen-Position (`update_depth_and_camera`):
 - **Kamera:** `state.camera_y` = Welt-`y` am **unteren** Rand, Ziel ist
   `max(depth_y - CAMERA_ANCHOR, camera_floor_y - FLOOR_VIEW_MARGIN)` → **Dead Zone
   am Boden, die dem Bodenprofil folgt** (deshalb relativ statt fix bei 0).
-  `camera_floor_y` liest bewusst `WorldGenerator.ground_level_at` (nur
-  Shelf+Basin, **ohne** Crags/Dünen/Jitter): folgte die Kamera dem echten Sand,
-  ruckelt das Bild bei jeder Kerbe. Zusätzlich **easet** sie mit `CAMERA_EASE`
+  `camera_floor_y` liest `WorldGenerator.smooth_floor_y_at` — den Boden als
+  **glatte Kurve** (alles außer Terrassen und Jitter). Der rohe Sand lässt das
+  Bild bei jeder Kerbe ruckeln; nur die *grobe* Form (Shelf+Basin) wiederum liegt
+  im Abgrund weit über dem echten Grund und klemmt den Taucher an die Unterkante. Zusätzlich **easet** sie mit `CAMERA_EASE`
   ans Ziel; `center_camera` setzt sie hart (Spawn/Reset).
   `state.camera_x` = Welt-`x` am **linken** Rand, zentriert den Taucher
   (`diver_global_x - CAMERA_ANCHOR_X`) → er steht bildschirm-mittig, die Welt
@@ -231,8 +232,9 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   Grenzen durchscrollt. `world_floor` fasst gleich hohe Spalten zu **Terrassen**
   zusammen (`each_terrace`, ~3x weniger Rects) und füllt jede `FLOOR_FILL_DEPTH`
   px nach unten (der Boden kann beliebig tief liegen), plus hellere Kappe und
-  Tönung **nach Höhe** (Schichten/Strata, nicht pro Spalte). Boot (`home_boat` + `surface_hint`) wenn Segment 0
-  sichtbar (`home_visible?`). Fauna: `spawn_fauna` streut den Schwarm in die
+  Tönung **nach Höhe** (Schichten/Strata, nicht pro Spalte). Boot (`home_boat`) wenn Segment 0 sichtbar
+  (`home_visible?`), dazu die Willkommens-Karte (`render_boat_hint`) — **nur**,
+  wenn man wirklich daneben treibt (`at_the_boat?`). Fauna: `spawn_fauna` streut den Schwarm in die
   **Wassersäule des jeweiligen Segments** (über dessen eigenem Boden, `FAUNA_BAND`),
   `fauna_visible?`/`shark_present?` — Fisch **und** Hai an der Oberfläche
   (`breathing?`) unsichtbar.
@@ -294,8 +296,10 @@ Screen-Positionen und werden nicht direkt gesetzt.
   Kopf raus/atmend (`depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH`). Am Startsegment
   schaukelt das **Tauchboot** (`home_boat`/`BOAT_SPRITE`) an der Wasserlinie — ein
   kleines Motorboot mit Kajüte, Außenborder und **Badeleiter**, die ins Wasser
-  reicht (gedacht als späteres Zuhause zum Anlegen/Einsteigen). Dazu ein dezenter
-  Hinweis (`surface_hint`), der zum Abtauchen/Erkunden ermutigt.
+  reicht (gedacht als späteres Zuhause zum Anlegen/Einsteigen). Liegt man daneben,
+  erscheint eine kleine Karte über dem Boot (`render_boat_hint`): „Dein Boot —
+  hier bist du zu Hause / Anzug wird repariert, Luft füllt sich auf". Sonst
+  bleibt der Bildschirm frei von Text (die alten Szenen-Titel sind weg).
 - **Bewegung (kontinuierlich, beide Achsen):** Es gibt keinen Übergang mehr — der
   Taucher bewegt sich in `depth_y` (vertikal) und `diver_global_x` (horizontal),
   die Kamera scrollt die Welt weich durch. Vertikal: nahe dem Grund ruht die
@@ -365,7 +369,7 @@ Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
 `DOME_RISE`.
 
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
-`CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=90`, `CAMERA_EASE=0.1`,
+`CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=240`, `CAMERA_EASE=0.1`,
 `SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`, `OXYGEN_DRAIN=0.009`,
 `OXYGEN_REFILL=1.0`, `SUIT_MAX=100`, `SUIT_DEPTH_LIMIT=100`, `SUIT_DRAIN=0.0025`,
 `SUIT_REPAIR=0.4`, `BOAT_REACH=160`, `SPRINT_MULTIPLIER=2`, `SHARK_PATROL_SPREAD=200`,
@@ -433,10 +437,14 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
   Auftrieb. Alles, was mit **Tageslicht** zu tun hat — Fog aus, Fauna unsichtbar,
   Oberflächen-Hinweis — muss `at_open_surface?` fragen, sonst wird die Höhle
   taghell und leer.
-- **Kamera nie am rohen Boden festmachen.** Die Dead Zone am Grund muss auf der
-  *groben* Geländeform sitzen (`ground_level_at`), nicht auf `sea_floor_y` — sonst
-  springt das Kameraziel bei jeder Sandkerbe und das Bild wackelt sichtbar
-  (gemessen: 4 px/Tick, nach dem Fix 0,3). Ebenso fühlt der Taucher den Grund
+- **Kamera-Bodenbezug: geglättet, aber derselbe Boden.** Die Dead Zone darf weder
+  am rohen Sand hängen (jede Kerbe wackelt: gemessen 4 px/Tick) noch nur an der
+  groben Form (`ground_level_at`) — die weicht dort, wo Fels oder Abgrund im Spiel
+  ist, um Hunderte px vom echten Grund ab und klemmt den Taucher an die
+  Bildunterkante (gemessen: `player_y` 59 im Abgrund). Richtig ist
+  `smooth_floor_y_at`: derselbe Boden, nur ohne Terrassen und Jitter. Und: ein
+  Kamera-Test sollte den **Ruck** messen (2. Ableitung), nicht die Geschwindigkeit
+  — gleichmäßiges Mitschwenken über einen Hang ist erwünscht. Ebenso fühlt der Taucher den Grund
   über seine ganze Breite (`DIVER_FOOTPRINT`, Maximum) statt an genau einer Spalte.
 - **Boden = Funktion der Welt-`x`, nicht pro Segment gewürfelt.** Nur weil
   `WorldGenerator.floor_y_at` global ist, passen unabhängig generierte Segmente

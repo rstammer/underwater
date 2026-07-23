@@ -7,6 +7,8 @@ class Game
   WATER_ABYSS = 2600    # px below the waterline where the light is as good as gone
   ABYSS_DIM = 0.82      # how much of the light the abyss swallows
   WATER_BANDS = 24      # horizontal strips the water gradient is drawn in
+  BOAT_HINT_W = 420
+  BOAT_HINT_H = 62
   AIR_COLOR = [20, 26, 32]            # the gloom inside an air chamber
   AIR_SURFACE_COLOR = [150, 190, 205] # the water surface trapped under it
   FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
@@ -79,7 +81,7 @@ class Game
     end
     if home_visible?
       outputs.sprites << home_boat
-      outputs.labels << surface_hint if at_open_surface?
+      render_boat_hint if at_the_boat?
     end
   end
 
@@ -282,19 +284,20 @@ class Game
     }
   end
 
-  # A quiet nudge in the sky, shown while resting at the surface, encouraging the
-  # player to dive and explore. Deliberately low-contrast so it stays background.
-  def surface_hint
-    {
-      x: grid.w / 2,
-      y: grid.h - 60,
-      text: "Tauche ab und erkunde die Unterwasserwelt",
-      size_enum: 2,
-      alignment_enum: 1,
-      r: 30,
-      g: 60,
-      b: 80,
-      a: 170,
-    }
+  # A little card over the boat while you're alongside it: this is home, and this
+  # is what home does for you. Only shown when you're actually there, so it reads
+  # as the boat talking rather than as a permanent caption.
+  def render_boat_hint
+    x = SURFACE_BOAT_X - state.camera_x
+    y = WATERLINE_Y + 150 - state.camera_y
+
+    outputs.sprites << { x: x - BOAT_HINT_W / 2, y: y, w: BOAT_HINT_W, h: BOAT_HINT_H,
+                         r: 18, g: 42, b: 66, a: 165, path: :solid }
+    outputs.sprites << { x: x - BOAT_HINT_W / 2, y: y + BOAT_HINT_H - 3, w: BOAT_HINT_W, h: 3,
+                         r: 120, g: 190, b: 220, a: 180, path: :solid }
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 16, text: "Dein Boot — hier bist du zu Hause",
+                        size_enum: 2, alignment_enum: 1, r: 226, g: 240, b: 250 }
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 46, text: "Anzug wird repariert, Luft füllt sich auf",
+                        size_enum: 0, alignment_enum: 1, r: 176, g: 206, b: 226 }
   end
 end

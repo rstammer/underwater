@@ -76,9 +76,16 @@ class WorldGenerator
     (y / FLOOR_STEP).floor * FLOOR_STEP
   end
 
-  # The broad shape of the sea floor: shelves and basins only, no crags, dunes or
-  # jitter. This is what the camera rides (Game#camera_floor_y) — following the
-  # actual sand would make every notch of terrain shake the view.
+  # The sea floor as a smooth curve: everything except the terracing and the
+  # per-cell jitter. This is what the camera rides (Game#camera_floor_y) — it
+  # tracks the sand the diver actually stands on to within a few px, but without
+  # the steps and notches that would shake the view.
+  def self.smooth_floor_y_at(world_x)
+    (ground_level_at(world_x) + crag_at(world_x) +
+      (Noise.value(world_x, DUNE_WAVELENGTH, DUNE_SEED) - 0.5) * DUNE_HEIGHT).to_i
+  end
+
+  # The broad shape alone: shelves, basins and chasms, without the local relief.
   def self.ground_level_at(world_x)
     y = FLOOR_TOP_Y
     y -= (Noise.value(world_x, SHELF_WAVELENGTH, SHELF_SEED)**SHELF_BIAS) * SHELF_DROP

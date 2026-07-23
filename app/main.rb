@@ -1,4 +1,3 @@
-require "app/ux/panel.rb"
 require "app/ux/hud.rb"
 
 require "app/scenes/title.rb"
@@ -27,7 +26,7 @@ SCREEN_HEIGHT = 720
 WATERLINE_Y = SCREEN_HEIGHT # world y of the surface: water fills world 0..WATERLINE_Y, sky above it
 CAMERA_ANCHOR = SCREEN_HEIGHT / 2 # target screen y for the diver; the camera scrolls the world past him
 CAMERA_ANCHOR_X = SCREEN_WIDTH / 2 # target screen x for the diver; the world scrolls sideways past him
-FLOOR_VIEW_MARGIN = 90 # how far below the sea floor the camera comes to rest (the dead zone at the bottom)
+FLOOR_VIEW_MARGIN = 240 # how far below the sea floor the camera rests — the diver sits this high above the bottom edge
 CAMERA_EASE = 0.1 # how quickly the camera catches up per tick — smooths the ragged floor out of the view
 SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center rests (only head/shoulders show)
 SURFACE_BOAT_X = 120 # world x of the diver's home boat, floating at the waterline
@@ -344,11 +343,12 @@ class Game
     [state.depth_y - CAMERA_ANCHOR, camera_floor_y - FLOOR_VIEW_MARGIN].max
   end
 
-  # The ground the *camera* rides: the broad shape of the sea floor, without the
-  # crags, dunes and jitter the diver actually swims over. Reading the real sand
-  # here made the view lurch with every notch of terrain.
+  # The ground the *camera* rides: the sea floor as a smooth curve, without the
+  # terraces and notches the diver actually swims over. Reading the raw sand here
+  # made the view lurch; reading only the broad shape left him pinned to the
+  # bottom edge wherever the two disagreed — over a rocky rise, or down a chasm.
   def camera_floor_y
-    WorldGenerator.ground_level_at(state.diver_global_x) + Diver::HEIGHT
+    WorldGenerator.smooth_floor_y_at(state.diver_global_x) + Diver::HEIGHT
   end
 
   def project_diver
