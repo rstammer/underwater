@@ -77,6 +77,70 @@ class CaveTests
     assert.true! game.breathing?
   end
 
+  # A flat sea floor that steps up by `height` at column 40 — a ledge or a wall,
+  # depending on how high.
+  def step_world(index, height)
+    columns = WorldGenerator.columns
+    floor = (0...columns).map { |c| c < 40 ? 0 : height }
+    World.new(index: index, biome: Biome::SANDBANK, floor: floor, decorations: [])
+  end
+
+  def with_world(game, args, world)
+    args.state.world_cache = { 0 => world }
+    args.state.active_world_index = nil
+  end
+
+  def test_a_wall_blocks_swimming_into_it(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    with_world(game, args, step_world(0, 400))
+    args.state.diver_global_x = 300 # a footprint away from the wall at column 40
+    args.state.depth_y = 32         # resting on the sand
+
+    game.swim_sideways(2)
+
+    assert.equal! args.state.diver_global_x, 300, "rock is solid — he doesn't swim into it"
+  end
+
+  # Terrain is ragged; he shouldn't snag on every notch of it.
+  def test_small_ledges_are_slipped_over(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    with_world(game, args, step_world(0, 24))
+    args.state.diver_global_x = 300
+    args.state.depth_y = 32
+
+    game.swim_sideways(2)
+    game.update_depth_and_camera
+
+    assert.equal! args.state.diver_global_x, 302, "a low ledge is no obstacle"
+    assert.equal! args.state.depth_y, 24 + Diver::HEIGHT, "and he is lifted onto it"
+  end
+
+  def test_a_cave_roof_in_his_face_blocks_him(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    with_tunnel(game, args)
+    args.state.diver_global_x = x_under_roof - 40 # approaching the tunnel mouth
+    args.state.depth_y = 400 # swimming too high to fit in
+
+    game.swim_sideways(2)
+
+    assert.equal! args.state.diver_global_x, x_under_roof - 40, "he can't swim into the rock"
+  end
+
+  def test_the_tunnel_can_be_swum_through_at_the_right_depth(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    with_tunnel(game, args)
+    args.state.diver_global_x = x_under_roof - 40
+    args.state.depth_y = 100 # low enough to fit under the roof
+
+    game.swim_sideways(2)
+
+    assert.equal! args.state.diver_global_x, x_under_roof - 38, "he swims into the cave"
+  end
+
   def test_renders_a_cave_without_error(args, assert)
     game = build_game(args)
     game.initialize_game(0)

@@ -36,6 +36,7 @@ OXYGEN_REFILL = 1.0 # per tick while breathing at the surface (fast top-up)
 SPRINT_MULTIPLIER = 2 # sprinting: this much faster, and this much thirstier for air
 SHARK_PATROL_SPREAD = 200 # how far above/below the diver's depth the shark comes back in
 DIVER_FOOTPRINT = 20 # how far to each side the diver's footing feels for sand to rest on
+SOLID_STEP_UP = 48 # ledge he still slips over sideways; anything higher is a wall
 FOG_OF_WAR = true
 DEBUG = false
 
@@ -181,9 +182,9 @@ class Game
     # into an on-screen position later, so no wrapping at the screen edge.
     if inputs.left
       state.direction = :left
-      state.diver_global_x -= state.speed
+      swim_sideways(-state.speed)
     elsif inputs.right
-      state.diver_global_x += state.speed
+      swim_sideways(state.speed)
       state.direction = :right
     end
     # no else: keep facing the last direction while idle
@@ -285,6 +286,28 @@ class Game
   def project_diver
     state.player_y = state.depth_y - state.camera_y
     state.player_x = state.diver_global_x - state.camera_x
+  end
+
+  # Rock is solid: he only moves sideways into water he actually fits into. Small
+  # ledges he slips over — the depth clamp lifts him onto them the same tick.
+  def swim_sideways(step)
+    target = state.diver_global_x + step
+    state.diver_global_x = target unless blocked?(target)
+  end
+
+  # Would the diver end up inside rock at this world x? Sand too high to slip
+  # over, a cave roof in his face, or a gap he simply doesn't fit through.
+  def blocked?(world_x)
+    feet = state.depth_y - Diver::HEIGHT
+    head = state.depth_y + Diver::HEIGHT
+    floor = floor_top_at(world_x)
+    return true if floor > feet + SOLID_STEP_UP
+
+    ceiling = cave_ceiling_at(world_x)
+    return false unless ceiling
+    return true if ceiling < head - SOLID_STEP_UP
+
+    ceiling - floor < Diver::HEIGHT * 2
   end
 
   # World y the diver's centre comes to rest at on the sand below him.
