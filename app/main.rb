@@ -574,7 +574,7 @@ class Game
   end
 
   def menu_key?
-    inputs.keyboard.key_down.e
+    inputs.keyboard.key_down.l
   end
 
   # "Spiel beenden" from the boat — close the game down to the desktop.

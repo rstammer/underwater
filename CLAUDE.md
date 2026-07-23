@@ -108,7 +108,7 @@ sind eine durchgehende Kamerafahrt (s. Kamera). `game_scene` steuert nur noch da
 
    title ──[Leertaste/z/j/A]──► area1 (Spielstart, an der Oberfläche/atmend)
    <überall> ──[Hai / O2 leer]──► game_over ──[Leertaste]──► area1 (reset_game)
-   <am Boot> ──[E]──► home_menu ──[E/ESC]──► area1/area2 (resume_scene)
+   <am Boot> ──[L]──► home_menu ──[L/ESC]──► area1/area2 (resume_scene)
    <überall> ──[ESC]──► title
 ```
 
@@ -326,12 +326,13 @@ Screen-Positionen und werden nicht direkt gesetzt.
   kleines Motorboot mit Kajüte, Außenborder und **Badeleiter**, die ins Wasser
   reicht (gedacht als späteres Zuhause zum Anlegen/Einsteigen). Liegt man daneben,
   erscheint eine kleine Karte über dem Boot (`render_boat_hint`): Titel „Dein Boot",
-  Status „Anzug wird repariert · Luft füllt sich auf", dann **Aktionen**: „[ E ]
-  Logbuch öffnen", „[ I ] Items einlagern (N)" (`store_items`) und „[ Q ] Spiel
-  beenden" (`quit_game` → `$gtk.request_quit`, alle nur wenn `at_the_boat?`).
-  Sonst bleibt der Bildschirm frei von Text (die alten
-  Szenen-Titel sind weg). Die Zeilen sind **oben** verankert
-  (`vertical_alignment_enum: 2`), sonst rutscht die letzte unter die Kartenkante.
+  eine **blinkende** Status-Zeile „Anzug wird repariert" **nur solange
+  `repairing_suit?`** (`suit < SUIT_MAX`), dann **Aktionen**: „[ L ] Logbuch
+  öffnen", „[ I ] Items einlagern (N)" (`store_items`) und „[ Q ] Spiel beenden"
+  (`quit_game` → `$gtk.request_quit`, alle nur wenn `at_the_boat?`). Sonst bleibt
+  der Bildschirm frei von Text (die alten Szenen-Titel sind weg). Die Karte ist am
+  **oberen Rand verankert und wächst nach unten** (dynamische Höhe aus den Zeilen),
+  damit sie nie über den oberen Bildrand hinausläuft.
 - **Logbuch (Home-Menü):** `E` am Boot öffnet `home_menu` (pausiert, Welt friert
   hinter einem Schleier ein) — die Bilanz der Runde: tiefster Tauchgang, erkundete
   Sektoren, gefundene Inseln, durchtauchte Höhlen. Gezählt wird pro Tauch-Tick in
@@ -347,9 +348,10 @@ Screen-Positionen und werden nicht direkt gesetzt.
   zeichnet sie kamera-versetzt, nur untergetaucht (wie der Rest). **Aufheben mit
   E** (`grab_item`, Reichweite `ITEM_REACH`) in `state.inventory`, **max
   `INVENTORY_MAX` = 3**; HUD zeigt drei Slots + einen Prompt in Reichweite
-  („[ E ] … aufheben" bzw. „Inventar voll"). **Einlagern mit I am Boot**
-  (`store_items`) leert den Rucksack in `state.stash` (unbegrenzt). E/I sind
-  räumlich exklusiv zum Boot-Logbuch (Items spawnen nie am Boot). Loop:
+  („[ E ] … aufheben" bzw. „Inventar voll"; HUD-Slots **unten links**, klar von den
+  Gauges oben getrennt). **Einlagern mit I am Boot** (`store_items`) leert den
+  Rucksack in `state.stash` (unbegrenzt). Aufheben ist **E**, das Boot-Logbuch **L**
+  — keine geteilte Taste mehr; Items spawnen ohnehin nie am Boot. Loop:
   tauchen → finden → drei tragen → heimbringen → einlagern → weiter.
 - **Bewegung (kontinuierlich, beide Achsen):** Es gibt keinen Übergang mehr — der
   Taucher bewegt sich in `depth_y` (vertikal) und `diver_global_x` (horizontal),

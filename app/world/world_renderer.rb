@@ -8,7 +8,6 @@ class Game
   ABYSS_DIM = 0.82      # how much of the light the abyss swallows
   WATER_BANDS = 24      # horizontal strips the water gradient is drawn in
   BOAT_HINT_W = 460
-  BOAT_HINT_H = 210
   AIR_COLOR = [20, 26, 32]            # the gloom inside an air chamber
   AIR_SURFACE_COLOR = [150, 190, 205] # the water surface trapped under it
   FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
@@ -299,39 +298,48 @@ class Game
 
   # A little card over the boat while you're alongside it: this is home, and this
   # is what home does for you. Only shown when you're actually there, so it reads
-  # as the boat talking rather than as a permanent caption.
+  # as the boat talking rather than as a permanent caption. The card is anchored
+  # by its *top* and grows downward, so adding lines can never push it off the top
+  # of the screen; the repair line shows (blinking) only while the suit is
+  # actually being patched up.
   def render_boat_hint
+    lines = [{ text: "Dein Boot", size: 2, color: [232, 244, 252] }]
+    lines << { text: "Anzug wird repariert", size: 0, color: [232, 202, 150], blink: true } if repairing_suit?
+    lines << { text: "Aktionen", size: 0, color: [132, 168, 194] }
+    lines << { text: "[ L ]  Logbuch öffnen", size: 0, color: [150, 198, 224] }
+    lines << { text: "[ I ]  Items einlagern (#{state.inventory.length})", size: 0, color: [150, 198, 224] }
+    lines << { text: "[ Q ]  Spiel beenden", size: 0, color: [150, 198, 224] }
+
+    pad = 16
+    height = pad + 12
+    lines.each { |line| height += boat_line_height(line) }
+
     x = SURFACE_BOAT_X - state.camera_x
-    y = WATERLINE_Y + 150 - state.camera_y
+    top = WATERLINE_Y + 210 - state.camera_y # top edge; the card hangs just above the boat
     left = x - BOAT_HINT_W / 2
 
-    # The card, with a bright rule along its top edge.
-    outputs.sprites << { x: left, y: y, w: BOAT_HINT_W, h: BOAT_HINT_H,
+    outputs.sprites << { x: left, y: top - height, w: BOAT_HINT_W, h: height,
                          r: 18, g: 42, b: 66, a: 175, path: :solid }
-    outputs.sprites << { x: left, y: y + BOAT_HINT_H - 3, w: BOAT_HINT_W, h: 3,
+    outputs.sprites << { x: left, y: top - 3, w: BOAT_HINT_W, h: 3,
                          r: 120, g: 190, b: 220, a: 190, path: :solid }
 
-    # Text laid out from the top down; each label's y is the top of its line
-    # (vertical_alignment_enum 2), so every line keeps its full height above the
-    # card's bottom edge instead of spilling past it.
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 16, text: "Dein Boot",
-                        size_enum: 2, alignment_enum: 1, vertical_alignment_enum: 2,
-                        r: 232, g: 244, b: 252 }
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 48, text: "Anzug wird repariert · Luft füllt sich auf",
-                        size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
-                        r: 176, g: 206, b: 226 }
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 84, text: "Aktionen",
-                        size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
-                        r: 132, g: 168, b: 194 }
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 110, text: "[ E ]  Logbuch öffnen",
-                        size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
-                        r: 150, g: 198, b: 224 }
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 136,
-                        text: "[ I ]  Items einlagern (#{state.inventory.length})",
-                        size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
-                        r: 150, g: 198, b: 224 }
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 162, text: "[ Q ]  Spiel beenden",
-                        size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
-                        r: 150, g: 198, b: 224 }
+    ly = top - pad
+    lines.each do |line|
+      unless line[:blink] && !Kernel.tick_count.idiv(30).even? # blink: dark half of the cycle
+        outputs.labels << { x: x, y: ly, text: line[:text], size_enum: line[:size],
+                            alignment_enum: 1, vertical_alignment_enum: 2,
+                            r: line[:color][0], g: line[:color][1], b: line[:color][2] }
+      end
+      ly -= boat_line_height(line)
+    end
+  end
+
+  def boat_line_height(line)
+    line[:size] >= 2 ? 34 : 26
+  end
+
+  # The boat only patches the suit up when there's damage to mend.
+  def repairing_suit?
+    state.suit < SUIT_MAX
   end
 end

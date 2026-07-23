@@ -57,7 +57,7 @@ class Game
       row_y -= 58
     end
 
-    outputs.labels << { x: (left + right) / 2, y: bottom + pad, text: "E / ESC  —  schließen",
+    outputs.labels << { x: (left + right) / 2, y: bottom + pad, text: "L / ESC  —  schließen",
                         size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
   end

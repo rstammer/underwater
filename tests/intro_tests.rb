@@ -38,7 +38,20 @@ class IntroTests
     text = args.outputs.labels.map { |label| label[:text] }.join(" ")
 
     assert.true! text.include?("Boot"), "the card names the boat"
-    assert.true! text.downcase.include?("anzug"), "and says the suit gets repaired here"
+    assert.true! text.include?("Logbuch"), "and offers what home is for"
+  end
+
+  # The 'Anzug wird repariert' line is only on the card while there's damage to
+  # mend — a whole suit says nothing.
+  def test_the_repair_line_shows_only_while_the_suit_is_damaged(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    args.state.suit = SUIT_MAX
+    assert.false! game.repairing_suit?, "a whole suit needs no mending"
+
+    args.state.suit = 40
+    assert.true! game.repairing_suit?, "a damaged one does"
   end
 
   def test_no_card_once_you_have_left_the_boat(args, assert)
