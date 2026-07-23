@@ -13,25 +13,26 @@ class Game
   end
 
   INV_X = 20
+  INV_Y = 24 # slots sit this far up from the bottom edge
   INV_SLOT = 46
   INV_GAP = 8
 
-  # The three carry slots, top-left, each holding the icon of what's in it. Empty
-  # slots sit as dim frames so you can see how much room is left.
+  # The three carry slots, bottom-left, clear of the gauges up top — each holds
+  # the icon of what's in it; empty slots sit as dim frames so you can see how
+  # much room is left.
   def render_inventory
-    outputs.labels << { x: INV_X, y: grid.h - 16, text: "Inventar",
-                        size_enum: 1, r: 210, g: 228, b: 245, a: 175 }
-    top = grid.h - 30 - INV_SLOT
+    outputs.labels << { x: INV_X, y: INV_Y + INV_SLOT + 24, text: "Inventar",
+                        size_enum: 1, vertical_alignment_enum: 2, r: 210, g: 228, b: 245, a: 175 }
     INVENTORY_MAX.times do |i|
       x = INV_X + i * (INV_SLOT + INV_GAP)
-      outputs.sprites << { x: x, y: top, w: INV_SLOT, h: INV_SLOT, r: 14, g: 30, b: 50, a: 185, path: :solid }
-      outputs.sprites << { x: x, y: top + INV_SLOT - 2, w: INV_SLOT, h: 2, r: 90, g: 140, b: 170, a: 150, path: :solid }
+      outputs.sprites << { x: x, y: INV_Y, w: INV_SLOT, h: INV_SLOT, r: 14, g: 30, b: 50, a: 185, path: :solid }
+      outputs.sprites << { x: x, y: INV_Y + INV_SLOT - 2, w: INV_SLOT, h: 2, r: 90, g: 140, b: 170, a: 150, path: :solid }
 
       kind = state.inventory[i]
       next unless kind
 
       sprite = ITEM_SPRITES[kind]
-      outputs.sprites << { x: x + INV_SLOT / 2, y: top + INV_SLOT / 2,
+      outputs.sprites << { x: x + INV_SLOT / 2, y: INV_Y + INV_SLOT / 2,
                            w: sprite[:w] * 2, h: sprite[:h] * 2, path: sprite[:path],
                            anchor_x: 0.5, anchor_y: 0.5 }
     end
