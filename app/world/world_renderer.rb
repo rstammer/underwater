@@ -2,6 +2,13 @@
 # Reopens Game so the underwater scenes can just call render_world. The World
 # itself is pure data (app/world/world.rb); all the sprite building lives here.
 class Game
+  WATER_TWILIGHT = 1100 # px below the waterline over which the biome gradient plays out
+  WATER_ABYSS = 2600    # px below the waterline where the light is as good as gone
+  ABYSS_DIM = 0.82      # how much of the light the abyss swallows
+  WATER_BANDS = 24      # horizontal strips the water gradient is drawn in
+  FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
+  FAUNA_BAND = 420 # how high above the sand a segment's fish are spread
+
   DECOR_SPRITES = {
     "seaweed"  => { path: "sprites/decor/seaweed.png",  w: 14, h: 44 },
     "coral"    => { path: "sprites/decor/coral.png",    w: 28, h: 30 },
@@ -62,12 +69,19 @@ class Game
   end
 
   # A fresh fish swarm for the world's biome (colours and count from the biome).
+  # They're spawned in the water just above this segment's own sea floor, so a
+  # deep trench has its own fish down there instead of an empty void.
   def spawn_fauna(world)
     biome = world.biome
     state.fish = biome.fish_count.times.map do
+      col = rand(world.columns)
+      floor_y = world.floor[col]
+      headroom = WATERLINE_Y - floor_y - 120
+      headroom = FAUNA_BAND if headroom > FAUNA_BAND
+      headroom = 40 if headroom < 40
       SloppyScalar.new(args, 0,
-                       x: rand(SCREEN_WIDTH),
-                       y: 90 + rand(360),
+                       x: col * World::COLUMN_WIDTH,
+                       y: floor_y + 40 + rand(headroom),
                        color: biome.fish_colors.sample.to_sym)
     end
   end
@@ -85,22 +99,26 @@ class Game
   end
 
   # Brighter biomes (low fog) let the diver see farther; the dark deep closes in.
+  # Depth tightens it further: the deeper you go, the less you see coming.
   def fog_radius(biome)
-    (120 + 290 * (1.0 - biome.fog)).to_i
+    ((120 + 290 * (1.0 - biome.fog)) * (0.55 + 0.45 * light_at(state.depth_y))).to_i
   end
 
-  # Tint the fog with the biome's deep water so it blends instead of a flat blue.
+  # Tint the fog with the biome's deep water so it blends instead of a flat blue,
+  # and let it darken with depth along with the water itself.
   def fog_color(biome)
     b = biome.water_bottom
-    [(b[0] * 0.45).to_i, (b[1] * 0.45).to_i, (b[2] * 0.45).to_i]
+    dim = 0.45 * (0.35 + 0.65 * light_at(state.depth_y))
+    [(b[0] * dim).to_i, (b[1] * dim).to_i, (b[2] * dim).to_i]
   end
 
-  # Draw the visible slice of the world: sky and water fill the screen (the
-  # diver's biome), then every on-screen segment's floor and decorations scroll
-  # past, and the home boat if the starting segment is in view.
+  # Draw the visible slice of the world: water fills the screen (the diver's
+  # biome, shaded by how deep the camera is looking), sky covers whatever lies
+  # above the waterline, then every on-screen segment's floor and decorations
+  # scroll past, and the home boat if the starting segment is in view.
   def render_world
-    outputs.sprites << sky_fill
     outputs.sprites << world_water(current_world)
+    outputs.sprites << sky_fill
     outputs.sprites << surface_line
     visible_world_indices.each do |index|
       world = world_at(index)
@@ -137,40 +155,68 @@ class Game
       r: 200, g: 230, b: 245, path: :solid }
   end
 
-  # Vertical water gradient from the biome's palette (deep at the bottom, bright
-  # at the waterline), spanning the whole water column and shifted by the camera.
+  # How much daylight reaches a world y: full at the waterline, fading through
+  # the twilight zone, essentially gone in the abyss. Water *and* sand read from
+  # this, so the deep looks deep instead of just further down the same picture.
+  def light_at(world_y)
+    below = WATERLINE_Y - world_y
+    return 1.0 if below <= WATER_TWILIGHT
+
+    fade = (below - WATER_TWILIGHT) / (WATER_ABYSS - WATER_TWILIGHT).to_f
+    fade = 1.0 if fade > 1.0
+    1.0 - ABYSS_DIM * fade
+  end
+
+  # The biome's water colour at a world y: its bright top near the surface
+  # blending into its deep tone, then dimmed further down toward the abyss.
+  def water_color_at(world_y, biome)
+    top = biome.water_top
+    bottom = biome.water_bottom
+    below = WATERLINE_Y - world_y
+    below = 0 if below < 0
+    t = below / WATER_TWILIGHT.to_f
+    t = 1.0 if t > 1.0
+    dim = light_at(world_y)
+
+    (0..2).map { |i| ((bottom[i] + (top[i] - bottom[i]) * (1.0 - t)) * dim).to_i }
+  end
+
+  # Water fills the whole screen; each band takes its colour from the world depth
+  # it currently shows, so the gradient stays put in the world as you dive
+  # through it. The sky is painted over the part above the waterline.
   def world_water(world)
-    top = world.biome.water_top
-    bottom = world.biome.water_bottom
-    bands = 24
-    (0...bands).map do |i|
-      t = i / (bands - 1.0)
-      {
-        x: 0,
-        y: i * WATERLINE_Y / bands - state.camera_y,
-        w: grid.w,
-        h: WATERLINE_Y / bands + 1,
-        r: lerp(bottom[0], top[0], t),
-        g: lerp(bottom[1], top[1], t),
-        b: lerp(bottom[2], top[2], t),
-        path: :solid,
-      }
+    band_h = SCREEN_HEIGHT / WATER_BANDS
+    (0...WATER_BANDS).map do |i|
+      y = i * band_h
+      c = water_color_at(y + state.camera_y, world.biome)
+      { x: 0, y: y, w: grid.w, h: band_h + 1, r: c[0], g: c[1], b: c[2], path: :solid }
     end
   end
 
-  # The rolling sand floor: a uniform base following the dune heightmap, topped
-  # by a lighter sunlit cap. The relief carries the interest, no tiling pattern.
+  # The sea floor: one solid column per terrain step, filled downward from the
+  # sand surface, topped by a lighter cap. Columns are narrow and their heights
+  # snap to a grid, so the edge reads as chunky pixel terraces; a per-column tint
+  # breaks up the flat fill, and the whole thing darkens with depth.
   def world_floor(world, dx)
     base = world.biome.floor_colors[1]
     cap = world.biome.floor_colors[0]
     cam = state.camera_y
     tiles = []
-    world.floor.each_with_index do |h, col|
+    world.floor.each_with_index do |top, col|
+      y = top - cam
+      next if y < 0 || y - FLOOR_FILL_DEPTH > SCREEN_HEIGHT # this column is off screen
+
       x = col * World::COLUMN_WIDTH + dx
-      tiles << { x: x, y: 0 - cam, w: World::COLUMN_WIDTH + 1, h: h,
-                 r: base[0] - 14, g: base[1] - 14, b: base[2] - 14, path: :solid }
-      tiles << { x: x, y: h - 4 - cam, w: World::COLUMN_WIDTH + 1, h: 4,
-                 r: cap[0], g: cap[1], b: cap[2], path: :solid } # sunlit cap
+      shade = ((col * 37 + world.index * 101) % 5 - 2) * 5 # deterministic mottling
+      dim = light_at(top)
+      tiles << { x: x, y: y - FLOOR_FILL_DEPTH, w: World::COLUMN_WIDTH + 1, h: FLOOR_FILL_DEPTH,
+                 r: ((base[0] - 14 + shade) * dim).to_i,
+                 g: ((base[1] - 14 + shade) * dim).to_i,
+                 b: ((base[2] - 14 + shade) * dim).to_i, path: :solid }
+      tiles << { x: x, y: y - 4, w: World::COLUMN_WIDTH + 1, h: 4,
+                 r: ((cap[0] + shade) * dim).to_i,
+                 g: ((cap[1] + shade) * dim).to_i,
+                 b: ((cap[2] + shade) * dim).to_i, path: :solid } # sunlit cap
     end
     tiles
   end

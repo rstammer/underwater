@@ -24,12 +24,15 @@ SCREEN_HEIGHT = 720
 WATERLINE_Y = SCREEN_HEIGHT # world y of the surface: water fills world 0..WATERLINE_Y, sky above it
 CAMERA_ANCHOR = SCREEN_HEIGHT / 2 # target screen y for the diver; the camera scrolls the world past him
 CAMERA_ANCHOR_X = SCREEN_WIDTH / 2 # target screen x for the diver; the world scrolls sideways past him
+FLOOR_VIEW_MARGIN = 90 # how far below the sea floor the camera comes to rest (the dead zone at the bottom)
+CAMERA_EASE = 0.1 # how quickly the camera catches up per tick — smooths the ragged floor out of the view
 SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center rests (only head/shoulders show)
 SURFACE_BOAT_X = 120 # world x of the diver's home boat, floating at the waterline
 OXYGEN_MAX = 100
 OXYGEN_DRAIN = 0.009 # per tick underwater (~3 min of air at 60 fps)
 OXYGEN_REFILL = 1.0 # per tick while breathing at the surface (fast top-up)
 SPRINT_MULTIPLIER = 2 # sprinting: this much faster, and this much thirstier for air
+SHARK_PATROL_SPREAD = 200 # how far above/below the diver's depth the shark comes back in
 FOG_OF_WAR = true
 DEBUG = false
 
@@ -68,6 +71,7 @@ class Game
     state.player_x = CAMERA_ANCHOR_X                  # on-screen x, derived each tick from global_x - camera_x
     state.player_y = CAMERA_ANCHOR                    # on-screen y, derived each tick from depth_y - camera_y
     state.direction = :right
+    state.world_cache = {}
     state.dark_shark = { x: -300, y: 300 }
     state.game_scene = "title"
     state.oxygen = OXYGEN_MAX
@@ -79,6 +83,7 @@ class Game
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)
     state.fish = [] # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
+    center_camera   # frame the diver right away instead of gliding in on the first ticks
   end
 
   def fire_input?
@@ -104,10 +109,7 @@ class Game
   def spawn_at_surface
     state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH # head out, body just under the waterline
     state.diver_global_x = SURFACE_BOAT_X + 96 # world x, in the water just beside the boat
-    state.camera_y = [state.depth_y - CAMERA_ANCHOR, 0].max
-    state.camera_x = state.diver_global_x - CAMERA_ANCHOR_X
-    state.player_y = state.depth_y - state.camera_y
-    state.player_x = state.diver_global_x - state.camera_x
+    center_camera
   end
 
   def update_characters(sprite_index)
@@ -132,20 +134,38 @@ class Game
     end
   end
 
-  # Shark cruises across the screen, drifting vertically, and wraps around.
+  # Shark cruises across the segment, drifting vertically, and wraps around. It
+  # hunts: each pass comes back in at roughly the diver's depth, so it's a threat
+  # on a shallow bank and down in a trench alike.
   def update_shark(sprite_index)
     if state.dark_shark.x > SCREEN_WIDTH
       state.dark_shark.x = -300
-      state.dark_shark.y = rand(SCREEN_HEIGHT)
+      state.dark_shark.y = shark_patrol_y
     else
       state.dark_shark.x += DarkShark::SPEED
     end
 
     if Kernel.tick_count % 30 == 0
-      state.dark_shark.y = (state.dark_shark.y + ((-1)**rand(10) * rand(30))) % SCREEN_HEIGHT
+      state.dark_shark.y = in_water(state.dark_shark.y + ((-1)**rand(10) * rand(30)))
     end
 
     state.shark.tick(args, sprite_index)
+  end
+
+  # A depth to prowl at: near the diver, give or take, but never out of the water
+  # or inside the sand.
+  def shark_patrol_y
+    in_water(state.depth_y + rand(2 * SHARK_PATROL_SPREAD) - SHARK_PATROL_SPREAD)
+  end
+
+  # Keep a world y inside the local water column.
+  def in_water(y)
+    top = WATERLINE_Y - 40
+    floor = sea_floor_y
+    return floor if y < floor
+    return top if y > top
+
+    y
   end
 
   def basic_movements_per_tick
@@ -210,25 +230,49 @@ class Game
   # follow him and project his world position onto the on-screen player_x/y. One
   # continuous space: no scene switch, no teleport — the camera scrolls the world.
   def update_depth_and_camera
+    clamp_depth
+    # Vertical: ease toward the target so swimming along the ragged floor doesn't
+    # make the view judder with every notch of sand.
+    state.camera_y += (camera_target_y - state.camera_y) * CAMERA_EASE
+    # Horizontal: centre the diver; the world scrolls sideways past him.
+    state.camera_x = state.diver_global_x - CAMERA_ANCHOR_X
+    project_diver
+  end
+
+  # Put the camera exactly where it belongs, without easing — for spawning, so a
+  # new round starts framed instead of gliding into place.
+  def center_camera
+    clamp_depth
+    state.camera_y = camera_target_y
+    state.camera_x = state.diver_global_x - CAMERA_ANCHOR_X
+    project_diver
+  end
+
+  # The diver lives between the sand and the waterline: he can rest on the floor
+  # and float up until his head clears the water, but no further.
+  def clamp_depth
     ceil = WATERLINE_Y - SURFACE_FLOAT_DEPTH # float no higher than head-out at the surface
     state.depth_y = ceil if state.depth_y > ceil
     state.depth_y = sea_floor_y if state.depth_y < sea_floor_y
+  end
 
-    # Vertical: follow the diver, but never scroll below the sea-floor view — with
-    # camera_y at 0 the screen shows the classic world 0..SCREEN_HEIGHT (floor to
-    # waterline). Above the dead zone the world scrolls and the diver stays put.
-    state.camera_y = [state.depth_y - CAMERA_ANCHOR, 0].max
-    # Horizontal: centre the diver; the world scrolls sideways past him.
-    state.camera_x = state.diver_global_x - CAMERA_ANCHOR_X
+  # Follow the diver, but never scroll past the sea floor: near the bottom the
+  # camera rests just under the sand (a dead zone) so he can swim around without
+  # the world sliding. Since the floor's depth varies wildly, this target is
+  # relative to the ground under him, not to a fixed world y.
+  def camera_target_y
+    [state.depth_y - CAMERA_ANCHOR, sea_floor_y - FLOOR_VIEW_MARGIN].max
+  end
 
+  def project_diver
     state.player_y = state.depth_y - state.camera_y
     state.player_x = state.diver_global_x - state.camera_x
   end
 
-  # The sand height right under the diver, so he rests on the floor instead of
-  # sinking through it. A little headroom keeps his body above the dune.
+  # World y of the sand right under the diver, so he rests on the floor instead
+  # of sinking through it. A little headroom keeps his body above the sand.
   def sea_floor_y
-    current_world.floor_height_at(state.diver_global_x % SCREEN_WIDTH) + Diver::HEIGHT
+    current_world.floor_y_at(state.diver_global_x % SCREEN_WIDTH) + Diver::HEIGHT
   end
 
   # Sprinting (holding the sprint key while actually swimming) makes the diver

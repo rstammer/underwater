@@ -5,30 +5,53 @@ class CameraTests
     game
   end
 
-  # Near the floor the camera rests at 0, showing the classic world 0..height
-  # view, and the diver moves freely on screen (a dead zone at the bottom).
-  def test_camera_rests_at_zero_in_the_dead_zone(args, assert)
-    game = build_game(args)
-    game.initialize_game(0)
-    args.state.depth_y = 200 # above the floor, below the camera anchor
-
-    game.update_depth_and_camera
-
-    assert.equal! args.state.depth_y, 200, "depth is untouched in the dead zone"
-    assert.equal! args.state.camera_y, 0, "camera stays put near the floor"
-    assert.equal! args.state.player_y, 200, "on-screen y equals depth when camera is 0"
+  # Settle the camera as if a few seconds had passed (it eases toward its target).
+  def settle(game, ticks = 90)
+    ticks.times { game.update_depth_and_camera }
   end
 
-  # Above the dead zone the camera follows and the diver stays around centre.
-  def test_camera_follows_the_diver_when_deep_up(args, assert)
+  # Resting on the sand the camera comes to rest just below the floor, so the
+  # diver has ground under him and room above — a dead zone at the bottom.
+  def test_camera_rests_below_the_sea_floor(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    args.state.depth_y = 500
+    args.state.depth_y = -99_999 # sink onto the sand
+    settle(game)
+
+    assert.equal! args.state.depth_y, game.sea_floor_y, "clamped to rest on the floor"
+    assert.true! (args.state.camera_y - (game.sea_floor_y - FLOOR_VIEW_MARGIN)).abs < 1,
+                 "the camera settles a margin below the floor"
+    assert.true! args.state.player_y > 0 && args.state.player_y < SCREEN_HEIGHT,
+                 "and the diver stays on screen (#{args.state.player_y})"
+  end
+
+  # Well above the floor the camera follows the diver and he sits at the anchor.
+  def test_camera_follows_the_diver_in_open_water(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.depth_y = game.sea_floor_y + 400
+    settle(game)
+
+    assert.true! (args.state.camera_y - (args.state.depth_y - CAMERA_ANCHOR)).abs < 1,
+                 "camera scrolls to keep the diver anchored"
+    assert.true! (args.state.player_y - CAMERA_ANCHOR).abs < 1,
+                 "the diver sits at the anchor on screen"
+  end
+
+  # The camera eases toward its target instead of snapping, so rough terrain
+  # under the diver doesn't make the view jitter.
+  def test_camera_eases_toward_its_target(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.center_camera
+    before = args.state.camera_y
+    args.state.depth_y -= 600 # a sudden plunge
 
     game.update_depth_and_camera
+    moved = before - args.state.camera_y
 
-    assert.equal! args.state.camera_y, 500 - CAMERA_ANCHOR, "camera scrolls to keep the diver anchored"
-    assert.equal! args.state.player_y, CAMERA_ANCHOR, "the diver sits at the anchor on screen"
+    assert.true! moved > 0, "the camera starts moving after the diver"
+    assert.true! moved < 600, "but does not snap there in one tick (#{moved})"
   end
 
   # The diver can float up to head-out at the waterline, but no higher.
@@ -43,16 +66,16 @@ class CameraTests
     assert.true! game.breathing?, "clamped at the surface, head out, breathing"
   end
 
-  # He rests on the sand instead of sinking through the sea floor.
-  def test_depth_is_clamped_at_the_sea_floor(args, assert)
+  # Over a trench there is real depth to explore, far below the shallow banks.
+  def test_a_trench_can_be_dived_far_below_the_shelf(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    args.state.depth_y = -500 # try to sink through the floor
+    args.state.diver_global_x = deep_world_x
+    args.state.depth_y = -99_999 # dive all the way down
+    settle(game)
 
-    game.update_depth_and_camera
-
-    assert.equal! args.state.depth_y, game.sea_floor_y, "clamped to rest on the floor"
-    assert.true! args.state.player_y >= 0, "and stays on screen"
+    assert.true! args.state.depth_y < -800, "a trench goes deep (#{args.state.depth_y})"
+    assert.true! game.current_depth > 150, "and the depth readout shows it (#{game.current_depth} m)"
   end
 
   # Sky only shows once the camera has scrolled up enough to reveal the waterline.
@@ -101,7 +124,7 @@ class CameraTests
     args.state.depth_y = WATERLINE_Y # head out, at the surface
     assert.false! game.fauna_visible?, "no fish while at the surface"
 
-    args.state.depth_y = 200 # dived under
+    args.state.depth_y = -200 # dived under
     assert.true! game.fauna_visible?, "fish are visible underwater"
   end
 
@@ -115,10 +138,15 @@ class CameraTests
     game.area1_tick
 
     args.state.diver_global_x = 1500 # Tiefsee: a shark prowls
-    args.state.depth_y = 200
-    game.update_depth_and_camera
+    args.state.depth_y = -99_999     # down on the trench floor
+    settle(game)
     game.area2_tick
 
     assert.true! true, "rendered both frames without raising"
+  end
+
+  # A world x whose sea floor lies deep — used to test diving into a trench.
+  def deep_world_x
+    (0..400).map { |i| i * 256 }.min_by { |x| WorldGenerator.floor_y_at(x) }
   end
 end

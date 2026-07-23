@@ -15,7 +15,8 @@ class GameTests
     assert.true! args.state.initialized
     assert.equal! args.state.dark_shark.x, -300
     assert.equal! args.state.dark_shark.y, 300
-    assert.equal! args.state.fish.length, 0 # a swarm is spawned per world, not at boot
+    # Framing the camera loads the starting world, which brings its swarm with it.
+    assert.equal! args.state.fish.length, WorldGenerator.generate(0).biome.fish_count
     assert.true! args.state.diver.is_a?(Diver)
   end
 
