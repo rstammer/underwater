@@ -279,11 +279,10 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   das Boot zeigt sich, sobald Segment 0 im Bild ist. Der dezente Locator (oben
   rechts) zeigt Sektor + Tiefe, hinter `locator?` (später an ein Gerät koppelbar).
 
-Deko-Sprites für Welten liegen in `sprites/decor/` (seaweed/coral/starfish/rock).
-`decor_tint` (Renderer): **Fels-Deko nimmt die lokale Steinfarbe** (`biome.floor_colors[0]`)
-an, damit Felsen nicht als graue Kuppen auf dunklem Grund kleben; alle andere Deko
-behält ihre Farbe, verliert aber mit der Tiefe Licht (`light_at`) — nichts leuchtet
-unten im Dunkeln.
+Deko-Sprites für Welten liegen in `sprites/decor/` (seaweed/coral/starfish). Die
+frühere **Fels-Deko wurde entfernt** (wirkte in allen Biomen fremd) — kein `rocks`-
+Knopf am Biom mehr, kein `"rock"` in Generator/Insel. `decor_tint` (Renderer) dimmt
+Deko nur noch mit der Tiefe (`light_at`), damit unten nichts im Dunkeln leuchtet.
 
 ## State-Modell (`args.state`)
 

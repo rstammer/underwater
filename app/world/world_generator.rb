@@ -182,7 +182,6 @@ class WorldGenerator
       "seaweed" => @biome.seaweed,
       "coral" => @biome.coral,
       "starfish" => @biome.starfish,
-      "rock" => @biome.rocks,
     }
 
     items = []

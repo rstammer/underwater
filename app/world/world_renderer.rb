@@ -27,7 +27,6 @@ class Game
     "seaweed"  => { path: "sprites/decor/seaweed.png",  w: 14, h: 44 },
     "coral"    => { path: "sprites/decor/coral.png",    w: 28, h: 30 },
     "starfish" => { path: "sprites/decor/starfish.png", w: 16, h: 16 },
-    "rock"     => { path: "sprites/decor/rock.png",     w: 22, h: 15 },
     "palm"     => { path: "sprites/decor/palm.png",     w: 20, h: 16 },
     "bush"     => { path: "sprites/decor/bush.png",     w: 12, h: 7 },
     "grass"    => { path: "sprites/decor/grass.png",    w: 12, h: 5 },
@@ -273,17 +272,11 @@ class Game
     end
   end
 
-  # Boulders take the colour of the local stone, so they read as rock *of this sea
-  # floor* rather than grey intruders on the dark deep; everything else keeps its
-  # own colour but loses light with depth, so nothing glows down in the dark.
-  def decor_tint(d, world)
-    dim = light_at(d[:y])
-    if d[:kind] == "rock"
-      world.biome.floor_colors[0].map { |c| v = c * 1.25 * dim; v > 255 ? 255 : v.to_i }
-    else
-      v = (255 * dim).to_i
-      [v, v, v]
-    end
+  # Decorations keep their own colour but lose light with depth, so nothing glows
+  # down in the dark.
+  def decor_tint(d, _world)
+    v = (255 * light_at(d[:y])).to_i
+    [v, v, v]
   end
 
   # Most decor stands still. Gulls don't — they drift over the coast on a long,

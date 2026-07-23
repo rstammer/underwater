@@ -40,11 +40,11 @@ class IslandWorld
   DECOR_SEED = 808
   TUNNEL_SEED = 909
   SKERRY_SEED = 1313
-  TUNNEL_PLANTS = ["seaweed", "coral", "rock", "starfish"]
+  TUNNEL_PLANTS = ["seaweed", "coral", "starfish"]
 
   SCALES = {
     "palm" => 4, "palm_small" => 3, "bush" => 3, "grass" => 3,
-    "rock" => 3, "driftwood" => 3, "crab" => 2, "flag" => 3, "gull" => 3,
+    "driftwood" => 3, "crab" => 2, "flag" => 3, "gull" => 3,
   }
 
   def self.build(world)
@@ -314,13 +314,13 @@ class IslandWorld
   def plant_for(flat, room, seed)
     kinds =
       if flat[:y] - WATERLINE_Y < SHORE_HEIGHT
-        ["grass", "driftwood", "rock", "crab", "grass", "bush"]
+        ["grass", "driftwood", "crab", "grass", "driftwood", "bush"]
       elsif room >= base_width("palm") + MARGIN
         ["palm", "bush", "palm", "palm_small", "bush", "palm"]
       elsif room >= base_width("palm_small") + MARGIN
         ["palm_small", "bush", "grass", "bush", "palm_small", "grass"]
       else
-        ["grass", "bush", "grass", "rock", "grass", "bush"]
+        ["grass", "bush", "grass", "bush", "grass", "bush"]
       end
     kind = kinds[(Noise.jitter(seed + 7, DECOR_SEED + 1) * kinds.length).to_i]
     room >= base_width(kind) + MARGIN ? kind : nil

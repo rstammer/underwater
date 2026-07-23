@@ -3,11 +3,11 @@
 # reads these knobs; hand-built static worlds can reuse them too.
 class Biome
   attr_reader :name, :water_top, :water_bottom, :floor_colors, :fog,
-              :seaweed, :coral, :starfish, :rocks,
+              :seaweed, :coral, :starfish,
               :fish_count, :fish_colors, :shark
 
   def initialize(name:, water_top:, water_bottom:, floor_colors:, fog:,
-                 seaweed:, coral:, starfish:, rocks:,
+                 seaweed:, coral:, starfish:,
                  fish_count:, fish_colors:, shark:)
     @name = name
     @water_top = water_top
@@ -17,7 +17,6 @@ class Biome
     @seaweed = seaweed
     @coral = coral
     @starfish = starfish
-    @rocks = rocks
     @fish_count = fish_count
     @fish_colors = fish_colors
     @shark = shark
@@ -29,7 +28,7 @@ class Biome
     water_top: [78, 158, 214], water_bottom: [26, 78, 142],
     floor_colors: [[242, 208, 169], [238, 200, 143], [225, 188, 109]],
     fog: 0.12,
-    seaweed: 5, coral: 1, starfish: 4, rocks: 2,
+    seaweed: 5, coral: 1, starfish: 4,
     fish_count: 6, fish_colors: %w[orange blue green], shark: false,
   )
 
@@ -39,7 +38,7 @@ class Biome
     water_top: [40, 130, 150], water_bottom: [12, 58, 78],
     floor_colors: [[120, 132, 96], [96, 112, 78], [78, 96, 66]],
     fog: 0.42,
-    seaweed: 16, coral: 2, starfish: 2, rocks: 3,
+    seaweed: 16, coral: 2, starfish: 2,
     fish_count: 9, fish_colors: %w[green blue purple], shark: false,
   )
 
@@ -49,7 +48,7 @@ class Biome
     water_top: [60, 170, 190], water_bottom: [20, 96, 120],
     floor_colors: [[236, 196, 150], [210, 150, 120], [180, 120, 110]],
     fog: 0.18,
-    seaweed: 6, coral: 10, starfish: 5, rocks: 2,
+    seaweed: 6, coral: 10, starfish: 5,
     fish_count: 12, fish_colors: %w[orange blue green purple], shark: false,
   )
 
@@ -59,7 +58,7 @@ class Biome
     water_top: [24, 60, 104], water_bottom: [6, 18, 44],
     floor_colors: [[60, 66, 84], [48, 54, 72], [38, 44, 60]],
     fog: 0.70,
-    seaweed: 3, coral: 1, starfish: 1, rocks: 6,
+    seaweed: 3, coral: 1, starfish: 1,
     fish_count: 4, fish_colors: %w[blue purple], shark: true,
   )
 
