@@ -323,9 +323,10 @@ Screen-Positionen und werden nicht direkt gesetzt.
   schaukelt das **Tauchboot** (`home_boat`/`BOAT_SPRITE`) an der Wasserlinie — ein
   kleines Motorboot mit Kajüte, Außenborder und **Badeleiter**, die ins Wasser
   reicht (gedacht als späteres Zuhause zum Anlegen/Einsteigen). Liegt man daneben,
-  erscheint eine kleine Karte über dem Boot (`render_boat_hint`): „Dein Boot —
-  hier bist du zu Hause / Anzug wird repariert, Luft füllt sich auf / [ E ]
-  Logbuch öffnen". Sonst bleibt der Bildschirm frei von Text (die alten
+  erscheint eine kleine Karte über dem Boot (`render_boat_hint`): Titel „Dein Boot",
+  Status „Anzug wird repariert · Luft füllt sich auf", dann **Aktionen**: „[ E ]
+  Logbuch öffnen" und „[ Q ] Spiel beenden" (`quit_game` → `$gtk.request_quit`,
+  nur wenn `at_the_boat?`). Sonst bleibt der Bildschirm frei von Text (die alten
   Szenen-Titel sind weg). Die Zeilen sind **oben** verankert
   (`vertical_alignment_enum: 2`), sonst rutscht die letzte unter die Kartenkante.
 - **Logbuch (Home-Menü):** `E` am Boot öffnet `home_menu` (pausiert, Welt friert

@@ -70,6 +70,7 @@ class Game
 
     update_scene
     update_home_menu # E at the boat opens the logbook; E/ESC closes it
+    quit_game if at_the_boat? && inputs.keyboard.key_down.q # Q at the boat quits
     update_sprint
     update_characters(sprite_index)
     unless game_paused?
@@ -569,6 +570,11 @@ class Game
 
   def menu_key?
     inputs.keyboard.key_down.e
+  end
+
+  # "Spiel beenden" from the boat — close the game down to the desktop.
+  def quit_game
+    $gtk.request_quit
   end
 
   # Back to diving in whichever sector the diver is standing in.

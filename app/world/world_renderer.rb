@@ -8,7 +8,7 @@ class Game
   ABYSS_DIM = 0.82      # how much of the light the abyss swallows
   WATER_BANDS = 24      # horizontal strips the water gradient is drawn in
   BOAT_HINT_W = 460
-  BOAT_HINT_H = 104
+  BOAT_HINT_H = 164
   AIR_COLOR = [20, 26, 32]            # the gloom inside an air chamber
   AIR_SURFACE_COLOR = [150, 190, 205] # the water surface trapped under it
   FLOOR_FILL_DEPTH = 1120 # how far down a sand column is filled — a screen height plus slack
@@ -314,13 +314,19 @@ class Game
     # Text laid out from the top down; each label's y is the top of its line
     # (vertical_alignment_enum 2), so every line keeps its full height above the
     # card's bottom edge instead of spilling past it.
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 16, text: "Dein Boot — hier bist du zu Hause",
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 16, text: "Dein Boot",
                         size_enum: 2, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: 232, g: 244, b: 252 }
     outputs.labels << { x: x, y: y + BOAT_HINT_H - 48, text: "Anzug wird repariert · Luft füllt sich auf",
                         size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: 176, g: 206, b: 226 }
-    outputs.labels << { x: x, y: y + BOAT_HINT_H - 74, text: "[ E ]  Logbuch öffnen",
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 84, text: "Aktionen",
+                        size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
+                        r: 132, g: 168, b: 194 }
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 110, text: "[ E ]  Logbuch öffnen",
+                        size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
+                        r: 150, g: 198, b: 224 }
+    outputs.labels << { x: x, y: y + BOAT_HINT_H - 136, text: "[ Q ]  Spiel beenden",
                         size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: 150, g: 198, b: 224 }
   end
