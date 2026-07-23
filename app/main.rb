@@ -21,6 +21,7 @@ require "app/world/static_worlds.rb"
 require "app/world/island_world.rb"
 require "app/world/world_stream.rb"
 require "app/world/world_renderer.rb"
+require "app/world/items.rb"
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
@@ -109,6 +110,7 @@ class Game
     state.shark = DarkShark.new(args, sprite_index)
     state.fish = [] # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
     reset_log       # the dive log starts empty each round
+    reset_items     # scatter fresh treasures, empty the pack
     center_camera   # frame the diver right away instead of gliding in on the first ticks
   end
 
@@ -146,6 +148,7 @@ class Game
     state.sprinting = false
     state.speed = Diver::SPEED
     reset_log        # a new round, a fresh log
+    reset_items      # ... and a fresh scatter of treasures
     spawn_at_surface # sets position (player_x, diver_global_x, depth_y, camera_y)
   end
 
