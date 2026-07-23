@@ -3,8 +3,8 @@
 # call render_world. The World itself is pure data (app/world/world.rb) and which
 # segments are on screen is world_stream.rb's job; all the sprite building is here.
 class Game
-  WATER_TWILIGHT = 1100 # px below the waterline over which the biome gradient plays out
-  WATER_ABYSS = 2600    # px below the waterline where the light is as good as gone
+  WATER_TWILIGHT = 1400 # px below the waterline over which the biome gradient plays out
+  WATER_ABYSS = 3400    # px below the waterline where the light is as good as gone
   ABYSS_DIM = 0.82      # how much of the light the abyss swallows
   WATER_BANDS = 24      # horizontal strips the water gradient is drawn in
   BOAT_HINT_W = 420

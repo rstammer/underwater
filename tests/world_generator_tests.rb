@@ -110,7 +110,7 @@ class WorldGeneratorTests
   # The ordinary sea floor is somewhere a standard suit can go. What lies past
   # that limit are the chasms — the deep you can look into but not yet work in.
   def test_the_shelf_is_within_suit_range_and_only_chasms_are_not(args, assert)
-    limit_y = WATERLINE_Y - SUIT_DEPTH_LIMIT * 10
+    limit_y = WATERLINE_Y - SUIT_DEPTH_LIMIT * PIXELS_PER_METRE
     too_deep = 0
     chasms = 0
 
@@ -131,7 +131,7 @@ class WorldGeneratorTests
   # And when the floor does give way, it gives way properly.
   def test_a_chasm_plunges_far_past_the_suits_limit(args, assert)
     deepest = (0..4000).map { |i| WorldGenerator.floor_y_at(i * 64) }.min
-    metres = (WATERLINE_Y - deepest) / 10
+    metres = (WATERLINE_Y - deepest) / PIXELS_PER_METRE
 
     assert.true! metres > SUIT_DEPTH_LIMIT * 2,
                  "a chasm should be twice the suit's rating deep (#{metres} m)"

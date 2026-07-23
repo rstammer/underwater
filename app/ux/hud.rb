@@ -45,7 +45,7 @@ class Game
   # Depth below the surface in metres — a whole number from the diver's world
   # position: 0 m at the waterline, growing as he descends toward the sea floor.
   def current_depth
-    [(WATERLINE_Y - state.depth_y) / 10, 0].max.to_i
+    [(WATERLINE_Y - state.depth_y) / PIXELS_PER_METRE, 0].max.to_i
   end
 
   GAUGE_X = 20

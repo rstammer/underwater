@@ -353,9 +353,13 @@ Screen-Positionen und werden nicht direkt gesetzt.
   die Wassersäule via `in_water`) — also auch im Graben gefährlich. **Fels stoppt
   ihn wie den Taucher:** vor der Insel dreht er um (`shark_blocked?`/`solid_at?`,
   `dark_shark.dir`, Sprite spiegelt sich) statt hindurchzuschwimmen.
-- **Tiefe & Profil:** Der normale Meeresgrund liegt bei ~20–90 m, also **innerhalb**
+- **Maßstab:** `PIXELS_PER_METRE = 14`. Der Anzug deckelt die *Meter*, also gibt
+  ein großzügiger Meter dem Meer den Platz, sich tief anzufühlen: die Wassersäule
+  ist im Median ~890 px — mehr als ein Bildschirm, man sieht von oben also nicht
+  auf den Grund.
+- **Tiefe & Profil:** Der normale Meeresgrund liegt bei ~20–95 m, also **innerhalb**
   dessen, was der Anzug aushält; das Relief ist zerklüftet/terrassiert. Dazwischen
-  reißt der Schelf immer wieder auf: **Abgründe** (`chasm_at`) fallen auf ~150–290 m
+  reißt der Schelf immer wieder auf: **Abgründe** (`chasm_at`) fallen auf ~150–240 m
   — sichtbar, anschwimmbar, aber mit diesem Anzug nicht auszuhalten. Sie sind
   schmal und häufig genug, dass man in beide Richtungen binnen weniger Sektoren
   auf einen trifft (ca. ein Fünftel des Meeresbodens liegt jenseits der Grenze). Je tiefer, desto dunkler das Wasser und enger der Fog (`light_at`).
@@ -370,7 +374,7 @@ Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
 
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
 `CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=240`, `CAMERA_EASE=0.1`,
-`SURFACE_FLOAT_DEPTH=20`, `OXYGEN_MAX=100`, `OXYGEN_DRAIN=0.009`,
+`SURFACE_FLOAT_DEPTH=20`, `PIXELS_PER_METRE=14`, `OXYGEN_MAX=100`, `OXYGEN_DRAIN=0.009`,
 `OXYGEN_REFILL=1.0`, `SUIT_MAX=100`, `SUIT_DEPTH_LIMIT=100`, `SUIT_DRAIN=0.0025`,
 `SUIT_REPAIR=0.4`, `BOAT_REACH=160`, `SPRINT_MULTIPLIER=2`, `SHARK_PATROL_SPREAD=200`,
 `SOLID_STEP_UP=48`, `ISLAND_MIN_SECTOR=2`, `ISLAND_MAX_SECTOR=10`, `ISLAND_NEAR_SECTOR=3`,

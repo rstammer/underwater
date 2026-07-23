@@ -15,21 +15,21 @@
 # seamlessly, and every height snaps to FLOOR_STEP so the sand reads as chunky
 # pixel terraces instead of a smooth roof.
 class WorldGenerator
-  FLOOR_TOP_Y = 380 # world y the shallowest sand starts from (near the surface)
+  FLOOR_TOP_Y = 400 # world y the shallowest sand starts from (near the surface)
 
   SHELF_WAVELENGTH = 5120
-  SHELF_DROP = 380
-  SHELF_BIAS = 1.35 # >1 skews the shelf shallow: most of the sea is a bank, now and then it drops away
+  SHELF_DROP = 620
+  SHELF_BIAS = 1.0 # >1 skews the shelf shallow: most of the sea is a bank, now and then it drops away
   BASIN_WAVELENGTH = 2560
-  BASIN_DROP = 190
-  BASIN_BIAS = 1.15
+  BASIN_DROP = 340
+  BASIN_BIAS = 1.0
 
   # Now and then the shelf gives way completely. A chasm plunges far past what a
   # standard suit can take — visible, reachable, and lethal to linger in. This is
   # the deep you dive *toward* once you have better gear.
   CHASM_WAVELENGTH = 1600
   CHASM_THRESHOLD = 0.66 # only the top of the noise opens up, so chasms stay rare
-  CHASM_DROP = 2200
+  CHASM_DROP = 2600
   CRAG_WAVELENGTH = 384
   CRAG_HEIGHT = 200
   DUNE_WAVELENGTH = 128

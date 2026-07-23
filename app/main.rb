@@ -24,6 +24,8 @@ require "app/world/world_renderer.rb"
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 WATERLINE_Y = SCREEN_HEIGHT # world y of the surface: water fills world 0..WATERLINE_Y, sky above it
+PIXELS_PER_METRE = 14 # how much sea a metre of depth is worth. The suit's rating caps how deep the
+                      # ordinary world may go, so a bigger metre is what gives it room to feel deep
 CAMERA_ANCHOR = SCREEN_HEIGHT / 2 # target screen y for the diver; the camera scrolls the world past him
 CAMERA_ANCHOR_X = SCREEN_WIDTH / 2 # target screen x for the diver; the world scrolls sideways past him
 FLOOR_VIEW_MARGIN = 240 # how far below the sea floor the camera rests — the diver sits this high above the bottom edge

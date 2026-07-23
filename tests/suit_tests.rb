@@ -11,7 +11,7 @@ class SuitTests
   # Put the diver at a depth in metres, out at sea (away from the boat).
   def dive_to(args, metres)
     args.state.diver_global_x = 4 * SCREEN_WIDTH
-    args.state.depth_y = WATERLINE_Y - metres * 10
+    args.state.depth_y = WATERLINE_Y - metres * PIXELS_PER_METRE
   end
 
   def test_the_suit_is_fine_within_its_rated_depth(args, assert)
