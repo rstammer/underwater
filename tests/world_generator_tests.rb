@@ -98,34 +98,51 @@ class WorldGeneratorTests
   end
 
   # The camera needs the broad shape of the ground, without the crags, dunes and
-  # jitter that would shake the view. (Chasm walls are steep by design, so they're
-  # measured out of it here — they're smooth, just not gentle.)
+  # jitter that would shake the view. (Chasm and basin walls are steep by design,
+  # so they're measured out of it here — they're smooth, just not gentle.)
   def test_ground_level_is_the_smooth_shape_of_the_floor(args, assert)
-    steps = (0..1200).map { |i| WorldGenerator.ground_level_at(i * 8 + 1) - WorldGenerator.chasm_at(i * 8 + 1) }
+    steps = (0..1200).map do |i|
+      x = i * 8 + 1
+      WorldGenerator.ground_level_at(x) - WorldGenerator.chasm_at(x) - WorldGenerator.trough_at(x)
+    end
     jumps = (1...steps.length).map { |i| (steps[i] - steps[i - 1]).abs }
 
     assert.true! jumps.max <= 8, "the broad shelf must not step (#{jumps.max} px)"
   end
 
-  # The ordinary sea floor is somewhere a standard suit can go. What lies past
-  # that limit are the chasms — the deep you can look into but not yet work in.
-  def test_the_shelf_is_within_suit_range_and_only_chasms_are_not(args, assert)
-    limit_y = WATERLINE_Y - SUIT_DEPTH_LIMIT * PIXELS_PER_METRE
-    too_deep = 0
-    chasms = 0
-
-    (0..2000).each do |i|
-      x = i * 32
-      chasm = WorldGenerator.chasm_at(x) < 0
-      chasms += 1 if chasm
-      next unless WorldGenerator.floor_y_at(x) < limit_y
-
-      too_deep += 1
-      assert.true! chasm, "only a chasm may reach past the suit's depth (world x #{x})"
+  # The sea isn't uniformly shallow: whole stretches fall away into a long
+  # descent, well past the suit's rating, so reaching the bottom there is a real
+  # dive down and back — the deep you go looking for.
+  def test_some_stretches_are_a_long_dive_to_the_bottom(args, assert)
+    long_dives = 0
+    samples = 0
+    x = 0
+    while x < 120_000
+      metres = (WATERLINE_Y - WorldGenerator.floor_y_at(x)) / PIXELS_PER_METRE
+      long_dives += 1 if metres > 120 # past the suit's rating, a long way down
+      samples += 1
+      x += 64
     end
 
-    assert.true! too_deep > 0, "there has to be somewhere out of reach to dive toward"
-    assert.true! chasms < 2001 / 2, "but chasms stay the exception, not the sea floor"
+    assert.true! long_dives > samples / 12,
+                 "deep stretches have to be common enough to find (#{long_dives}/#{samples})"
+  end
+
+  # ...but plenty of the sea is still a shallow bank you can work comfortably,
+  # so the deep reads as the exception it should be, not the whole map.
+  def test_shallow_banks_are_still_common(args, assert)
+    shallow = 0
+    samples = 0
+    x = 0
+    while x < 120_000
+      metres = (WATERLINE_Y - WorldGenerator.floor_y_at(x)) / PIXELS_PER_METRE
+      shallow += 1 if metres < 60 # easy suit range, a short hop to the sand
+      samples += 1
+      x += 64
+    end
+
+    assert.true! shallow > samples / 5,
+                 "there must still be plenty of shallow bank to play on (#{shallow}/#{samples})"
   end
 
   # And when the floor does give way, it gives way properly.

@@ -15,20 +15,28 @@
 # seamlessly, and every height snaps to FLOOR_STEP so the sand reads as chunky
 # pixel terraces instead of a smooth roof.
 class WorldGenerator
-  FLOOR_TOP_Y = 400 # world y the shallowest sand starts from (near the surface)
+  FLOOR_TOP_Y = 360 # world y the shallowest sand starts from (near the surface)
 
   SHELF_WAVELENGTH = 5120
-  SHELF_DROP = 620
+  SHELF_DROP = 460
   SHELF_BIAS = 1.0 # >1 skews the shelf shallow: most of the sea is a bank, now and then it drops away
   BASIN_WAVELENGTH = 2560
-  BASIN_DROP = 340
+  BASIN_DROP = 300
   BASIN_BIAS = 1.0
 
-  # Now and then the shelf gives way completely. A chasm plunges far past what a
+  # Broad deep basins. Whole stretches of sea where the floor sinks far below the
+  # shelf into a long descent — not the sheer plunge of a chasm, but a wide bowl
+  # you swim down and down into before the sand comes up to meet you. This is the
+  # everyday deep the sea is *made* of, so it's common and broad rather than rare.
+  TROUGH_WAVELENGTH = 3072
+  TROUGH_THRESHOLD = 0.48 # roughly half the sea sinks into a basin, deepest where the noise peaks
+  TROUGH_DROP = 1500
+
+  # Now and then the floor gives way completely. A chasm plunges far past what a
   # standard suit can take — visible, reachable, and lethal to linger in. This is
   # the deep you dive *toward* once you have better gear.
   CHASM_WAVELENGTH = 1600
-  CHASM_THRESHOLD = 0.66 # only the top of the noise opens up, so chasms stay rare
+  CHASM_THRESHOLD = 0.68 # only the top of the noise opens up, so chasms stay rare
   CHASM_DROP = 2600
   CRAG_WAVELENGTH = 384
   CRAG_HEIGHT = 200
@@ -54,10 +62,11 @@ class WorldGenerator
   ROUGH_SEED = 505
   TERRACE_SEED = 606
   CHASM_SEED = 1010
+  TROUGH_SEED = 1212
 
   RELIEF = CRAG_HEIGHT + DUNE_HEIGHT / 2 + ROUGH_HEIGHT / 2
   FLOOR_CEILING = FLOOR_TOP_Y + RELIEF                              # shallowest sand
-  FLOOR_BOTTOM = FLOOR_TOP_Y - SHELF_DROP - BASIN_DROP - CHASM_DROP -
+  FLOOR_BOTTOM = FLOOR_TOP_Y - SHELF_DROP - BASIN_DROP - TROUGH_DROP - CHASM_DROP -
                  (DUNE_HEIGHT / 2 + ROUGH_HEIGHT / 2) - FLOOR_STEP  # bottom of the deepest chasm
 
   def self.columns
@@ -90,7 +99,19 @@ class WorldGenerator
     y = FLOOR_TOP_Y
     y -= (Noise.value(world_x, SHELF_WAVELENGTH, SHELF_SEED)**SHELF_BIAS) * SHELF_DROP
     y -= (Noise.value(world_x, BASIN_WAVELENGTH, BASIN_SEED)**BASIN_BIAS) * BASIN_DROP
-    y.to_i + chasm_at(world_x)
+    y.to_i + trough_at(world_x) + chasm_at(world_x)
+  end
+
+  # How far the floor sinks into a broad deep basin here, or 0 up on the shelf.
+  # Above the threshold the bowl opens gradually and its walls come down smoothly
+  # (the camera rides this, so it must not step), reaching its full drop where the
+  # noise peaks — so basins are wide, common, and a genuinely long swim down.
+  def self.trough_at(world_x)
+    depth = Noise.value(world_x, TROUGH_WAVELENGTH, TROUGH_SEED)
+    return 0 if depth < TROUGH_THRESHOLD
+
+    t = (depth - TROUGH_THRESHOLD) / (1.0 - TROUGH_THRESHOLD)
+    (-TROUGH_DROP * (t * t * (3 - 2 * t))).to_i
   end
 
   # How far the floor has fallen away here, or 0 out on the ordinary shelf. Only
