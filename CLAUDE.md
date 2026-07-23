@@ -308,6 +308,8 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `dark_shark` | `{x:, y:}`-Hash der Hai-Position: **lokale** Chunk-`x` (wrappt bei `SCREEN_WIDTH`) + Welt-`y` (von der `DarkShark`-Entity in `to_h` gelesen). Bei jeder neuen Runde kommt er auf **Taucher-Tiefe** ±`SHARK_PATROL_SPREAD` rein |
 | `active_world` / `active_world_index` | gecachtes aktuelles Chunk (Biom/Fauna) + sein Segment-Index (Neu-Setzen nur bei Segmentwechsel) |
 | `log_deepest` / `log_sectors` / `log_islands` / `log_caves` | Logbuch der Runde: tiefste Meterzahl + Index-Sets (Sektoren/Inseln/Höhlen); `track_log` füllt, `reset_log` leert |
+| `world_items` | versteckte Sammelstücke `{kind:, x:, y:, collected:}` in Welt-Koordinaten (pro Runde gewürfelt, `reset_items`) |
+| `inventory` / `stash` | getragene Gegenstände (max `INVENTORY_MAX`) bzw. am Boot eingelagerte (unbegrenzt) |
 
 Koordinaten-Merksatz: **hoch schwimmen = `depth_y` steigt = flacher; seitlich =
 `diver_global_x`.** Wasserlinie bei `WATERLINE_Y`, der Grund liegt je nach Ort
@@ -325,8 +327,9 @@ Screen-Positionen und werden nicht direkt gesetzt.
   reicht (gedacht als späteres Zuhause zum Anlegen/Einsteigen). Liegt man daneben,
   erscheint eine kleine Karte über dem Boot (`render_boat_hint`): Titel „Dein Boot",
   Status „Anzug wird repariert · Luft füllt sich auf", dann **Aktionen**: „[ E ]
-  Logbuch öffnen" und „[ Q ] Spiel beenden" (`quit_game` → `$gtk.request_quit`,
-  nur wenn `at_the_boat?`). Sonst bleibt der Bildschirm frei von Text (die alten
+  Logbuch öffnen", „[ I ] Items einlagern (N)" (`store_items`) und „[ Q ] Spiel
+  beenden" (`quit_game` → `$gtk.request_quit`, alle nur wenn `at_the_boat?`).
+  Sonst bleibt der Bildschirm frei von Text (die alten
   Szenen-Titel sind weg). Die Zeilen sind **oben** verankert
   (`vertical_alignment_enum: 2`), sonst rutscht die letzte unter die Kartenkante.
 - **Logbuch (Home-Menü):** `E` am Boot öffnet `home_menu` (pausiert, Welt friert
@@ -335,6 +338,19 @@ Screen-Positionen und werden nicht direkt gesetzt.
   `track_log` (Sektoren/Inseln/Höhlen als Index-Sets → kein Doppelzählen; Höhle
   zählt, sobald man in ihrer Luftkammer atmet), zurückgesetzt pro Runde
   (`reset_log`). Zeilen liefert `logbook_rows` (reine Methode → testbar).
+- **Gegenstände / Inventar (`app/world/items.rb`):** Fünf Sammelstücke
+  (Flaschenpost, Schuh, Dose, Schmuck, Schlüssel; Sprites via
+  `tools/make_item_sprites.rb` → `sprites/items/`) liegen versteckt auf dem
+  Meeresgrund. `reset_items` würfelt pro Runde `ITEM_COUNT` Stück in
+  `state.world_items` (absolute Welt-Koordinaten, **nie** Home- oder Insel-Sektor,
+  nie gestapelt) — bleiben liegen, wenn man wegschwimmt. `render_world_items`
+  zeichnet sie kamera-versetzt, nur untergetaucht (wie der Rest). **Aufheben mit
+  E** (`grab_item`, Reichweite `ITEM_REACH`) in `state.inventory`, **max
+  `INVENTORY_MAX` = 3**; HUD zeigt drei Slots + einen Prompt in Reichweite
+  („[ E ] … aufheben" bzw. „Inventar voll"). **Einlagern mit I am Boot**
+  (`store_items`) leert den Rucksack in `state.stash` (unbegrenzt). E/I sind
+  räumlich exklusiv zum Boot-Logbuch (Items spawnen nie am Boot). Loop:
+  tauchen → finden → drei tragen → heimbringen → einlagern → weiter.
 - **Bewegung (kontinuierlich, beide Achsen):** Es gibt keinen Übergang mehr — der
   Taucher bewegt sich in `depth_y` (vertikal) und `diver_global_x` (horizontal),
   die Kamera scrollt die Welt weich durch. Vertikal: nahe dem Grund ruht die
