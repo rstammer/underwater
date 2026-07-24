@@ -57,9 +57,12 @@ class Game
     start_round
   end
 
-  # Into the water, beside the boat, with the story still to be told.
+  # Into the water, beside the boat, with the story still to be told — and the
+  # camera's rules waiting for the moment he first goes under.
   def start_round
     state.story_told = false
+    state.dive_hint_pending = true
+    state.dive_hint_at = nil
     spawn_at_surface
     state.game_scene = "area1"
   end

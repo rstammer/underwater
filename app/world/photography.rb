@@ -116,6 +116,7 @@ class Game
     state.film_left -= 1
     store_shot(species.key, quality)
     note_shot(species, quality)
+    dismiss_dive_hint # he has got it; the card can go
   end
 
   # Better than what is on the roll *and* better than what is in the book.

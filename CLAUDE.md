@@ -434,6 +434,14 @@ Screen-Positionen und werden nicht direkt gesetzt.
   (`""` = Absatz), zum Umschreiben gedacht — die Karte **bricht nicht um**, deshalb
   misst `test_the_story_fits_the_card` jede Zeile mit `calcstringbox` gegen `STORY_W`
   und meckert, sobald sie zu lang wird.
+- **Tauchhinweis (`dive_hint_lines`, ebenfalls `app/ux/story.rb`):** die Regeln der
+  Kamera — Taste, Nähe, Sprint, Filmmenge, Entwickeln — erscheinen **beim ersten
+  Abtauchen**, nicht auf der Boot-Karte. Am Boot ist noch nichts davon real; erst
+  wenn Wasser über einem steht, bedeuten sie etwas. Ausgelöst wird das vom Wasser
+  (`update_dive_hint`: `dive_hint_pending` + `!at_open_surface?`), nicht von einem
+  Timer, läuft nach `DIVE_HINT_TICKS` aus und verschwindet sofort, sobald er das
+  erste Foto gemacht hat (`dismiss_dive_hint` in `take_photo`). Einmal pro Runde
+  **vom Titel** (`start_round`), nicht nach jedem Neustart.
 - **Fotografieren (`app/world/photography.rb`) — das Ziel des Spiels.** Jede Art,
   die man zum ersten Mal ablichtet, ist eine Seite im **Artenbuch**; `album_score`
   liest die Punkte aus dem Buch (kein mitgeführter Zähler, der aus dem Tritt geraten

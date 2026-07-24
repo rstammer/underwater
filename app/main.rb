@@ -91,6 +91,7 @@ class Game
       update_oxygen
       update_suit
       update_story # the boat's opening card retires the moment you first dive
+      update_dive_hint # ... and the camera's rules come up, once the water closes
       track_log # quietly record how deep you got and what you've seen
     end
     send("#{state.game_scene}_tick")
@@ -119,6 +120,8 @@ class Game
     state.speed = Diver::SPEED
     state.player_name = ""  # typed in on the way past the title
     state.story_told = true # the boat only tells it on a round started from the title
+    state.dive_hint_pending = false # ... and so are the camera's rules, on the first dive
+    state.dive_hint_at = nil
     state.initialized = true
 
     state.album = {} # species documented for good — the one thing dying can't take

@@ -12,7 +12,39 @@ class Game
     render_inventory
     render_pickup_prompt
     render_photo_prompt
+    render_dive_hint
     render_shutter # the flash and the line naming what he just caught, on top
+  end
+
+  HINT_W = 660
+  HINT_ROW_H = 30
+
+  # The camera's rules, up in the top half of the screen so they don't sit over
+  # the diver, for the first stretch of the first dive.
+  def render_dive_hint
+    return unless dive_hint_visible?
+
+    lines = dive_hint_lines
+    height = 56 + lines.length * HINT_ROW_H + 20
+    left = (grid.w - HINT_W) / 2
+    top = grid.h - 60
+
+    outputs.sprites << { x: left, y: top - height, w: HINT_W, h: height,
+                         r: 12, g: 32, b: 52, a: 225, path: :solid }
+    outputs.sprites << { x: left, y: top - 3, w: HINT_W, h: 3,
+                         r: 120, g: 190, b: 220, a: 200, path: :solid }
+
+    cx = left + HINT_W / 2
+    outputs.labels << { x: cx, y: top - 18, text: "Deine Kamera", size_enum: 2,
+                        alignment_enum: 1, vertical_alignment_enum: 2,
+                        r: 232, g: 244, b: 252 }
+    y = top - 62
+    lines.each do |line|
+      outputs.labels << { x: cx, y: y, text: line, size_enum: 0,
+                          alignment_enum: 1, vertical_alignment_enum: 2,
+                          r: 186, g: 214, b: 236 }
+      y -= HINT_ROW_H
+    end
   end
 
   FILM_INK = [214, 226, 240]

@@ -26,9 +26,12 @@ class Game
       "",
       "Unter dir liegt ein Meer, von dem du die ersten Meter",
       "kennst. Zwischen Kelp und Riff, in den Höhlen der Inseln",
-      "und drunten in den Gräben liegt allerlei herum: Dinge,",
-      "die jemand verloren hat — und Dinge, die noch nie",
-      "jemand gesehen hat.",
+      "und drunten in den Gräben lebt allerlei, das noch nie",
+      "jemand aufgeschrieben hat.",
+      "",
+      "Dafür die Kamera an deinem Gurt: jede Art einmal scharf",
+      "im Bild, und sie steht in deinem Artenbuch. Entwickelt",
+      "wird hier an Bord — was du nicht heimbringst, zählt nicht.",
       "",
       "Der Anzug hält hundert Meter aus, die Luft ein paar",
       "Minuten. Alles andere ist Neugier.",
@@ -37,6 +40,41 @@ class Game
 
   def story_closing
     "Tauch ab, wenn du so weit bist."
+  end
+
+  # --- The card that comes up the first time you go under ------------------
+  #
+  # The boat's card is read at the surface, before any of it is real. The rules
+  # of the camera only mean something once there is water over your head, so
+  # they are told there, once per round started from the title.
+
+  DIVE_HINT_TICKS = 720 # about twelve seconds — long enough to read, then gone
+
+  def dive_hint_lines
+    [
+      "[ F ]  fotografiert, was vor dir ist",
+      "Je näher dran, desto schärfer — Sprinten verwackelt",
+      "Der Film reicht für #{FILM_MAX} Aufnahmen",
+      "Entwickelt wird am Boot. Was du nicht heimbringst, ist weg.",
+    ]
+  end
+
+  # Triggered by the water closing over him, not by a timer or a key.
+  def update_dive_hint
+    return unless state.dive_hint_pending
+    return if at_open_surface?
+
+    state.dive_hint_pending = false
+    state.dive_hint_at = Kernel.tick_count
+  end
+
+  def dive_hint_visible?
+    !!state.dive_hint_at && Kernel.tick_count - state.dive_hint_at < DIVE_HINT_TICKS
+  end
+
+  # Once he has actually taken a picture the card has done its job.
+  def dismiss_dive_hint
+    state.dive_hint_at = nil
   end
 
   # Still to be told? Only until the first time you go under — after that the

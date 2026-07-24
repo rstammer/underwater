@@ -183,6 +183,83 @@ class IntroTests
     assert.false! game.story_pending?, "and the boat doesn't start over"
   end
 
+  # The boat says what the camera is for before you ever go under.
+  def test_the_boat_explains_the_camera(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    text = (game.story_lines + [game.story_closing]).join(" ")
+
+    assert.true! text.include?("Kamera"), "it names the camera"
+    assert.true! text.include?("Artenbuch"), "and what it fills"
+    assert.true! text.include?("heimbringst"), "and that undeveloped film doesn't count"
+  end
+
+  # The rules of the camera arrive when they start to mean something: with water
+  # over your head, not on a screen you clicked past at the surface.
+  def test_the_camera_rules_come_up_on_the_first_dive(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.type_name(["P", "i", "a"])
+    game.confirm_name # start_round: floating at the surface beside the boat
+
+    game.update_dive_hint
+    assert.false! game.dive_hint_visible?, "not while his head is still out"
+
+    args.state.depth_y = -400 # under he goes
+    game.update_dive_hint
+    assert.true! game.dive_hint_visible?, "now that the water has closed over him"
+
+    text = game.dive_hint_lines.join(" ")
+    assert.true! text.include?("[ F ]"), "it says which key"
+    assert.true! text.include?("Sprinten"), "what spoils a shot"
+    assert.true! text.include?("#{Game::FILM_MAX}"), "how much film there is"
+    assert.true! text.include?("Boot"), "and where it gets developed"
+  end
+
+  def test_the_camera_rules_come_up_only_once(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.type_name(["P", "i", "a"])
+    game.confirm_name
+    args.state.depth_y = -400
+    game.update_dive_hint
+    game.dismiss_dive_hint # read, or a photo taken
+
+    game.update_dive_hint
+
+    assert.false! game.dive_hint_visible?, "it doesn't come back every time he dives"
+  end
+
+  def test_taking_a_photo_puts_the_card_away(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.game_scene = "area1"
+    args.state.diver_global_x = 600
+    args.state.depth_y = -400
+    args.state.direction = :right
+    args.state.dive_hint_pending = true
+    game.update_dive_hint
+    assert.true! game.dive_hint_visible?
+
+    game.current_world
+    args.state.fish = [Creature.new(args, 0, species: Species["burgunder"], x: 640, y: -400)]
+    game.take_photo
+
+    assert.false! game.dive_hint_visible?, "he has got it"
+  end
+
+  def test_the_dive_hint_renders(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.dive_hint_pending = true
+    args.state.depth_y = -400
+    game.update_dive_hint
+
+    game.render_dive_hint
+
+    assert.true! args.outputs.labels.length > game.dive_hint_lines.length, "every line draws"
+  end
+
   # The card doesn't wrap: it draws the lines as written. So measure them — this
   # is the test that complains when the prose gets rewritten a little too long.
   def test_the_story_fits_the_card(args, assert)
@@ -195,6 +272,11 @@ class IntroTests
       assert.true! width <= usable, "\"#{line}\" runs #{width.to_i} px, the card holds #{usable}"
     end
     assert.true! args.gtk.calcstringbox(game.story_closing, 0)[0] <= usable, "so does the closing line"
+    hint_room = Game::HINT_W - 40
+    game.dive_hint_lines.each do |line|
+      width = args.gtk.calcstringbox(line, 0)[0]
+      assert.true! width <= hint_room, "\"#{line}\" runs #{width.to_i} px, the card holds #{hint_room}"
+    end
     assert.true! args.gtk.calcstringbox("W" * Game::NAME_MAX, 2)[0] <= usable, "and the longest name"
   end
 
