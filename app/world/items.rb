@@ -129,6 +129,7 @@ class Game
   def reset_exchange
     state.exchange_side = PACK_SIDE
     state.exchange_index = 0
+    state.boat_page = :hold # every visit opens on what you just brought up
   end
 
   # dx picks the side (-1 pack, +1 hold), drow walks the rows (+1 = one further
@@ -179,6 +180,7 @@ class Game
   # off then (game_paused?), so E means "move this" here and nothing else.
   def update_exchange
     return unless state.game_scene == "home_menu"
+    return if book_page? # the Artenbuch has no cursor to move
 
     keys = inputs.keyboard.key_down
     move_exchange(-1, 0) if keys.left

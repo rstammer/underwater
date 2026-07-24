@@ -178,7 +178,19 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   `Noise.value(x, wavelength, seed)` (smoothstep-interpoliert, 0..1) und
   `Noise.jitter(cell, seed)` (roh, **nicht** interpoliert → gezackt).
 - **`Biome`** — Themen (Sandbank/Kelpwald/Riff/Tiefsee): Wasserpalette, `fog`-Stärke,
-  Boden-Farben, Deko-Dichte, Fauna (Fischanzahl/-farben, `shark`).
+  Boden-Farben, Deko-Dichte, Fauna (`fish_count`, `shark`). **Welche** Arten, sagt
+  das Biom nicht mehr — das steht im Arten-Register.
+- **`Species`** (`app/world/species.rb`) — das Arten-Register, und damit der Inhalt
+  des Spielziels: Name, Angler-Latein, Sprite-Sheet, **in welchen Biomen** und
+  **zwischen welchen Tiefen** eine Art lebt, ihre Seltenheit und ihre Punkte. Daran
+  hängt die ganze Spannung: die seltensten leben **an oder unter der Anzugs-Grenze**
+  (`SUIT_DEPTH_LIMIT`), die letzten Seiten des Artenbuchs kosten also echtes Risiko.
+  `Species.pick(biome, tiefe)` würfelt gewichtet (`RARITIES`) — häufige Arten müssen
+  häufig *sein*, sonst fühlt sich nichts wie ein Fund an; findet sich für eine Tiefe
+  nichts, fällt es auf „irgendwas aus diesem Biom" zurück, damit kein Meeresabschnitt
+  leer bleibt. Eine Art hinzufügen = **eine Zeile in `ALL`**, sonst nichts.
+- **`Creature`** (`app/entities/creature.rb`, früher `SloppyScalar`) — ein Fisch, der
+  seine Art trägt; alles Optische kommt aus `species`.
 - **`WorldGenerator.floor_y_at(world_x)`** — **die eine Wahrheit über den
   Meeresgrund.** Kein Würfeln pro Segment, sondern eine Funktion der Welt-`x`,
   geschichtet aus mehreren Noise-Oktaven: `shelf` (sehr breit — ganze Regionen
@@ -373,6 +385,10 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `world_items` | versteckte Sammelstücke `{kind:, x:, y:, collected:}` in Welt-Koordinaten (pro Runde gewürfelt, `reset_items`) |
 | `inventory` / `stash` | getragene Gegenstände (max `INVENTORY_MAX`) bzw. am Boot eingelagerte (unbegrenzt) |
 | `player_name` | der eingetippte Name; `diver_name` liefert ihn bzw. `DIVER_NAME` als Rückfall |
+| `album` | `{species_key => quality}` — das Artenbuch. **Überlebt den Tod**, als einziges |
+| `film_left` / `film_roll` | Aufnahmen übrig bzw. belichtete, noch nicht entwickelte Fotos `{key:, quality:}` — beides pro Runde |
+| `shot_at` / `shot_note` | Tick der letzten Aufnahme und was drauf ist, für Blitz und Einblender |
+| `boat_page` | `:hold` oder `:book` — welche Seite des Boot-Screens offen ist |
 | `story_told` | ob die Eröffnung am Boot durch ist — `false` nur ab `start_round`, wird beim ersten Abtauchen `true` |
 | `exchange_side` / `exchange_index` | Cursor im Boot-Screen: welche Spalte (`"pack"`/`"hold"`) und welche Zeile darin — nur dort relevant, `reset_exchange` beim Öffnen |
 
@@ -418,8 +434,31 @@ Screen-Positionen und werden nicht direkt gesetzt.
   (`""` = Absatz), zum Umschreiben gedacht — die Karte **bricht nicht um**, deshalb
   misst `test_the_story_fits_the_card` jede Zeile mit `calcstringbox` gegen `STORY_W`
   und meckert, sobald sie zu lang wird.
+- **Fotografieren (`app/world/photography.rb`) — das Ziel des Spiels.** Jede Art,
+  die man zum ersten Mal ablichtet, ist eine Seite im **Artenbuch**; `album_score`
+  liest die Punkte aus dem Buch (kein mitgeführter Zähler, der aus dem Tritt geraten
+  kann). **`F`** ist der Auslöser.
+  - **Motiv** (`photo_subject`): die nächste Kreatur in `PHOTO_REACH`, die **vor** ihm
+    ist (`in_front?`, `state.direction`) — über die Schulter schießen gilt nicht. An
+    der Oberfläche gibt es nichts (`fauna_visible?`).
+  - **Qualität** (`photo_quality`) aus der Entfernung: `perfekt`/`gut`/`unscharf`,
+    und **Sprinten kostet eine Stufe** — man nähert sich also leise statt zu pflügen.
+  - **Film ist knapp:** `FILM_MAX` Aufnahmen pro Tauchgang. Ein Foto ist **belichteter
+    Film, kein Eintrag** — erst `develop_film` **am Boot** macht Buchseiten daraus und
+    legt einen frischen Film ein. **Ertrinken kostet die Rolle**, nie das Buch
+    (`reset_film` in `reset_game`, `state.album` nur in `initialize_game`).
+  - Ein Foto, das **nicht besser** ist als das vorhandene (auf der Rolle *oder* im
+    Buch), kostet **keinen Film** (`improves?`) — sonst wäre Vor-einem-Fisch-Stehen
+    eine Strategie.
+  - `F` ist Auslöser unter Wasser **und** Dunkelkammer am Boot — dieselbe Taste, weil
+    man am Boot an der Oberfläche ist, wo es nie ein Motiv gibt.
+  - **Namensgebung-Falle:** nichts hier heißt `camera` — das Wort bedeutet schon die
+    Sicht (`state.camera_x/camera_y`).
 - **Boot-Screen (Home-Menü):** `L` am Boot öffnet `home_menu` (pausiert, Welt friert
-  hinter einem Schleier ein) — drei Spalten in `render_boat_screen`:
+  hinter einem Schleier ein). **Zwei Seiten, `Tab` blättert** (`update_boat_page`,
+  `state.boat_page`): das **Artenbuch** (jede Art der Welt, dokumentiert oder nicht —
+  die Lücken sind der Sinn; ungefundene stehen gedimmt mit lateinischem Namen da) und
+  die Runde selbst mit drei Spalten in `render_boat_screen`:
   - **Logbuch** (links) — die Bilanz der Runde: tiefster Tauchgang, erkundete
     Sektoren, gefundene Inseln, durchtauchte Höhlen. Gezählt wird pro Tauch-Tick in
     `track_log` (Sektoren/Inseln/Höhlen als Index-Sets → kein Doppelzählen; Höhle
@@ -544,6 +583,8 @@ Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
 `SUIT_REPAIR=0.4`, `BOAT_REACH=160`, `SPRINT_MULTIPLIER=2`, `SHARK_PATROL_SPREAD=200`,
 `SOLID_STEP_UP=48`, `ISLAND_MIN_SECTOR=2`, `ISLAND_MAX_SECTOR=10`, `ISLAND_NEAR_SECTOR=3`,
 `ISLAND_COUNT=3`,
+`FILM_MAX=12`, `PHOTO_REACH=320`, `PHOTO_CLOSE=90`, `PHOTO_MID=190`, `PHOTO_BEHIND=40`,
+`QUALITY_FACTOR` (unscharf 0.5 / gut 1.0 / perfekt 1.6), `SHUTTER_TICKS`, `NOTE_TICKS`;
 `FOG_OF_WAR=true`, `DEBUG=false`.
 
 `app/world/world_generator.rb` (Geländeform): `FLOOR_TOP_Y`, `SHELF_*`,

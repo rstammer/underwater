@@ -189,6 +189,75 @@ class PhotographyTests
     assert.equal! args.state.album.length, 1
   end
 
+  # The Artenbuch lists the whole sea, documented or not — the gaps are the
+  # point of it.
+  def test_the_book_lists_every_species_found_or_not(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.album = { "burgunder" => :gut }
+
+    rows = game.artenbuch_rows
+
+    assert.equal! rows.length, Species::ALL.length, "every species has a row"
+    found = rows.find { |row| row[:species].key == "burgunder" }
+    assert.equal! found[:quality], :gut
+    assert.equal! found[:points], Species["burgunder"].points
+    missing = rows.find { |row| row[:species].key == "laternentraeger" }
+    assert.equal! missing[:quality], nil, "and one never seen is plainly missing"
+    assert.equal! missing[:points], 0
+  end
+
+  def test_tab_turns_to_the_book_and_back(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.spawn_at_surface
+    args.state.game_scene = "area1"
+    game.toggle_home_menu(true)
+    assert.false! game.book_page?, "it opens on what you just brought up"
+
+    args.inputs.keyboard.key_down.tab = true
+    game.update_boat_page
+    assert.true! game.book_page?, "Tab turns to the Artenbuch"
+
+    game.update_boat_page
+    assert.false! game.book_page?, "and back again"
+  end
+
+  # On the book page the arrows must not be quietly shuffling the hold about
+  # behind it.
+  def test_the_book_page_has_no_exchange_cursor(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.spawn_at_surface
+    args.state.game_scene = "area1"
+    args.state.inventory = ["shoe", "can"]
+    game.toggle_home_menu(true)
+    args.state.boat_page = :book
+
+    args.inputs.keyboard.key_down.e = true
+    game.update_exchange
+
+    assert.equal! args.state.inventory.length, 2, "nothing moved"
+    assert.equal! args.state.stash.length, 0
+  end
+
+  def test_the_book_page_renders(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.spawn_at_surface
+    args.state.game_scene = "area1"
+    args.state.album = { "burgunder" => :perfekt, "hornhering" => :unscharf }
+    game.toggle_home_menu(true)
+    args.state.boat_page = :book
+
+    game.home_menu_tick
+    text = args.outputs.labels.map { |label| label[:text] }.join(" ")
+
+    assert.true! text.include?("Artenbuch"), "the page names itself"
+    assert.true! text.include?("Blauer Burgunder"), "and lists what he has"
+    assert.true! text.include?("Lucerna abyssi"), "and what he hasn't, by its latin name"
+  end
+
   def test_the_hud_draws_the_camera_without_error(args, assert)
     game = diving_with_a_fish(args, away: 40)
     game.take_photo

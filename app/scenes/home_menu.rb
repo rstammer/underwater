@@ -26,6 +26,19 @@ class Game
     render_boat_screen
   end
 
+  # The boat screen has two pages: the round and the hold on one, the Artenbuch —
+  # what the whole thing is *for* — on the other. Tab turns the page.
+  def update_boat_page
+    return unless state.game_scene == "home_menu"
+    return unless inputs.keyboard.key_down.tab
+
+    state.boat_page = state.boat_page == :book ? :hold : :book
+  end
+
+  def book_page?
+    state.boat_page == :book
+  end
+
   # The record rows, as [label, value] pairs — a plain method so the tally is
   # testable without reaching into the rendered labels.
   def logbook_rows
@@ -58,14 +71,70 @@ class Game
 
     head_y = top - MENU_PAD - 60
     row_y = top - MENU_PAD - 128 # clear of the rule under the headings
-    render_logbook(left + MENU_PAD, head_y, row_y)
-    render_pack_column(left + MENU_PAD + 316, head_y, row_y)
-    render_hold_column(left + MENU_PAD + 584, head_y, row_y)
+    if book_page?
+      render_artenbuch(left + MENU_PAD, head_y, row_y)
+    else
+      render_logbook(left + MENU_PAD, head_y, row_y)
+      render_pack_column(left + MENU_PAD + 316, head_y, row_y)
+      render_hold_column(left + MENU_PAD + 584, head_y, row_y)
+    end
 
-    outputs.labels << { x: (left + right) / 2, y: bottom + MENU_PAD,
-                        text: "Pfeiltasten wählen   ·   [ E ] verschieben   ·   L / ESC schließen",
+    hint = book_page? ? "[ Tab ] Logbuch & Lager   ·   L / ESC schließen"
+                      : "Pfeiltasten wählen   ·   [ E ] verschieben   ·   [ Tab ] Artenbuch   ·   L / ESC schließen"
+    outputs.labels << { x: (left + right) / 2, y: bottom + MENU_PAD, text: hint,
                         size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+  end
+
+  BOOK_COL_W = 390
+  BOOK_ROW_H = 50
+
+  # One row per species in the sea, in the order they live from the shallows
+  # down: what you have, and — just as importantly — what you haven't. A plain
+  # method, so the tally is testable without reading it back off the screen.
+  def artenbuch_rows
+    Species::ALL.map do |species|
+      quality = state.album[species.key]
+      { species: species, quality: quality,
+        points: quality ? photo_points(species, quality) : 0 }
+    end
+  end
+
+  def render_artenbuch(x, head_y, row_y)
+    rows = artenbuch_rows
+    column_heading(x, head_y, "Artenbuch  #{album_found} / #{Species::ALL.length}", BOOK_COL_W)
+    column_heading(x + BOOK_COL_W + 56, head_y, "Punkte  #{album_score}", BOOK_COL_W)
+
+    per_column = (rows.length + 1).idiv(2)
+    rows.each_with_index do |row, i|
+      col_x = x + (i < per_column ? 0 : BOOK_COL_W + 56)
+      render_book_row(col_x, row_y - (i % per_column) * BOOK_ROW_H, row)
+    end
+  end
+
+  # A documented species stands in its own colours with the grade of the photo;
+  # one still missing sits in the dark with its latin name, which is the whole
+  # invitation to go and look for it.
+  def render_book_row(x, y, row)
+    species = row[:species]
+    found = !row[:quality].nil?
+    ink = found ? MENU_INK : MENU_DIM_INK
+
+    outputs.sprites << { x: x + 26, y: y, w: species.frame_w, h: species.frame_h,
+                         path: species.sheet, anchor_x: 0.5, anchor_y: 0.5,
+                         source_x: 0, source_y: 0,
+                         source_w: species.frame_w, source_h: species.frame_h,
+                         a: found ? 255 : 70 }
+    outputs.labels << { x: x + 60, y: y + 10, text: species.name, size_enum: 1,
+                        vertical_alignment_enum: 1, r: ink[0], g: ink[1], b: ink[2] }
+    outputs.labels << { x: x + 60, y: y - 10, text: species.latin, size_enum: 0,
+                        vertical_alignment_enum: 1,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2], a: 150 }
+
+    right = found ? "#{row[:quality]}   #{row[:points]}" : "—"
+    outputs.labels << { x: x + BOOK_COL_W, y: y, text: right, size_enum: 1,
+                        alignment_enum: 2, vertical_alignment_enum: 1,
+                        r: ink[0], g: ink[1], b: ink[2] }
   end
 
   def render_logbook(x, head_y, row_y)
