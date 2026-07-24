@@ -213,29 +213,35 @@ class Game
     return [] unless world.roof
 
     tiles = []
-    each_run(world.roof) do |rock, first_col, width|
-      next unless rock
+    each_run(world.roof) do |slabs, first_col, width|
+      next if slabs.nil? || slabs.empty?
 
-      top = [rock[:crown], state.camera_y + SCREEN_HEIGHT].min
-      bottom = [rock[:ceiling], state.camera_y].max
-      bottom = WATERLINE_Y if !submerged_visible? && bottom < WATERLINE_Y # only what's above water
-      next if top <= bottom # this slab is off screen
-
-      island = rock[:crown] > WATERLINE_Y
-      grassy = rock[:crown] > WATERLINE_Y + GREEN_MIN
-      body = island ? ISLAND_ROCK : world.biome.floor_colors[2]
-      x = first_col * World::COLUMN_WIDTH + dx
-      w = width * World::COLUMN_WIDTH + 1
-      shade = (rock[:ceiling].idiv(WorldGenerator::FLOOR_STEP) % 5 - 2) * 4
-      dim = roof_light(top)
-
-      tiles << sand({ x: x, y: bottom - state.camera_y, w: w, h: top - bottom }, body, shade, dim)
-      tiles << sand({ x: x, y: rock[:ceiling] - state.camera_y, w: w, h: 4 },
-                    world.biome.floor_colors[0], shade, dim) # lit rim under the rock
-      tiles << sand({ x: x, y: rock[:crown] - state.camera_y - GREEN_CAP, w: w, h: GREEN_CAP },
-                    GREEN, shade, 1.0) if grassy # grass on top of the island
+      slabs.each { |rock| roof_slab(tiles, world, rock, first_col, width, dx) }
     end
     tiles
+  end
+
+  # One slab of a column run: its body, the lit rim under it, and grass on top if
+  # it stands far enough out of the water.
+  def roof_slab(tiles, world, rock, first_col, width, dx)
+    top = [rock[:crown], state.camera_y + SCREEN_HEIGHT].min
+    bottom = [rock[:ceiling], state.camera_y].max
+    bottom = WATERLINE_Y if !submerged_visible? && bottom < WATERLINE_Y # only what's above water
+    return if top <= bottom # this slab is off screen
+
+    island = rock[:crown] > WATERLINE_Y
+    grassy = rock[:crown] > WATERLINE_Y + GREEN_MIN
+    body = island ? ISLAND_ROCK : world.biome.floor_colors[2]
+    x = first_col * World::COLUMN_WIDTH + dx
+    w = width * World::COLUMN_WIDTH + 1
+    shade = (rock[:ceiling].idiv(WorldGenerator::FLOOR_STEP) % 5 - 2) * 4
+    dim = roof_light(top)
+
+    tiles << sand({ x: x, y: bottom - state.camera_y, w: w, h: top - bottom }, body, shade, dim)
+    tiles << sand({ x: x, y: rock[:ceiling] - state.camera_y, w: w, h: 4 },
+                  world.biome.floor_colors[0], shade, dim) # lit rim under the rock
+    tiles << sand({ x: x, y: rock[:crown] - state.camera_y - GREEN_CAP, w: w, h: GREEN_CAP },
+                  GREEN, shade, 1.0) if grassy # grass on top of the island
   end
 
   # Air trapped under rock — the cave's own little sky, with the water surface

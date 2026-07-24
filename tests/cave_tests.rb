@@ -18,8 +18,8 @@ class CaveTests
   def tunnel_world(index)
     columns = WorldGenerator.columns
     floor = Array.new(columns) { 0 }
-    roof = Array.new(columns) { nil }
-    (ROOF_FROM...ROOF_TO).each { |c| roof[c] = { ceiling: CEILING, crown: CROWN } }
+    roof = Array.new(columns) { [] }
+    (ROOF_FROM...ROOF_TO).each { |c| roof[c] = [{ ceiling: CEILING, crown: CROWN }] }
     World.new(index: index, biome: Biome::SANDBANK, floor: floor, decorations: [], roof: roof)
   end
 
@@ -40,14 +40,33 @@ class CaveTests
   def test_a_world_without_a_roof_is_open_water(args, assert)
     world = WorldGenerator.generate(2)
 
-    assert.equal! world.roof_at(640), nil, "the open sea has no rock overhead"
+    assert.equal! world.slabs_at(640), [], "the open sea has no rock overhead"
   end
 
   def test_roof_reports_the_rock_overhead(args, assert)
-    rock = tunnel_world(0).roof_at(x_under_roof)
+    slabs = tunnel_world(0).slabs_at(x_under_roof)
 
-    assert.equal! rock[:ceiling], CEILING, "the underside he bumps his head on"
-    assert.equal! rock[:crown], CROWN, "and the top of the slab"
+    assert.equal! slabs.length, 1, "one slab hangs over this column"
+    assert.equal! slabs[0][:ceiling], CEILING, "the underside he bumps his head on"
+    assert.equal! slabs[0][:crown], CROWN, "and the top of the slab"
+  end
+
+  # Two slabs over one column: a passage running above another, with rock between
+  # them. Which one bounds the diver depends on where in the column he is.
+  def test_stacked_slabs_make_two_separate_passages(args, assert)
+    columns = WorldGenerator.columns
+    floor = Array.new(columns) { 0 }
+    roof = Array.new(columns) { [] }
+    lower = { ceiling: 200, crown: 300 }  # rock between the two passages
+    upper = { ceiling: 500, crown: 620 }  # the roof over the upper one
+    (ROOF_FROM...ROOF_TO).each { |c| roof[c] = [lower, upper] }
+    world = World.new(index: 0, biome: Biome::SANDBANK, floor: floor, decorations: [], roof: roof)
+    x = x_under_roof
+
+    assert.false! world.solid_at?(x, 100), "the lower passage is open water"
+    assert.true! world.solid_at?(x, 250), "the rock between them is solid"
+    assert.false! world.solid_at?(x, 400), "so is the upper passage"
+    assert.true! world.solid_at?(x, 550), "and the roof over the whole thing"
   end
 
   def test_the_diver_cannot_swim_up_through_the_cave_roof(args, assert)

@@ -424,27 +424,37 @@ class Game
     footprint(world_x).map { |x| floor_y_at(x) }.max
   end
 
-  # The rock slab hanging over the diver's footprint at a world x: its lowest
-  # underside and its highest top, or nil where the water is open all the way up.
-  def roof_span_at(world_x)
-    rocks = footprint(world_x).map { |x| roof_at(x) }.compact
-    return nil if rocks.empty?
-
-    { ceiling: rocks.map { |rock| rock[:ceiling] }.min,
-      crown: rocks.map { |rock| rock[:crown] }.max }
+  # What bounds the water at a world x for a diver currently at `depth`:
+  # [rock below, rock above (or nil for open water)]. A column can hold several
+  # slabs — one passage running over another — so what matters is not the topmost
+  # or bottommost rock but the *pocket he is actually in*: what he rests on, and
+  # what he'd bump his head on. Read across his whole footprint, so he only fits
+  # where he fits on both sides of himself.
+  def rock_span_at(world_x, depth)
+    floors = []
+    ceilings = []
+    footprint(world_x).each do |x|
+      floor, ceiling = pocket_at(x, depth)
+      floors << floor
+      ceilings << ceiling
+    end
+    [floors.max, ceilings.compact.min]
   end
 
-  # What bounds the water at a world x for a diver currently at `depth`:
-  # [rock below, rock above (or nil for open water)]. Usually that is the sand
-  # and a cave roof — but where he is swimming *over* a submerged slab, its top
-  # is the floor and the sky is open.
-  def rock_span_at(world_x, depth)
-    sand = floor_top_at(world_x)
-    rock = roof_span_at(world_x)
-    return [sand, nil] unless rock
-    return [[sand, rock[:crown]].max, nil] if over_slab?(rock, depth)
-
-    [sand, rock[:ceiling]]
+  # The pocket at a single world x: the sand, raised to the top of any slab he is
+  # swimming over, and the underside of the lowest slab above him (nil if the
+  # water is open to the sky).
+  def pocket_at(world_x, depth)
+    floor = floor_y_at(world_x)
+    ceiling = nil
+    slabs_at(world_x).each do |slab|
+      if over_slab?(slab, depth)
+        floor = slab[:crown] if slab[:crown] > floor
+      elsif ceiling.nil? || slab[:ceiling] < ceiling
+        ceiling = slab[:ceiling]
+      end
+    end
+    [floor, ceiling]
   end
 
   # He is over a slab only if he is above it *and* there is enough water left
@@ -465,8 +475,8 @@ class Game
     world_at(world_x.idiv(SCREEN_WIDTH)).floor_y_at(world_x % SCREEN_WIDTH)
   end
 
-  def roof_at(world_x)
-    world_at(world_x.idiv(SCREEN_WIDTH)).roof_at(world_x % SCREEN_WIDTH)
+  def slabs_at(world_x)
+    world_at(world_x.idiv(SCREEN_WIDTH)).slabs_at(world_x % SCREEN_WIDTH)
   end
 
   # Sprinting (holding the sprint key while actually swimming) makes the diver

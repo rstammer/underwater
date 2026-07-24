@@ -77,8 +77,10 @@ class Game
     state.fish = biome.fish_count.times.map do
       col = rand(world.columns)
       floor_y = world.floor[col]
-      rock = world.roof && world.roof[col]
-      top = rock ? rock[:ceiling] : WATERLINE_Y # under a cave roof they stay in the tunnel
+      slabs = world.roof ? (world.roof[col] || []) : []
+      # Under rock they stay in the passage they spawned in: the lowest slab over
+      # them is their sky.
+      top = slabs.empty? ? WATERLINE_Y : slabs.map { |slab| slab[:ceiling] }.min
       headroom = top - floor_y - 100
       headroom = FAUNA_BAND if headroom > FAUNA_BAND
       headroom = 30 if headroom < 30

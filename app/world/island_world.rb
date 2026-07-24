@@ -67,7 +67,7 @@ class IslandWorld
 
   def build
     floor = @world.floor.dup
-    roof = Array.new(@world.columns) { nil }
+    roof = Array.new(@world.columns) { [] }
 
     (first_column...last_column).each do |col|
       base = tunnel_floor_y(col)
@@ -75,10 +75,10 @@ class IslandWorld
       dome = chamber_roof_at(col)
       ceiling = dome || base + tunnel_height(col)
       ceiling = base + MIN_GAP if ceiling - base < MIN_GAP # always swimmable
-      roof[col] = { ceiling: ceiling, crown: crown_y(col) }
+      roof[col] = [{ ceiling: ceiling, crown: crown_y(col) }]
     end
 
-    skerry_columns.each { |col, rock| roof[col] = rock }
+    skerry_columns.each { |col, rock| roof[col] = [rock] }
 
     World.new(index: @world.index, biome: @world.biome, floor: floor, roof: roof,
               decorations: decorations(roof) + tunnel_decor(floor),
@@ -296,16 +296,23 @@ class IslandWorld
   end
 
   # The crown as runs of equal height: |first column, width in columns, world y|.
+  # Reads the *topmost* slab of a column: deeper in the rock there may be others,
+  # but the skyline plants stand on is the one at the top.
   def plateaus(roof)
     runs = []
     first = first_column
     (first_column + 1..last_column).each do |col|
-      next if col < last_column && roof[col][:crown] == roof[first][:crown]
+      next if col < last_column && skyline(roof, col) == skyline(roof, first)
 
-      runs << { first: first, width: col - first, y: roof[first][:crown] }
+      runs << { first: first, width: col - first, y: skyline(roof, first) }
       first = col
     end
     runs
+  end
+
+  def skyline(roof, col)
+    slabs = roof[col]
+    slabs.empty? ? nil : slabs.map { |slab| slab[:crown] }.max
   end
 
   # What belongs where: driftwood and crabs down on the beach, and further up

@@ -204,11 +204,22 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
 - **`StaticWorlds`** — Registry, um einzelne Indizes mit **handgebauten** Welten zu
   überschreiben (`world_for` = statisch ?: generiert). Der „Mix"-Hook; aktuell leer.
 - **Höhlen: `roof` + `air_pockets`.** Eine Heightmap kann **keine** Höhle
-  beschreiben (sie kennt nur „Sand bis hierhin"). Deshalb kann eine Welt pro
-  Spalte eine **zweite Fels-Spanne** tragen: `roof[col] = { ceiling:, crown: }` —
-  Fels von `ceiling` (Unterkante, wo der Taucher anstößt) bis `crown` (Oberkante);
-  `nil` = offenes Wasser. Dazu `air_pockets`: Rechtecke eingeschlossener Luft,
-  deren **Unterkante die Wasseroberfläche darin** ist (`air_line_at`, `air_at?`).
+  beschreiben (sie kennt nur „Sand bis hierhin"). Deshalb trägt eine Welt über dem
+  Sand zusätzlich **Fels-Spannen pro Spalte**: `roof[col]` ist eine **Liste** von
+  `{ ceiling:, crown: }` — Fels von `ceiling` (Unterkante, wo der Taucher anstößt)
+  bis `crown` (Oberkante); `[]` = offenes Wasser, `roof` selbst `nil` = im ganzen
+  Segment kein Fels. **Liste, nicht eine Spanne**, weil eine Spalte mehrere Slabs
+  tragen können muss — nur so läuft ein Gang über einem anderen, und nur so wird
+  aus einem Korridor ein Netz. Gelesen wird über `World#slabs_at(x)` (unterste
+  zuerst), `solid_at?` prüft alle. Dazu `air_pockets`: Rechtecke eingeschlossener
+  Luft, deren **Unterkante die Wasseroberfläche darin** ist (`air_line_at`, `air_at?`).
+- **Die Wassertasche statt „der Felsspanne".** Weil eine Spalte mehrere Slabs hat,
+  fragt der Taucher nicht mehr „welcher Fels ist über mir", sondern **in welcher
+  Tasche stecke ich**: `pocket_at(world_x, depth)` liefert den Boden (Sand, oder die
+  Oberkante eines Slabs, über dem er schwimmt) und die Decke (Unterkante des
+  nächsten Slabs darüber, `nil` bei offenem Wasser); `rock_span_at` nimmt das über
+  seine ganze Breite (`footprint`) — höchster Boden, niedrigste Decke, damit er nur
+  dort durchpasst, wo er auf **beiden** Seiten durchpasst.
 - **`IslandWorld`** — eine Insel: wird **auf** eine generierte Welt gestempelt
   (`IslandWorld.build(world)`), nicht statt ihrer — so bleiben die Segmentränder
   unangetastet und nahtlos. Es ist eine **Klasse pro Insel**: Spannweite (`span`)

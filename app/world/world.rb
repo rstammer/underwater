@@ -10,10 +10,15 @@ class World
   # floor:       array of sand *world y* values, one per column across the
   #              segment. Higher = shallower; deep trenches are far below 0.
   # decorations: array of { kind:, x:, y:, scale: } resting on the floor
-  # roof:        optional second solid span per column — nil for open water, or
-  #              { ceiling:, crown: }: rock from `ceiling` (its underside, what
-  #              the diver bumps his head on) up to `crown` (its top). A
-  #              heightmap alone cannot describe a cave; this is the other half.
+  # roof:        optional solid rock *above* the sand — nil when the segment has
+  #              none at all, otherwise one entry per column: an array of slabs,
+  #              each { ceiling:, crown: } — rock from `ceiling` (its underside,
+  #              what the diver bumps his head on) up to `crown` (its top), and
+  #              `[]` where the water is open all the way up. A heightmap alone
+  #              cannot describe a cave; this is the other half. It is a *list*
+  #              because one column can hold more than one slab — that is what
+  #              lets a passage run over another one with rock in between, and
+  #              so what makes a tunnel a network rather than a corridor.
   # air_pockets: rects { x:, y:, w:, h: } of air trapped under rock. Their bottom
   #              edge is the water surface inside; a diver whose head is in one
   #              can breathe there.
@@ -34,12 +39,11 @@ class World
   end
 
   # Is this segment-local point inside rock — sand below the floor, or the body
-  # of a slab hanging above it?
+  # of any slab hanging above it?
   def solid_at?(x, y)
     return true if y < floor_y_at(x)
 
-    rock = roof_at(x)
-    !!(rock && y >= rock[:ceiling] && y <= rock[:crown])
+    slabs_at(x).any? { |slab| y >= slab[:ceiling] && y <= slab[:crown] }
   end
 
   # Is this segment-local point inside trapped air?
@@ -58,10 +62,12 @@ class World
     floor[column_at(x)]
   end
 
-  # The rock overhead at a segment-local x — { ceiling:, crown: } or nil where
+  # Every slab of rock stacked over a segment-local x, lowest first — empty where
   # the water is open all the way to the surface.
-  def roof_at(x)
-    roof && roof[column_at(x)]
+  def slabs_at(x)
+    return [] unless roof
+
+    roof[column_at(x)] || []
   end
 
   def column_at(x)

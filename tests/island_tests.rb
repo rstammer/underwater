@@ -17,7 +17,7 @@ class IslandTests
 
   def test_the_island_breaks_the_surface(args, assert)
     built = island.build
-    crowns = (island.first_column...island.last_column).map { |col| built.roof[col][:crown] }
+    crowns = (island.first_column...island.last_column).map { |col| built.roof[col][0][:crown] }
 
     assert.true! crowns.max > WATERLINE_Y + 100, "the summit rises well out of the sea"
     assert.true! crowns.min > WATERLINE_Y, "and even the shore stands clear of the water"
@@ -37,7 +37,7 @@ class IslandTests
       assert.true! rock[:crown] > WATERLINE_Y, "its top breaks the surface (#{rock[:crown]})"
       assert.true! rock[:crown] < WATERLINE_Y + IslandWorld::SHORE_HEIGHT, "but stays low, no summit (#{rock[:crown]})"
       assert.true! rock[:ceiling] < WATERLINE_Y, "its base is under the water (#{rock[:ceiling]})"
-      assert.equal! built.roof[col], rock, "and it is really in the world's rock"
+      assert.equal! built.roof[col], [rock], "and it is really in the world's rock"
     end
   end
 
@@ -63,7 +63,7 @@ class IslandTests
   # one shoulder to it.
   def test_the_skyline_is_not_a_smooth_dome(args, assert)
     built = island.build
-    crowns = (island.first_column...island.last_column).map { |col| built.roof[col][:crown] }
+    crowns = (island.first_column...island.last_column).map { |col| built.roof[col][0][:crown] }
 
     plateaus = (1...crowns.length).count { |i| crowns[i] == crowns[i - 1] }
     assert.true! plateaus > crowns.length / 3, "the crown should sit in flat steps (#{plateaus})"
@@ -79,7 +79,7 @@ class IslandTests
     b = island_for(-7)
     shape = lambda do |isle|
       world = isle.build
-      (isle.first_column...isle.last_column).map { |col| world.roof[col][:crown] }
+      (isle.first_column...isle.last_column).map { |col| world.roof[col][0][:crown] }
     end
 
     assert.true! [a.span, a.peak] != [b.span, b.peak] || shape.call(a) != shape.call(b),
@@ -94,8 +94,8 @@ class IslandTests
 
     assert.equal! built.floor.first, plain.floor.first
     assert.equal! built.floor.last, plain.floor.last
-    assert.equal! built.roof.first, nil, "open water at the border"
-    assert.equal! built.roof.last, nil
+    assert.equal! built.roof.first, [], "open water at the border"
+    assert.equal! built.roof.last, []
   end
 
   # A corridor runs the whole way through, wide enough to swim in.
@@ -103,7 +103,7 @@ class IslandTests
     built = island.build
 
     (island.first_column...island.last_column).each do |col|
-      rock = built.roof[col]
+      rock = built.roof[col][0]
       assert.false! rock.nil?, "column #{col} should be part of the island"
       gap = rock[:ceiling] - built.floor[col]
       assert.true! gap >= Diver::HEIGHT * 2, "the tunnel must stay swimmable (gap #{gap} at #{col})"
@@ -133,7 +133,7 @@ class IslandTests
       next if d[:kind] == "gull" # those fly
 
       if d[:y] > WATERLINE_Y
-        assert.equal! d[:y], built.roof[col][:crown], "#{d[:kind]} stands on the crown"
+        assert.equal! d[:y], built.roof[col][0][:crown], "#{d[:kind]} stands on the crown"
       else
         assert.equal! d[:y], built.floor[col], "#{d[:kind]} grows on the tunnel floor"
       end
@@ -202,7 +202,7 @@ class IslandTests
     # and a fractional column silently reads the wrong one.
     assert.equal! island.chamber_first, island.chamber_first.to_i, "columns stay whole numbers"
     air = built.air_pockets.first
-    ceiling = built.roof[island.chamber_first][:ceiling]
+    ceiling = built.roof[island.chamber_first][0][:ceiling]
 
     assert.true! built.air_at?(air[:x] + 10, ceiling - 10), "air right under the dome"
     assert.false! built.air_at?(air[:x] + 10, air[:y] - 10), "water below its surface"
@@ -218,7 +218,7 @@ class IslandTests
       isle = island_for(sector)
       world = isle.build
       cols = (isle.first_column...isle.last_column)
-      gaps = cols.map { |col| world.roof[col][:ceiling] - world.floor[col] }
+      gaps = cols.map { |col| world.roof[col][0][:ceiling] - world.floor[col] }
 
       assert.true! gaps.min >= IslandWorld::MIN_GAP,
                    "sector #{sector} has a gap of #{gaps.min} — the diver is #{Diver::HEIGHT * 2} tall"
@@ -239,7 +239,7 @@ class IslandTests
         first = air[:x].idiv(World::COLUMN_WIDTH)
         last = (air[:x] + air[:w]).idiv(World::COLUMN_WIDTH)
         (first...last).each do |col|
-          assert.equal! world.roof[col][:ceiling], air[:y] + air[:h],
+          assert.equal! world.roof[col][0][:ceiling], air[:y] + air[:h],
                         "sector #{sector}: the air reaches exactly up to the rock at column #{col}"
           assert.true! world.floor[col] < air[:y], "and floats above the corridor floor"
         end
