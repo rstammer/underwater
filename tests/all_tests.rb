@@ -1,6 +1,7 @@
 # Aggregates the whole suite so `bin/test` covers everything in one run.
 require "tests/diver_tests.rb"
-require "tests/sloppy_scalar_tests.rb"
+require "tests/creature_tests.rb"
+require "tests/species_tests.rb"
 require "tests/fog_of_war_tests.rb"
 require "tests/game_tests.rb"
 require "tests/camera_tests.rb"

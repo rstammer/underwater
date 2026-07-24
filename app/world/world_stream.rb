@@ -96,11 +96,19 @@ class Game
       headroom = 30 if headroom < 30
       y = floor_y + 30 + rand(headroom)
       from_x, to_x = open_water_span(world, col, y)
-      SloppyScalar.new(args, 0,
-                       x: col * World::COLUMN_WIDTH, y: y,
-                       from_x: from_x, to_x: to_x,
-                       color: biome.fish_colors.sample.to_sym)
+      # What lives here depends on the biome *and* how deep this stretch is, so
+      # a trench in the deep sea holds different things than its shallow bank.
+      Creature.new(args, 0,
+                   species: Species.pick(biome, depth_in_metres(y)),
+                   x: col * World::COLUMN_WIDTH, y: y,
+                   from_x: from_x, to_x: to_x)
     end
+  end
+
+  # How deep a world y is, in the metres the roster and the HUD talk in.
+  def depth_in_metres(world_y)
+    depth = (WATERLINE_Y - world_y) / PIXELS_PER_METRE
+    depth < 0 ? 0 : depth.to_i
   end
 
   # How far a fish can swim either way from where it spawned before it would run
@@ -116,6 +124,6 @@ class Game
 
   def open_water?(world, col, y)
     x = col * World::COLUMN_WIDTH
-    !world.solid_at?(x, y - SloppyScalar::DRIFT) && !world.solid_at?(x, y + SloppyScalar::DRIFT)
+    !world.solid_at?(x, y - Creature::DRIFT) && !world.solid_at?(x, y + Creature::DRIFT)
   end
 end

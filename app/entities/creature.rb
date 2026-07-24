@@ -1,26 +1,36 @@
-class SloppyScalar
-  BASE_PATH = "sprites/animals/scalar_32_16/"
-  WIDTH = 32
-  HEIGHT = 16
-  SPRITES_PER_ROW = 8
-  COLORS = [:orange, :blue, :green, :purple]
+# A fish in the water, of some species. It patrols the stretch of open water it
+# was spawned in and drifts a little around its home depth; everything about how
+# it *looks* comes from its species (see app/world/species.rb), so adding a fish
+# to the sea is adding a row to that roster, not a class here.
+class Creature
   SPEEDS = [0.25, 0.5, 0.75, 0.65, 0.35, 0.15]
-  DRIFT = 60 # how far the fish wanders from the depth it was spawned at
+  DRIFT = 60 # how far it wanders from the depth it was spawned at
+
+  attr_reader :species
 
   # from_x/to_x bound the stretch of open water this fish was spawned in — it
   # turns around at the ends rather than swimming on into rock.
-  def initialize(current_args, sprite_index, x: 10, y: 200, color: nil,
+  def initialize(current_args, sprite_index, species:, x: 10, y: 200,
                  from_x: 0, to_x: SCREEN_WIDTH)
     @sprite_index = sprite_index
     @current_args = current_args
+    @species = species
     @x = x
     @y = y
     @home_y = y # world y of its patch of water — it never strays far from this
     @from_x = from_x
     @to_x = to_x
     @heading = 1
-    @color = color || COLORS.sample
     @speed = SPEEDS.sample
+    @size = [1, 1, 1, 2].sample
+  end
+
+  def x
+    @x
+  end
+
+  def y
+    @y
   end
 
   # It patrols its stretch of water and turns at both ends; y drifts around its
@@ -45,12 +55,16 @@ class SloppyScalar
     end
   end
 
-  def path
-    BASE_PATH + @color.to_s + ".png"
+  def size
+    @size
   end
 
-  def size
-    @size ||= [1, 1, 1, 2].sample
+  def w
+    species.frame_w * size
+  end
+
+  def h
+    species.frame_h * size
   end
 
   def to_h
@@ -58,13 +72,13 @@ class SloppyScalar
       x: @x,
       y: @y,
       flip_horizontally: @heading < 0,
-      w: WIDTH * size,
-      h: HEIGHT * size,
-      path: path,
-      source_x: WIDTH * @sprite_index,
-      source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor,
-      source_w: WIDTH,
-      source_h: HEIGHT
+      w: w,
+      h: h,
+      path: species.sheet,
+      source_x: species.frame_w * @sprite_index,
+      source_y: species.frame_h * (@sprite_index / species.frames_per_row).floor,
+      source_w: species.frame_w,
+      source_h: species.frame_h,
     }
   end
 end

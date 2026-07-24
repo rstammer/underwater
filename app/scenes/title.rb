@@ -1,12 +1,13 @@
 class Game
-  # Fish drifting across the title: reuse the in-game animal sheets so the look
-  # stays consistent. dir +1 swims right, -1 swims left (sprite flipped).
+  # Fish drifting across the title: real species off the roster, so the title
+  # shows the things you are going to be photographing.
+  # dir +1 swims right, -1 swims left (sprite flipped).
   TITLE_FISH = [
-    { path: "sprites/animals/scalar_32_16/orange.png", y: 470, speed: 0.9,  size: 2, dir: 1 },
-    { path: "sprites/animals/scalar_32_16/blue.png",   y: 250, speed: 0.6,  size: 2, dir: -1 },
-    { path: "sprites/animals/bass1_32_16/grey.png",    y: 150, speed: 1.3,  size: 3, dir: 1 },
-    { path: "sprites/animals/scalar_32_16/purple.png", y: 560, speed: 0.45, size: 1, dir: -1 },
-    { path: "sprites/animals/bass1_32_16/red.png",     y: 360, speed: 0.75, size: 2, dir: -1 },
+    { key: "scalarus",     y: 470, speed: 0.9,  size: 2, dir: 1 },
+    { key: "burgunder",    y: 250, speed: 0.6,  size: 2, dir: -1 },
+    { key: "hornhering",   y: 150, speed: 1.3,  size: 3, dir: 1 },
+    { key: "prunkflosser", y: 560, speed: 0.45, size: 1, dir: -1 },
+    { key: "rabauke",      y: 360, speed: 0.75, size: 2, dir: -1 },
   ]
 
   def title_tick
@@ -67,21 +68,22 @@ class Game
   end
 
   def title_fish
-    frame = 0.frame_index(count: SloppyScalar::SPRITES_PER_ROW, hold_for: 8, repeat: true) || 0
     span = grid.w + 200
     TITLE_FISH.each_with_index.map do |f, i|
+      species = Species[f[:key]]
+      frame = 0.frame_index(count: species.frames_per_row, hold_for: 8, repeat: true) || 0
       travel = (Kernel.tick_count * f[:speed] + i * 260) % span
       x = f[:dir] > 0 ? travel - 100 : grid.w + 100 - travel
       {
         x: x,
         y: f[:y],
-        w: SloppyScalar::WIDTH * f[:size],
-        h: SloppyScalar::HEIGHT * f[:size],
-        path: f[:path],
-        source_x: SloppyScalar::WIDTH * frame,
-        source_y: SloppyScalar::HEIGHT * (frame / SloppyScalar::SPRITES_PER_ROW).floor,
-        source_w: SloppyScalar::WIDTH,
-        source_h: SloppyScalar::HEIGHT,
+        w: species.frame_w * f[:size],
+        h: species.frame_h * f[:size],
+        path: species.sheet,
+        source_x: species.frame_w * frame,
+        source_y: species.frame_h * (frame / species.frames_per_row).floor,
+        source_w: species.frame_w,
+        source_h: species.frame_h,
         flip_horizontally: f[:dir] < 0,
       }
     end

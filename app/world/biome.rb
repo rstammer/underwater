@@ -4,11 +4,11 @@
 class Biome
   attr_reader :name, :water_top, :water_bottom, :floor_colors, :fog,
               :seaweed, :coral, :starfish,
-              :fish_count, :fish_colors, :shark
+              :fish_count, :shark
 
   def initialize(name:, water_top:, water_bottom:, floor_colors:, fog:,
                  seaweed:, coral:, starfish:,
-                 fish_count:, fish_colors:, shark:)
+                 fish_count:, shark:)
     @name = name
     @water_top = water_top
     @water_bottom = water_bottom
@@ -18,7 +18,6 @@ class Biome
     @coral = coral
     @starfish = starfish
     @fish_count = fish_count
-    @fish_colors = fish_colors
     @shark = shark
   end
 
@@ -29,7 +28,7 @@ class Biome
     floor_colors: [[242, 208, 169], [238, 200, 143], [225, 188, 109]],
     fog: 0.12,
     seaweed: 5, coral: 1, starfish: 4,
-    fish_count: 6, fish_colors: %w[orange blue green], shark: false,
+    fish_count: 6, shark: false,
   )
 
   # A dense green kelp forest.
@@ -39,7 +38,7 @@ class Biome
     floor_colors: [[120, 132, 96], [96, 112, 78], [78, 96, 66]],
     fog: 0.42,
     seaweed: 16, coral: 2, starfish: 2,
-    fish_count: 9, fish_colors: %w[green blue purple], shark: false,
+    fish_count: 9, shark: false,
   )
 
   # A colourful reef, full of coral and fish.
@@ -49,7 +48,7 @@ class Biome
     floor_colors: [[236, 196, 150], [210, 150, 120], [180, 120, 110]],
     fog: 0.18,
     seaweed: 6, coral: 10, starfish: 5,
-    fish_count: 12, fish_colors: %w[orange blue green purple], shark: false,
+    fish_count: 12, shark: false,
   )
 
   # The dark deep — sparse, foggy, and a shark prowls.
@@ -59,7 +58,7 @@ class Biome
     floor_colors: [[60, 66, 84], [48, 54, 72], [38, 44, 60]],
     fog: 0.70,
     seaweed: 3, coral: 1, starfish: 1,
-    fish_count: 4, fish_colors: %w[blue purple], shark: true,
+    fish_count: 4, shark: true,
   )
 
   ALL = [SANDBANK, KELP, REEF, DEEP]
