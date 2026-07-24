@@ -92,23 +92,49 @@ class Game
   # One row per species in the sea, in the order they live from the shallows
   # down: what you have, and — just as importantly — what you haven't. A plain
   # method, so the tally is testable without reading it back off the screen.
+  # Only the species you've laid eyes on — the book fills in as you explore
+  # rather than betraying the whole sea from the first dive.
   def artenbuch_rows
-    Species::ALL.map do |species|
+    Species::ALL.select { |species| species_known?(species.key) }.map do |species|
       quality = state.album[species.key]
       { species: species, quality: quality,
         points: quality ? photo_points(species, quality) : 0 }
     end
   end
 
+  # Known to the book: sighted in the water, or already documented (which implies
+  # you saw it).
+  def species_known?(key)
+    (state.sighted && state.sighted[key]) || !state.album[key].nil?
+  end
+
   def render_artenbuch(x, head_y, row_y)
     rows = artenbuch_rows
-    column_heading(x, head_y, "Artenbuch  #{album_found} / #{Species::ALL.length}", BOOK_COL_W)
+    cx = x + BOOK_COL_W + 28 # centre of the two-column spread
+    # The denominator is what you've *seen*, not the whole roster — so the count
+    # grows as you discover, and never gives away how much is still out there.
+    column_heading(x, head_y, "Artenbuch  #{album_found} / #{rows.length}", BOOK_COL_W)
     column_heading(x + BOOK_COL_W + 56, head_y, "Punkte  #{album_score}", BOOK_COL_W)
+
+    if rows.empty?
+      outputs.labels << { x: cx, y: row_y - 40, text: "Noch nichts gesichtet — tauch und sieh dich um.",
+                          size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
+                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+      return
+    end
 
     per_column = (rows.length + 1).idiv(2)
     rows.each_with_index do |row, i|
       col_x = x + (i < per_column ? 0 : BOOK_COL_W + 56)
       render_book_row(col_x, row_y - (i % per_column) * BOOK_ROW_H, row)
+    end
+
+    # A quiet reminder the sea still holds more, without a number that would spoil it.
+    if rows.length < Species::ALL.length
+      outputs.labels << { x: cx, y: row_y - per_column * BOOK_ROW_H - 4,
+                          text: "… und weitere Arten, noch ungesichtet", size_enum: 0,
+                          alignment_enum: 1, vertical_alignment_enum: 2,
+                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2], a: 150 }
     end
   end
 

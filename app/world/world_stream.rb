@@ -105,6 +105,28 @@ class Game
     end
   end
 
+  SIGHT_RANGE = 520 # px within which a creature is close enough to have been seen
+
+  # Note which species the diver has laid eyes on. The Artenbuch lists only these,
+  # so the book fills in as you explore rather than spoiling the whole sea up
+  # front. Sighting is being near a creature under water — nothing hidden at the
+  # surface, and the fog doesn't reach much past this range anyway.
+  def update_sightings
+    return unless fauna_visible?
+
+    state.sighted ||= {}
+    state.fish.each do |fish|
+      mark_sighted(fish.species.key, world_index * SCREEN_WIDTH + fish.x, fish.y)
+    end
+    if shark_present?
+      mark_sighted("schattenhai", world_index * SCREEN_WIDTH + state.dark_shark.x, state.dark_shark.y)
+    end
+  end
+
+  def mark_sighted(key, world_x, world_y)
+    state.sighted[key] = true if photo_distance(world_x, world_y) <= SIGHT_RANGE
+  end
+
   # How deep a world y is, in the metres the roster and the HUD talk in.
   def depth_in_metres(world_y)
     depth = (WATERLINE_Y - world_y) / PIXELS_PER_METRE

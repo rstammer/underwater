@@ -97,6 +97,7 @@ class Game
       update_story # the boat's opening card retires the moment you first dive
       update_dive_hint # ... and the camera's rules come up, once the water closes
       update_kraken # deep down, the legend hangs at the edge of the dark
+      update_sightings # note which species you've now laid eyes on
       track_log # quietly record how deep you got and what you've seen
     end
     send("#{state.game_scene}_tick")
@@ -137,6 +138,7 @@ class Game
     state.initialized = true
 
     state.album = {} # species documented for good — the one thing dying can't take
+    state.sighted = {} # species laid eyes on — the Artenbuch only lists what you've seen
     state.kraken = nil # the legend only shows up when you go too deep
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)

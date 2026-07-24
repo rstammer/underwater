@@ -189,22 +189,32 @@ class PhotographyTests
     assert.equal! args.state.album.length, 1
   end
 
-  # The Artenbuch lists the whole sea, documented or not — the gaps are the
-  # point of it.
-  def test_the_book_lists_every_species_found_or_not(args, assert)
+  # The Artenbuch lists only what you've seen — sighted or documented — so it
+  # fills in as you explore instead of spoiling the sea from the first dive.
+  def test_the_book_lists_only_what_you_have_seen(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    args.state.album = { "burgunder" => :gut }
+    args.state.sighted = { "hornhering" => true } # seen, not yet photographed
+    args.state.album = { "burgunder" => :gut }    # documented (which implies seen)
 
     rows = game.artenbuch_rows
+    keys = rows.map { |row| row[:species].key }
 
-    assert.equal! rows.length, Species::ALL.length, "every species has a row"
-    found = rows.find { |row| row[:species].key == "burgunder" }
-    assert.equal! found[:quality], :gut
-    assert.equal! found[:points], Species["burgunder"].points
-    missing = rows.find { |row| row[:species].key == "laternentraeger" }
-    assert.equal! missing[:quality], nil, "and one never seen is plainly missing"
-    assert.equal! missing[:points], 0
+    assert.equal! rows.length, 2, "only the two he's encountered"
+    assert.true! keys.include?("burgunder") && keys.include?("hornhering")
+    assert.false! keys.include?("laternentraeger"), "one never seen isn't in the book at all"
+
+    documented = rows.find { |row| row[:species].key == "burgunder" }
+    assert.equal! documented[:quality], :gut
+    seen = rows.find { |row| row[:species].key == "hornhering" }
+    assert.equal! seen[:quality], nil, "seen but not yet photographed: a row with no grade"
+  end
+
+  def test_the_book_is_empty_until_you_have_seen_anything(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    assert.equal! game.artenbuch_rows.length, 0, "nothing seen, nothing listed"
   end
 
   def test_tab_turns_to_the_book_and_back(args, assert)
@@ -247,6 +257,7 @@ class PhotographyTests
     game.spawn_at_surface
     args.state.game_scene = "area1"
     args.state.album = { "burgunder" => :perfekt, "hornhering" => :unscharf }
+    args.state.sighted = { "burgunder" => true, "hornhering" => true }
     game.toggle_home_menu(true)
     args.state.boat_page = :book
 
@@ -254,8 +265,9 @@ class PhotographyTests
     text = args.outputs.labels.map { |label| label[:text] }.join(" ")
 
     assert.true! text.include?("Artenbuch"), "the page names itself"
-    assert.true! text.include?("Blauer Burgunder"), "and lists what he has"
-    assert.true! text.include?("Lucerna abyssi"), "and what he hasn't, by its latin name"
+    assert.true! text.include?("Blauer Burgunder"), "and lists what he has seen"
+    assert.false! text.include?("Lucerna abyssi"), "but not a species he has never laid eyes on"
+    assert.true! text.include?("ungesichtet"), "just a hint that more is out there"
   end
 
   def test_the_hud_draws_the_camera_without_error(args, assert)

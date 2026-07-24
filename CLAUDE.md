@@ -392,7 +392,8 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `world_items` | versteckte Sammelstücke `{kind:, x:, y:, collected:}` in Welt-Koordinaten (pro Runde gewürfelt, `reset_items`) |
 | `inventory` / `stash` | getragene Gegenstände (max `INVENTORY_MAX`) bzw. am Boot eingelagerte (unbegrenzt) |
 | `player_name` | der eingetippte Name; `diver_name` liefert ihn bzw. `DIVER_NAME` als Rückfall |
-| `album` | `{species_key => quality}` — das Artenbuch. **Überlebt den Tod**, als einziges |
+| `album` | `{species_key => quality}` — das dokumentierte Artenbuch. **Überlebt den Tod** |
+| `sighted` | `{species_key => true}` — welche Arten gesichtet wurden; steuert, was im Buch überhaupt auftaucht. Überlebt den Tod wie `album` |
 | `film_left` / `film_roll` | Aufnahmen übrig bzw. belichtete, noch nicht entwickelte Fotos `{key:, quality:}` — beides pro Runde |
 | `shot_at` / `shot_note` | Tick der letzten Aufnahme und was drauf ist, für Blitz und Einblender |
 | `boat_page` | `:hold` oder `:book` — welche Seite des Boot-Screens offen ist |
@@ -474,9 +475,17 @@ Screen-Positionen und werden nicht direkt gesetzt.
     Sicht (`state.camera_x/camera_y`).
 - **Boot-Screen (Home-Menü):** `L` am Boot öffnet `home_menu` (pausiert, Welt friert
   hinter einem Schleier ein). **Zwei Seiten, `Tab` blättert** (`update_boat_page`,
-  `state.boat_page`): das **Artenbuch** (jede Art der Welt, dokumentiert oder nicht —
-  die Lücken sind der Sinn; ungefundene stehen gedimmt mit lateinischem Namen da) und
-  die Runde selbst mit drei Spalten in `render_boat_screen`:
+  `state.boat_page`): das **Artenbuch** (`artenbuch_rows`) und die Runde selbst mit
+  drei Spalten in `render_boat_screen`. **Das Buch zeigt nur, was man gesichtet hat**
+  (`species_known?` = in `state.sighted` **oder** schon im `album`) — es füllt sich beim
+  Erkunden, statt die ganze See vorab zu verraten. Gesichtet = `update_sightings` (jeder
+  Tauch-Tick): eine Kreatur unter Wasser in `SIGHT_RANGE`=520 px. Sichtungen **überleben
+  den Tod** wie das Album (nur in `initialize_game` geleert, nicht in `reset_game`).
+  Gesichtet-aber-nicht-fotografiert = Zeile mit Name/Latein, aber „—" statt Note; der
+  Nenner der Kopfzeile ist die **Zahl der gesichteten** Arten (nie die Gesamtzahl, sonst
+  verrät er, wie viel noch fehlt); ein dezenter „… und weitere, noch ungesichtet"-Hinweis,
+  solange nicht alles gesichtet ist. Das Kraken taucht hier **nie** auf (`update_sightings`
+  liest nur `state.fish`+Hai, und `Species::KRAKEN` ist ohnehin nicht in `ALL`):
   - **Logbuch** (links) — die Bilanz der Runde: tiefster Tauchgang, erkundete
     Sektoren, gefundene Inseln, durchtauchte Höhlen. Gezählt wird pro Tauch-Tick in
     `track_log` (Sektoren/Inseln/Höhlen als Index-Sets → kein Doppelzählen; Höhle
