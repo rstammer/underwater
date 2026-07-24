@@ -593,10 +593,15 @@ Screen-Positionen und werden nicht direkt gesetzt.
   sich auf, Hysterese). `Species::KRAKEN` steht **nicht in `ALL`** → nie im Artenbuch,
   nie im Register (`Species["kraken"]` = nil). Direkter Griff (`:taken`) nur, wenn man es
   wirklich in eine Grabenwand drängt (`KRAKEN_GRAB`=64 px) — die Retreat-Distanz lässt
-  das fast nie zu. Gezeichnet **vor dem Fog** (`render_kraken` in `render_underwater`),
-  damit die Dunkelheit es zur Andeutung macht: dunkler Mantel, wehende Tentakel, ein
-  kaltes Auge, das selten aufblitzt. Die Seite (`side`) ist beim Erscheinen fixiert, damit
-  Wegdrehen es hinter einen zieht statt durch einen hindurch.
+  das fast nie zu. **Es soll nie ganz erscheinen** (`render_kraken`, vor dem Fog): kein
+  zusammenhängender Körper, sondern **einzeln flackernde Fetzen** (`KRAKEN_PATCHES` +
+  Tentakel), jeder mit eigener Phase — sie zeigen sich nie gleichzeitig, die Form fügt
+  sich nicht. Darüber eine langsame **Präsenz** (`kraken_presence`, Deckel bei ~0.5), die
+  immer wieder fast ins Dunkel absackt; ein kaltes **Auge**, das meist nur glimmt und
+  selten kurz aufblitzt. Alphas real: an den meisten Ticks 0–7, Spitzen ~22 (Fetzen) bzw.
+  ~64 (Augen-Glanz). Tuning: `KRAKEN_MURK_ALPHA`, `KRAKEN_TENTACLE_ALPHA`,
+  `KRAKEN_EYE_DIM/GLINT`, und die Präsenz-Kurve. Die Seite (`side`) ist beim Erscheinen
+  fixiert, damit Wegdrehen es hinter einen zieht statt durch einen hindurch.
 - **Maßstab:** `PIXELS_PER_METRE = 14`. Der Anzug deckelt die *Meter*, also gibt
   ein großzügiger Meter dem Meer den Platz, sich tief anzufühlen: die Wassersäule
   ist im Median ~890 px — mehr als ein Bildschirm, man sieht von oben also nicht

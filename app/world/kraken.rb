@@ -97,9 +97,19 @@ class Game
     state.shot_note = { name: KRAKEN_FAIL_NOTES[rand(KRAKEN_FAIL_NOTES.length)], quality: nil, fresh: false }
   end
 
-  # Drawn with the fauna, before the fog — so the fog eats its edges and it stays
-  # a suggestion: a dark mantle, tentacles trailing below, and one cold eye that
-  # blinks in the murk.
+  # It must never quite resolve. Rather than one coherent bulk, it is a handful of
+  # near-black patches and tentacle-hints that each flicker on their own phase, so
+  # at any instant only some of it is there — the eye never sees the whole thing.
+  # Over it all a slow "presence" that keeps sinking almost back into the dark.
+  # Drawn before the fog, so the fog eats its edges too.
+  KRAKEN_MURK = [8, 12, 20]     # near-black, a touch of cold blue
+  KRAKEN_MURK_ALPHA = 44        # the mantle patches, at full presence
+  KRAKEN_TENTACLE_ALPHA = 30
+  KRAKEN_EYE_DIM = 16           # the eye almost always just smoulders ...
+  KRAKEN_EYE_GLINT = 92         # ... and only rarely, briefly, catches the light
+  # Patch offsets from the centre: [dx, dy, w, h].
+  KRAKEN_PATCHES = [[-70, -30, 150, 130], [-30, 60, 120, 80], [10, -70, 90, 90]]
+
   def render_kraken
     return unless kraken_present? && submerged_visible?
 
@@ -108,31 +118,51 @@ class Game
     sy = k.y - state.camera_y
     return if sx < -320 || sx > grid.w + 320
 
-    sway = Math.sin((Kernel.tick_count + k.x) / 40.0) * 12
-    render_kraken_tentacles(sx + sway, sy)
-    # the mantle: a big, near-black bulk, low enough alpha that the dark hides it
-    outputs.sprites << { x: sx - 90 + sway, y: sy - 40, w: 180, h: 150,
-                         r: 10, g: 14, b: 22, a: 96, path: :solid }
-    outputs.sprites << { x: sx - 60 + sway, y: sy + 70, w: 120, h: 60,
-                         r: 12, g: 16, b: 26, a: 80, path: :solid }
-    render_kraken_eye(sx + sway, sy)
+    presence = kraken_presence(k.x)
+    render_kraken_tentacles(sx, sy, presence)
+    render_kraken_patches(sx, sy, presence)
+    render_kraken_eye(sx, sy, presence)
   end
 
-  def render_kraken_tentacles(sx, sy)
-    5.times do |i|
-      lean = (i - 2) * 26
-      wave = Math.sin((Kernel.tick_count + i * 90) / 26.0) * 16
-      outputs.sprites << { x: sx + lean + wave - 5, y: sy - 200, w: 10, h: 200,
-                           r: 8, g: 12, b: 20, a: 70, path: :solid }
+  # A slow swell that dips almost to nothing — the thing fading in and out of the
+  # deep. Never near full: it tops out well under one.
+  def kraken_presence(x)
+    0.08 + 0.42 * (0.5 + 0.5 * Math.sin((Kernel.tick_count + x) / 58.0))
+  end
+
+  # Each patch has its own flicker, so they don't all show at once — the shape
+  # never assembles.
+  def render_kraken_patches(sx, sy, presence)
+    KRAKEN_PATCHES.each_with_index do |(dx, dy, w, h), i|
+      flick = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin((Kernel.tick_count + i * 300) / (44.0 + i * 11)))
+      drift = Math.sin((Kernel.tick_count + i * 120) / 50.0) * 10
+      alpha = (KRAKEN_MURK_ALPHA * presence * flick).to_i
+      outputs.sprites << { x: sx + dx + drift, y: sy + dy, w: w, h: h,
+                           r: KRAKEN_MURK[0], g: KRAKEN_MURK[1], b: KRAKEN_MURK[2],
+                           a: alpha, path: :solid }
     end
   end
 
-  # The one thing you ever really see: a pale eye that mostly smoulders and, every
-  # so often, catches the light.
-  def render_kraken_eye(sx, sy)
-    phase = (Kernel.tick_count % 200)
-    glint = phase < 24 ? 1.0 : 0.35 # a slow, occasional gleam
-    outputs.sprites << { x: sx - 34, y: sy + 34, w: 22, h: 22,
-                         r: 150, g: 176, b: 150, a: (70 + 150 * glint).to_i, path: :solid }
+  def render_kraken_tentacles(sx, sy, presence)
+    4.times do |i|
+      lean = (i - 1.5) * 30
+      wave = Math.sin((Kernel.tick_count + i * 130) / 24.0) * 18
+      flick = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin((Kernel.tick_count + i * 210) / 37.0))
+      alpha = (KRAKEN_TENTACLE_ALPHA * presence * flick).to_i
+      outputs.sprites << { x: sx + lean + wave - 4, y: sy - 190, w: 8, h: 190,
+                           r: KRAKEN_MURK[0], g: KRAKEN_MURK[1], b: KRAKEN_MURK[2],
+                           a: alpha, path: :solid }
+    end
+  end
+
+  # The one thing you ever nearly make out: a cold eye that mostly smoulders and,
+  # rarely and briefly, gleams. Even the gleam is tied to presence, so it too can
+  # sink away.
+  def render_kraken_eye(sx, sy, presence)
+    gleam = (Kernel.tick_count % 320) < 12 ? 1.0 : 0.0
+    base = KRAKEN_EYE_DIM + (KRAKEN_EYE_GLINT - KRAKEN_EYE_DIM) * gleam
+    alpha = (base * (0.4 + 0.6 * presence)).to_i
+    outputs.sprites << { x: sx - 30, y: sy + 30, w: 18, h: 18,
+                         r: 120, g: 150, b: 128, a: alpha, path: :solid }
   end
 end
