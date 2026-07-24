@@ -15,6 +15,7 @@ class CameraTests
   # the open sea has to say so.
   def open_sea(args)
     args.state.island_sectors = []
+    args.state.world_cache = {} # initialize_game already cached segments for the rolled sectors
     args.state.world_cache = {}
     args.state.active_world_index = nil
   end

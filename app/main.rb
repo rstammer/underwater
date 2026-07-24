@@ -130,7 +130,7 @@ class Game
   # direction — otherwise a round can go by without ever finding one. The rest
   # are scattered further out, for exploring.
   def roll_island_sectors
-    sectors = [roll_island_sector(1, ISLAND_NEAR_SECTOR)]
+    sectors = [roll_island_sector(ISLAND_MIN_SECTOR, ISLAND_NEAR_SECTOR)]
     sectors << roll_island_sector until sectors.uniq.length == ISLAND_COUNT
     sectors.uniq
   end

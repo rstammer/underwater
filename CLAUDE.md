@@ -220,11 +220,22 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   nächsten Slabs darüber, `nil` bei offenem Wasser); `rock_span_at` nimmt das über
   seine ganze Breite (`footprint`) — höchster Boden, niedrigste Decke, damit er nur
   dort durchpasst, wo er auf **beiden** Seiten durchpasst.
-- **`IslandWorld`** — eine Insel: wird **auf** eine generierte Welt gestempelt
-  (`IslandWorld.build(world)`), nicht statt ihrer — so bleiben die Segmentränder
-  unangetastet und nahtlos. Es ist eine **Klasse pro Insel**: Spannweite (`span`)
-  und Höhe (`peak`) werden aus dem Segment-Index gewürfelt, die Silhouette
-  (`crown_y`) ist Noise **an der Welt-Position** mal einer Hüllkurve
+- **`IslandWorld`** — eine Insel: wird **auf** generierte Welten gestempelt
+  (`IslandWorld.build(world, sector)`), nicht statt ihrer.
+  **Eine Insel ist breiter als ein Segment** (`SPAN_MIN`=1800 … `SPAN_MAX`=2800 px
+  gegen 1280 px Segment) — sie wird deshalb auf **jedes** Segment gestempelt, in das
+  sie hineinreicht (`covers?`, `Game#islands_over`), und jedes baut seine eigene
+  Scheibe. Das funktioniert nur, weil **jede Form eine Funktion der Welt-`x` ist**
+  und nie des Segments: `first_x`/`last_x`, `crown_y_at`, `tunnel_floor_y_at`,
+  `span_t_at`. Zwei Segmente rechnen dieselbe Insel aus und passen an der Naht
+  exakt zusammen (`test_the_slices_line_up_across_a_segment_border` prüft genau
+  das). Gewürfelt wird alles aus dem **Heimatsektor** (`shape_for(sector)`, die
+  Reihenfolge der Würfe ist die Identität der Form — nicht umsortieren), damit jede
+  Scheibe dieselbe Insel rollt. `covers?` reicht um `REACH` px über die Insel
+  hinaus, weil die **Skerries vor** den Küsten stehen — ohne das Polster fällt das
+  Segment, das nur sie trägt, aus der Stempelung und sie verschwinden lautlos.
+  Spannweite (`span`) und Höhe (`peak`) sind gewürfelt, die Silhouette
+  (`crown_y_at`) ist Noise **an der Welt-Position** mal einer Hüllkurve
   (`envelope`), die den Fels an beiden Enden ans Wasser bindet — deshalb sieht
   **keine Insel aus wie die andere**. Gelesen wird pro Terrasse
   (`WorldGenerator.terrace_start`), das gibt Plateaus und Schultern statt einer
@@ -494,7 +505,7 @@ Screen-Positionen und werden nicht direkt gesetzt.
 
 ### Tuning-Konstanten
 
-`app/world/island_world.rb` (Inseln): `SPAN_MIN/MAX`, `PEAK_MIN/MAX`, `CROWN_MAX`,
+`app/world/island_world.rb` (Inseln): `SPAN_MIN`=1800/`SPAN_MAX`=2800, `REACH`, `PEAK_MIN/MAX`, `CROWN_MAX`,
 `SHORE_LIP`, `SHORE_HEIGHT`, `TUNNEL_HEIGHT`, `DOME_SPAN`, `DOME_RISE`,
 `AIR_DEPTH`, `CROWN_STEP`, `PLANT_SPACING`, `MARGIN`, `GULL_HEIGHT`, `SCALES`;
 Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
@@ -579,6 +590,12 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
   `smooth_floor_y_at`: derselbe Boden, nur ohne Terrassen und Jitter. Und: ein
   Kamera-Test sollte den **Ruck** messen (2. Ableitung), nicht die Geschwindigkeit
   — gleichmäßiges Mitschwenken über einen Hang ist erwünscht.
+- **`world_cache` ist schon voll, bevor der Test `island_sectors` setzt.**
+  `initialize_game` ruft `center_camera` → `clamp_depth` → und damit ist Segment 0
+  bereits **mit den zufällig gewürfelten** Insel-Sektoren gebaut und gecacht. Wer
+  danach `state.island_sectors` überschreibt, muss `state.world_cache = {}` setzen,
+  sonst testet man gegen die alte Welt. (Kostete beim Verbreitern der Inseln eine
+  halbe Stunde Fehlersuche an der richtigen Stelle im falschen Segment.)
 - **Gelände-Tests brauchen `island_sectors = []`.** Die Inseln werden pro Runde auf
   zufällige Sektoren gewürfelt; landet eine auf der getesteten Stelle, ist das
   Gelände dort ein anderes — der Test wird flaky (genau so passiert). Ebenso fühlt der Taucher den Grund

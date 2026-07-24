@@ -1,17 +1,18 @@
 # An island: the hand-built places in an otherwise generated sea.
 #
-# It is *stamped onto* a generated world rather than replacing it, so the terrain
-# still meets its neighbours seamlessly at the segment borders — only the middle
-# of the segment is rebuilt. Above the waterline it breaks the surface as a
-# terraced, overgrown hump you can swim up to but not climb; at its base a tunnel
-# runs all the way through, with a chamber of trapped air halfway.
+# It is *stamped onto* generated worlds rather than replacing them, so the sea
+# floor still runs into it seamlessly. An island is **wider than a segment**, so
+# it is stamped onto every segment it reaches: each one builds its own slice, and
+# because every shape here is a function of the *world* position (never of the
+# segment), the slices line up exactly across the borders. Above the waterline it
+# breaks the surface as a terraced, overgrown ridge you can swim up to but not
+# climb; through its base runs a tunnel with chambers of trapped air.
 #
-# Every island is built from *its own* segment: span and height are rolled from
-# the index, and the skyline is noise sampled at the world position — so no two
-# islands look alike.
+# Everything about an island is rolled from its home sector — the segment it is
+# centred on — so every segment that carries a piece of it rolls the same island.
 class IslandWorld
-  SPAN_MIN = 880       # px of island across (centred; the segment borders stay untouched)
-  SPAN_MAX = 1120
+  SPAN_MIN = 1800      # px of island across, centred on its home sector: wider
+  SPAN_MAX = 2800      # than a segment, so it always crosses at least one border
   PEAK_MIN = 220       # how far above the waterline the summit may rise
   PEAK_MAX = 300
   CROWN_MAX = 330      # ... and never higher than this, or the summit is cut off
@@ -31,6 +32,8 @@ class IslandWorld
   SKERRY_LIP_MIN = 20  # lowest a skerry pokes out of the water ...
   SKERRY_LIP_MAX = 76  # ... and highest — low rugged rock, never a summit
   SKERRY_DEPTH = 160   # how far a skerry's base reaches below the waterline
+  REACH = 160          # px of open water off each shore the island still reaches
+                       # into — far enough to hold the furthest skerry
   GULL_HEIGHT = 110    # how high over the water the gulls hang
   # How far out from the island's edges they range, in columns, and how much
   # higher each one flies. Negative = off the left shore, positive = off the right.
@@ -47,27 +50,91 @@ class IslandWorld
     "driftwood" => 3, "crab" => 2, "flag" => 3, "gull" => 3,
   }
 
-  def self.build(world)
-    new(world).build
+  def self.build(world, sector)
+    new(world, sector).build
   end
 
-  attr_reader :span, :peak
-
-  def initialize(world)
-    @world = world
-    rng = Rng.new(world.index * 7919 + 31)
+  # Everything rolled about an island, from its home sector alone — so every
+  # segment it reaches into rolls exactly the same island. The order of the rolls
+  # is the shape's identity: don't reorder them, every island in every saved
+  # round would change.
+  def self.shape_for(sector)
+    rng = Rng.new(sector * 7919 + 31)
     rng.next_u32 # warm past the seeded state
-    @span = (SPAN_MIN + rng.int(SPAN_MAX - SPAN_MIN)).idiv(World::COLUMN_WIDTH) * World::COLUMN_WIDTH
-    @peak = PEAK_MIN + rng.int(PEAK_MAX - PEAK_MIN)
-    @flagged = rng.int(3).zero?          # somebody got here first — but not everywhere
-    @sag = rng.int(SAG_MAX * 2) - SAG_MAX # this tunnel dips, or humps, on its way through
-    @chamber_count = 1 + rng.int(2)       # one big chamber, or two smaller stops
-    @spot_shift = rng.int(12) / 100.0     # and they aren't always in the same place
+    {
+      span: (SPAN_MIN + rng.int(SPAN_MAX - SPAN_MIN)).idiv(World::COLUMN_WIDTH) * World::COLUMN_WIDTH,
+      peak: PEAK_MIN + rng.int(PEAK_MAX - PEAK_MIN),
+      flagged: rng.int(3).zero?,             # somebody got here first — but not everywhere
+      sag: rng.int(SAG_MAX * 2) - SAG_MAX,   # this tunnel dips, or humps, on its way through
+      chamber_count: 1 + rng.int(2),         # one big chamber, or two smaller stops
+      spot_shift: rng.int(12) / 100.0,       # and they aren't always in the same place
+    }
+  end
+
+  def self.centre_x(sector)
+    sector * SCREEN_WIDTH + SCREEN_WIDTH.idiv(2)
+  end
+
+  # Does the island centred on this sector reach into that segment? Wider than a
+  # segment means a segment two along can still be carrying its flank. The reach
+  # runs past the island itself: the skerries stand *off* its shores, in the open
+  # water either side, and a segment holding only those still has to be stamped
+  # or they quietly vanish.
+  def self.covers?(sector, index)
+    span = shape_for(sector)[:span]
+    first = centre_x(sector) - span.idiv(2) - REACH
+    segment = index * SCREEN_WIDTH
+    first < segment + SCREEN_WIDTH && first + span + REACH * 2 > segment
+  end
+
+  attr_reader :span, :peak, :sector
+
+  def initialize(world, sector)
+    @world = world
+    @sector = sector
+    shape = self.class.shape_for(sector)
+    @span = shape[:span]
+    @peak = shape[:peak]
+    @flagged = shape[:flagged]
+    @sag = shape[:sag]
+    @chamber_count = shape[:chamber_count]
+    @spot_shift = shape[:spot_shift]
+  end
+
+  # --- Where the island lies, in world x -----------------------------------
+
+  def first_x
+    self.class.centre_x(sector) - span.idiv(2)
+  end
+
+  def last_x
+    first_x + span
+  end
+
+  def segment_x
+    @world.index * SCREEN_WIDTH
+  end
+
+  # Segment-local column range of the island *in this segment*, clamped — the
+  # island usually runs off both ends of it.
+  def first_column
+    local = (first_x - segment_x).idiv(World::COLUMN_WIDTH)
+    local < 0 ? 0 : local
+  end
+
+  def last_column
+    local = (last_x - segment_x).idiv(World::COLUMN_WIDTH)
+    local > @world.columns ? @world.columns : local
+  end
+
+  def in_segment?(world_x)
+    world_x >= segment_x && world_x < segment_x + SCREEN_WIDTH
   end
 
   def build
     floor = @world.floor.dup
-    roof = Array.new(@world.columns) { [] }
+    # Another island may already have stamped this segment — keep what's there.
+    roof = @world.roof ? @world.roof.map { |slabs| slabs.dup } : Array.new(@world.columns) { [] }
 
     (first_column...last_column).each do |col|
       base = tunnel_floor_y(col)
@@ -82,7 +149,7 @@ class IslandWorld
 
     World.new(index: @world.index, biome: @world.biome, floor: floor, roof: roof,
               decorations: decorations(roof) + tunnel_decor(floor),
-              air_pockets: chambers.map { |chamber| chamber_air(chamber) })
+              air_pockets: @world.air_pockets + chambers.map { |c| chamber_air(c) }.compact)
   end
 
   # Rugged rocks that break the surface in the water off the island's shores.
@@ -93,13 +160,15 @@ class IslandWorld
   def skerry_columns
     @skerry_columns ||= begin
       cols = {}
-      skerry_clusters.each do |start, width|
+      skerry_clusters.each do |start_x, width|
         width.times do |w|
-          col = start + w
-          next unless col >= 1 && col < @world.columns - 1 # never touch the segment borders
-          next if island_column?(col)                      # nor overwrite the island itself
+          wx = start_x + w * World::COLUMN_WIDTH
+          next unless in_segment?(wx)
 
-          cols[col] = { ceiling: WATERLINE_Y - SKERRY_DEPTH, crown: skerry_crown(col) }
+          col = (wx - segment_x).idiv(World::COLUMN_WIDTH)
+          next if island_column?(col) # never overwrite the island itself
+
+          cols[col] = { ceiling: WATERLINE_Y - SKERRY_DEPTH, crown: skerry_crown(wx) }
         end
       end
       cols
@@ -108,32 +177,34 @@ class IslandWorld
 
   # A skerry pokes out of the water by a rolled amount, its top snapped to the
   # island's terrace grid so it reads as chunky rock rather than a spike.
-  def skerry_crown(col)
-    lip = SKERRY_LIP_MIN + (Noise.jitter(world_x(col), SKERRY_SEED) * (SKERRY_LIP_MAX - SKERRY_LIP_MIN)).to_i
+  def skerry_crown(world_x)
+    lip = SKERRY_LIP_MIN + (Noise.jitter(world_x, SKERRY_SEED) * (SKERRY_LIP_MAX - SKERRY_LIP_MIN)).to_i
     ((WATERLINE_Y + lip) / CROWN_STEP).floor * CROWN_STEP
   end
 
   # Where the stacks stand: a cluster hugging each shore, just off the island's
-  # edge in the shallows — [first column, width in columns], rolled from the index
-  # so they scatter differently every round. They keep clear of the open water in
-  # the middle of the segment, so the rock reads plainly as *the island's*.
+  # edge in the shallows — [first world x, width in columns], rolled from the home
+  # sector so they scatter differently every round. In world x, so both segments
+  # of a shore that falls on a border place the same rocks.
   def skerry_clusters
     [
-      [first_column - 6 - skerry_roll(1, 3), 3 + skerry_roll(2, 3)],
-      [last_column + 2 + skerry_roll(5, 3), 3 + skerry_roll(6, 3)],
+      [first_x - (6 + skerry_roll(1, 3)) * World::COLUMN_WIDTH, 3 + skerry_roll(2, 3)],
+      [last_x + (2 + skerry_roll(5, 3)) * World::COLUMN_WIDTH, 3 + skerry_roll(6, 3)],
     ]
   end
 
   def skerry_roll(salt, span)
-    (Noise.jitter(@world.index * 131 + salt, SKERRY_SEED + 4) * span).to_i
+    (Noise.jitter(sector * 131 + salt, SKERRY_SEED + 4) * span).to_i
   end
 
+  # The sand at either mouth, read from the *global* terrain function — the mouths
+  # usually sit in a different segment than the one being built.
   def mouth_left
-    @world.floor[first_column]
+    WorldGenerator.floor_y_at(first_x)
   end
 
   def mouth_right
-    @world.floor[last_column - 1]
+    WorldGenerator.floor_y_at(last_x - World::COLUMN_WIDTH)
   end
 
   # The corridor's bottom: a ramp between the sand at both mouths, plus a sag (or
@@ -141,7 +212,11 @@ class IslandWorld
   # The deflection is zero at both ends, so the mouths still meet the sea floor
   # flush and there is no step to climb going in or out.
   def tunnel_floor_y(col)
-    t = span_t(col)
+    tunnel_floor_y_at(world_x(col))
+  end
+
+  def tunnel_floor_y_at(world_x)
+    t = span_t_at(world_x)
     y = mouth_left + (mouth_right - mouth_left) * t + @sag * Math.sin(Math::PI * t)
     (y / WorldGenerator::FLOOR_STEP).floor * WorldGenerator::FLOOR_STEP
   end
@@ -149,25 +224,29 @@ class IslandWorld
   # How much clear water the corridor has here — it squeezes down to a crawl in
   # places and opens into halls in others.
   def tunnel_height(col)
+    tunnel_height_at(world_x(col))
+  end
+
+  def tunnel_height_at(world_x)
     (TUNNEL_MIN +
-      (TUNNEL_MAX - TUNNEL_MIN) * Noise.value(world_x(col), TUNNEL_WAVE, TUNNEL_SEED)).to_i
-  end
-
-  def first_column
-    (SCREEN_WIDTH - span).idiv(2).idiv(World::COLUMN_WIDTH)
-  end
-
-  def last_column
-    first_column + span.idiv(World::COLUMN_WIDTH)
+      (TUNNEL_MAX - TUNNEL_MIN) * Noise.value(world_x, TUNNEL_WAVE, TUNNEL_SEED)).to_i
   end
 
   def island_column?(col)
     col >= first_column && col < last_column
   end
 
-  # How far along the island a column lies, 0..1.
+  # How far along the island a world x lies, 0..1.
+  def span_t_at(world_x)
+    t = (world_x - first_x) / (span - World::COLUMN_WIDTH).to_f
+    return 0.0 if t < 0.0
+    return 1.0 if t > 1.0
+
+    t
+  end
+
   def span_t(col)
-    (col - first_column) / (last_column - 1 - first_column).to_f
+    span_t_at(world_x(col))
   end
 
   # The skyline. An envelope pins the rock down to the water at both ends —
@@ -176,11 +255,15 @@ class IslandWorld
   # its own. It is all read at the terrace a column belongs to, so the profile
   # steps in plateaus of varying width instead of curving.
   def crown_y(col)
-    x = WorldGenerator.terrace_start(world_x(col))
+    crown_y_at(world_x(col))
+  end
+
+  def crown_y_at(world_x)
+    x = WorldGenerator.terrace_start(world_x)
     shape = 0.45 +
             Noise.value(x, 320, SHAPE_SEED) * 0.45 +
             Noise.value(x, 110, SHAPE_SEED + 3) * 0.15
-    y = WATERLINE_Y + SHORE_LIP + peak * envelope(terrace_t(x)) * shape
+    y = WATERLINE_Y + SHORE_LIP + peak * envelope(span_t_at(x)) * shape
     y = (y / CROWN_STEP).floor * CROWN_STEP
     y = WATERLINE_Y + SHORE_LIP if y < WATERLINE_Y + SHORE_LIP
     y = WATERLINE_Y + CROWN_MAX if y > WATERLINE_Y + CROWN_MAX
@@ -192,14 +275,6 @@ class IslandWorld
     Math.sin(Math::PI * t)**0.55
   end
 
-  def terrace_t(terraced_world_x)
-    t = (terraced_world_x - world_x(first_column)) / (span - World::COLUMN_WIDTH).to_f
-    return 0.0 if t < 0.0
-    return 1.0 if t > 1.0
-
-    t
-  end
-
   def world_x(col)
     @world.index * SCREEN_WIDTH + col * World::COLUMN_WIDTH
   end
@@ -209,10 +284,11 @@ class IslandWorld
   # the lower corridor roof.
   def chambers
     @chambers ||= chamber_spots.map do |spot|
-      first = first_column + ((last_column - first_column) * spot).to_i
-      last = first + DOME_SPAN.idiv(World::COLUMN_WIDTH)
-      mid = (first + last).idiv(2)
-      { first: first, last: last, ceiling: tunnel_floor_y(mid) + tunnel_height(mid) + DOME_RISE }
+      from = snap(first_x + (span * spot).to_i)
+      to = from + DOME_SPAN
+      mid = (from + to).idiv(2)
+      { from: from, to: to,
+        ceiling: tunnel_floor_y_at(mid) + tunnel_height_at(mid) + DOME_RISE }
     end
   end
 
@@ -223,42 +299,41 @@ class IslandWorld
   end
 
   def chamber_roof_at(col)
-    chamber = chambers.find { |c| col >= c[:first] && col < c[:last] }
+    x = world_x(col)
+    chamber = chambers.find { |c| x >= c[:from] && x < c[:to] }
     chamber && chamber[:ceiling]
-  end
-
-  # For anything that just wants "the" chamber — the first one along the tunnel.
-  def chamber_first
-    chambers.first[:first]
-  end
-
-  def chamber_last
-    chambers.first[:last]
   end
 
   # The air trapped under a dome: from the water surface inside the chamber up to
   # the rock. Surfacing in here means breathing — the cave is a rest stop, not a
-  # one-way trip.
+  # one-way trip. Clipped to the segment being built, so a chamber straddling a
+  # border becomes a piece of air in each.
   def chamber_air(chamber)
-    {
-      x: chamber[:first] * World::COLUMN_WIDTH,
-      y: chamber[:ceiling] - AIR_DEPTH,
-      w: (chamber[:last] - chamber[:first]) * World::COLUMN_WIDTH,
-      h: AIR_DEPTH,
-    }
+    from = chamber[:from] < segment_x ? segment_x : chamber[:from]
+    to = chamber[:to] > segment_x + SCREEN_WIDTH ? segment_x + SCREEN_WIDTH : chamber[:to]
+    return nil if to <= from
+
+    { x: from - segment_x, y: chamber[:ceiling] - AIR_DEPTH, w: to - from, h: AIR_DEPTH }
+  end
+
+  def snap(world_x)
+    world_x.idiv(World::COLUMN_WIDTH) * World::COLUMN_WIDTH
   end
 
   # The cave isn't barren: weed, coral and rocks along the corridor floor.
   def tunnel_decor(floor)
     items = []
-    col = first_column + 4
-    while col < last_column - 4
-      roll = Noise.jitter(world_x(col) + 3, DECOR_SEED + 2)
-      if roll > 0.45
-        kind = TUNNEL_PLANTS[(roll * TUNNEL_PLANTS.length).to_i]
-        items << { kind: kind, x: col * World::COLUMN_WIDTH, y: floor[col], scale: 2 }
+    x = first_x + 32
+    while x < last_x - 32 # stepped in world x, so the spacing runs on across borders
+      if in_segment?(x)
+        roll = Noise.jitter(x + 3, DECOR_SEED + 2)
+        if roll > 0.45
+          col = (x - segment_x).idiv(World::COLUMN_WIDTH)
+          kind = TUNNEL_PLANTS[(roll * TUNNEL_PLANTS.length).to_i]
+          items << { kind: kind, x: col * World::COLUMN_WIDTH, y: floor[col], scale: 2 }
+        end
       end
-      col += 9
+      x += 9 * World::COLUMN_WIDTH
     end
     items
   end
@@ -340,13 +415,31 @@ class IslandWorld
     foot < 16 ? 16 : foot
   end
 
-  # Somebody got to the summit of some of these islands before you did.
-  def flag(roof)
+  # Somebody got to the summit of some of these islands before you did. The
+  # summit is found across the *whole* island, not per segment — otherwise a wide
+  # island would sprout a flag on every slice of itself.
+  def flag(_roof)
     return [] unless @flagged
+    return [] unless in_segment?(summit_x)
 
-    top = plateaus(roof).max_by { |flat| flat[:y] * 1000 + flat[:width] } # highest, then widest
-    [{ kind: "flag", y: top[:y], scale: SCALES["flag"],
-       x: (top[:first] * World::COLUMN_WIDTH) + (top[:width] * World::COLUMN_WIDTH).idiv(2) }]
+    [{ kind: "flag", y: crown_y_at(summit_x), scale: SCALES["flag"],
+       x: summit_x - segment_x }]
+  end
+
+  # Middle of the island's highest terrace, in world x.
+  def summit_x
+    @summit_x ||= begin
+      step = World::COLUMN_WIDTH * 2
+      best = first_x
+      x = first_x
+      while x < last_x
+        best = x if crown_y_at(x) > crown_y_at(best)
+        x += step
+      end
+      last = best
+      last += step while last + step < last_x && crown_y_at(last + step) == crown_y_at(best)
+      snap((best + last).idiv(2))
+    end
   end
 
   # Gulls range well out over the water on both sides, not just over the coast:
@@ -354,10 +447,15 @@ class IslandWorld
   # They're low enough to be in frame from the surface, and drift on their own in
   # the renderer.
   def gulls
-    GULL_OFFSETS.map do |offset, lift|
-      col = offset < 0 ? first_column + offset : last_column + offset
-      { kind: "gull", x: col * World::COLUMN_WIDTH,
-        y: WATERLINE_Y + GULL_HEIGHT + lift, scale: SCALES["gull"] }
+    birds = []
+    GULL_OFFSETS.each do |offset, lift|
+      edge = offset < 0 ? first_x : last_x
+      wx = edge + offset * World::COLUMN_WIDTH
+      next unless in_segment?(wx)
+
+      birds << { kind: "gull", x: wx - segment_x,
+                 y: WATERLINE_Y + GULL_HEIGHT + lift, scale: SCALES["gull"] }
     end
+    birds
   end
 end

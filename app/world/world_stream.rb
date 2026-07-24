@@ -32,12 +32,22 @@ class Game
   end
 
   def open_sea_or_island(index)
-    world = WorldGenerator.generate(index)
-    island_here?(index) ? IslandWorld.build(world) : world
+    islands_over(index).reduce(WorldGenerator.generate(index)) do |world, sector|
+      IslandWorld.build(world, sector)
+    end
+  end
+
+  # An island is wider than a segment, so this one may be carrying a flank of an
+  # island centred a segment or two away — and, where two of them lie close
+  # together, slices of both.
+  def islands_over(index)
+    return [] unless state.island_sectors
+
+    state.island_sectors.select { |sector| IslandWorld.covers?(sector, index) }
   end
 
   def island_here?(index)
-    !!state.island_sectors && state.island_sectors.include?(index)
+    !islands_over(index).empty?
   end
 
   def world_index
