@@ -33,7 +33,7 @@ class Game
   # both because beside the boat you are at the surface, where there is never a
   # fish to photograph.
   def update_camera
-    return unless inputs.keyboard.key_down.f
+    return unless inputs.keyboard.key_down.f || tapped?(:photo)
 
     at_the_boat? ? develop_film : take_photo
   end

@@ -1,0 +1,224 @@
+# On-screen touch controls for phones. Reopens Game.
+#
+# The web build can't be played on a phone with no keyboard, so this reads
+# `args.inputs.touch` — a hash of active touches in *screen* coordinates
+# (1280x720), the same space the HUD lives in — and turns it into the same
+# intents the keyboard raises. Nothing here touches the physics: movement, sprint
+# and the shutter read `will_left?` / `will_sprint?` / `tapped?(:photo)`, which OR
+# keyboard and touch, so the desktop keyboard keeps working untouched and both can
+# be present at once.
+#
+# The pieces that make a decision — a stick vector into directions, a point into a
+# button — are pure methods, tested without faking a single real touch; the small
+# stateful shell (which touch is the stick, its anchor, which buttons fired this
+# tick) sits in args.state.
+#
+# Controls appear only once a finger has actually touched the screen
+# (state.touch_seen), so a keyboard player never sees a button.
+class Game
+  STICK_ZONE_W = 560   # a touch starting in the left this-many px is the joystick
+  STICK_DEADZONE = 26  # px of travel from the anchor before it counts as a push
+  STICK_RANGE = 100    # px of travel that reads as full tilt (the nub's reach)
+  STICK_SPRINT = 86    # ... and this far out means "sprint"
+
+  # The action buttons, per context, as data — the renderer and the hit-test read
+  # the same list so a button you can see is always a button you can press.
+  def control_layout
+    case control_context
+    when :diving
+      [{ id: :photo, label: "F", x: SCREEN_WIDTH - 184, y: 44, w: 140, h: 140 }]
+    else
+      []
+    end
+  end
+
+  # Touch only steers the diver while he is actually diving; menus and the title
+  # get their own touch handling later, and a stray thumb mustn't move a frozen
+  # world.
+  def control_context
+    return :diving if !game_paused? && ["area1", "area2"].include?(state.game_scene)
+
+    :none
+  end
+
+  def touch_points
+    args.inputs.touch.map { |id, point| { id: id, x: point.x, y: point.y } }
+  end
+
+  # Read the touches once per tick and turn them into intents. Runs early, before
+  # movement and sprint read them.
+  def update_controls
+    points = touch_points
+    state.touch_seen = true if points.length > 0
+
+    unless control_context == :diving
+      clear_controls
+      return
+    end
+
+    update_stick(points)
+    buttons = buttons_under(points)
+    state.touch_tapped = buttons - (state.touch_pressed || []) # rising edge only
+    state.touch_pressed = buttons
+    state.touch_intents = stick_intents(points)
+    state.swim_pose = will_left? || will_right? || will_down?
+  end
+
+  def clear_controls
+    state.stick_id = nil
+    state.stick_anchor = nil
+    state.touch_intents = {}
+    state.touch_tapped = []
+    state.touch_pressed = []
+    state.swim_pose = will_left? || will_right? || will_down? # keyboard only here
+  end
+
+  # The floating joystick: the first touch that lands in the left zone (and not on
+  # a button) becomes the stick, anchored where it touched down; it stops being
+  # the stick the moment that finger lifts.
+  def update_stick(points)
+    active = points.find { |point| point[:id] == state.stick_id }
+    if active.nil?
+      state.stick_id = nil
+      state.stick_anchor = nil
+    end
+
+    return if state.stick_id
+
+    claim = points.find { |point| point[:x] < STICK_ZONE_W && button_at(point).nil? }
+    return unless claim
+
+    state.stick_id = claim[:id]
+    state.stick_anchor = { x: claim[:x], y: claim[:y] }
+  end
+
+  # Which way the stick is pushed, and whether it's pushed far enough to sprint.
+  def stick_intents(points)
+    return {} unless state.stick_anchor
+
+    point = points.find { |p| p[:id] == state.stick_id }
+    return {} unless point
+
+    stick_vector_intents(point[:x] - state.stick_anchor.x, point[:y] - state.stick_anchor.y)
+  end
+
+  # Pure: an offset from the anchor into a set of direction intents. y is up in
+  # DragonRuby (and touch shares that space), so a finger dragged upward — dy
+  # positive — means swim up. Each axis clears the dead zone on its own, so a
+  # diagonal push raises both, which is exactly how the diver angles.
+  def stick_vector_intents(dx, dy)
+    intents = {}
+    intents[:left] = true if dx <= -STICK_DEADZONE
+    intents[:right] = true if dx >= STICK_DEADZONE
+    intents[:up] = true if dy >= STICK_DEADZONE
+    intents[:down] = true if dy <= -STICK_DEADZONE
+    intents[:sprint] = true if Math.sqrt(dx * dx + dy * dy) >= STICK_SPRINT
+    intents
+  end
+
+  def buttons_under(points)
+    points.map { |point| button_at(point) }.compact.uniq
+  end
+
+  # The id of the button under a point, or nil. Pure.
+  def button_at(point)
+    button = control_layout.find do |b|
+      point[:x] >= b[:x] && point[:x] <= b[:x] + b[:w] &&
+        point[:y] >= b[:y] && point[:y] <= b[:y] + b[:h]
+    end
+    button && button[:id]
+  end
+
+  # --- what the game asks, keyboard OR touch --------------------------------
+
+  def touch?(intent)
+    intents = state.touch_intents
+    !!(intents && intents[intent])
+  end
+
+  def tapped?(id)
+    tapped = state.touch_tapped
+    !!(tapped && tapped.include?(id))
+  end
+
+  def will_left?
+    inputs.left || touch?(:left)
+  end
+
+  def will_right?
+    inputs.right || touch?(:right)
+  end
+
+  def will_up?
+    inputs.up || touch?(:up)
+  end
+
+  def will_down?
+    inputs.down || touch?(:down)
+  end
+
+  def will_sprint?
+    inputs.keyboard.key_held.space || touch?(:sprint)
+  end
+
+  # --- drawing --------------------------------------------------------------
+  #
+  # Drawn from the same layout the hit-test reads, in screen space (the HUD's
+  # space), only once a finger has touched and only while diving.
+
+  STICK_INK = [150, 198, 224]
+  BUTTON_BG = [16, 40, 62]
+  BUTTON_INK = [232, 244, 252]
+
+  def render_touch_controls
+    return unless state.touch_seen && control_context == :diving
+
+    render_joystick
+    render_buttons
+  end
+
+  # The floating base where the thumb landed, and the nub at the current push
+  # (clamped to its reach) — only while a finger is actually working the stick.
+  def render_joystick
+    return unless state.stick_anchor
+
+    ax = state.stick_anchor.x
+    ay = state.stick_anchor.y
+    ring(ax, ay, STICK_RANGE, 60)
+
+    point = touch_points.find { |p| p[:id] == state.stick_id }
+    return unless point
+
+    dx = point[:x] - ax
+    dy = point[:y] - ay
+    mag = Math.sqrt(dx * dx + dy * dy)
+    if mag > STICK_RANGE
+      dx = dx * STICK_RANGE / mag
+      dy = dy * STICK_RANGE / mag
+    end
+    ring(ax + dx, ay + dy, 44, 150)
+  end
+
+  def render_buttons
+    control_layout.each do |button|
+      pressed = (state.touch_pressed || []).include?(button[:id])
+      outputs.sprites << { x: button[:x], y: button[:y], w: button[:w], h: button[:h],
+                           r: BUTTON_BG[0], g: BUTTON_BG[1], b: BUTTON_BG[2],
+                           a: pressed ? 230 : 150, path: :solid }
+      outputs.sprites << { x: button[:x], y: button[:y] + button[:h] - 4, w: button[:w], h: 4,
+                           r: STICK_INK[0], g: STICK_INK[1], b: STICK_INK[2],
+                           a: pressed ? 255 : 150, path: :solid }
+      outputs.labels << { x: button[:x] + button[:w] / 2, y: button[:y] + button[:h] / 2,
+                          text: button[:label], size_enum: 6, alignment_enum: 1,
+                          vertical_alignment_enum: 1,
+                          r: BUTTON_INK[0], g: BUTTON_INK[1], b: BUTTON_INK[2] }
+    end
+  end
+
+  # A soft filled disc, near enough with a square for a prototype.
+  def ring(cx, cy, radius, alpha)
+    outputs.sprites << { x: cx - radius, y: cy - radius, w: radius * 2, h: radius * 2,
+                         r: STICK_INK[0], g: STICK_INK[1], b: STICK_INK[2], a: alpha,
+                         path: :solid }
+  end
+end

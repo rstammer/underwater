@@ -14,6 +14,7 @@ class Game
     render_photo_prompt
     render_dive_hint
     render_shutter # the flash and the line naming what he just caught, on top
+    render_touch_controls # the joystick and buttons, once a finger has touched
   end
 
   HINT_W = 660

@@ -1,4 +1,5 @@
 require "app/ux/hud.rb"
+require "app/ux/controls.rb"
 
 require "app/ux/story.rb"
 
@@ -75,6 +76,7 @@ class Game
     ) || 0
 
     update_scene
+    update_controls # touch: read the on-screen joystick and buttons into intents
     update_home_menu # L at the boat opens the boat screen and closes it again
     update_exchange  # and while it's open, the arrows and E sort pack against hold
     update_boat_page # ... and Tab turns to the Artenbuch and back
@@ -122,6 +124,11 @@ class Game
     state.story_told = true # the boat only tells it on a round started from the title
     state.dive_hint_pending = false # ... and so are the camera's rules, on the first dive
     state.dive_hint_at = nil
+    state.touch_seen = false        # on-screen controls appear once a finger touches
+    state.touch_intents = {}
+    state.touch_tapped = []
+    state.touch_pressed = []
+    state.swim_pose = false
     state.initialized = true
 
     state.album = {} # species documented for good — the one thing dying can't take
@@ -278,12 +285,14 @@ class Game
   end
 
   def basic_movements_per_tick
+    # Movement reads will_* (keyboard OR the touch joystick), so the two paths
+    # are one from here down.
     # Horizontal movement is in world space (diver_global_x); the camera turns it
     # into an on-screen position later, so no wrapping at the screen edge.
-    if inputs.left
+    if will_left?
       state.direction = :left
       swim_sideways(-state.speed)
-    elsif inputs.right
+    elsif will_right?
       swim_sideways(state.speed)
       state.direction = :right
     end
@@ -291,9 +300,9 @@ class Game
 
     # Vertical movement is in world space now (depth_y): up = shallower, down =
     # deeper. The camera turns this into an on-screen position later.
-    if inputs.up
+    if will_up?
       state.depth_y += state.speed
-    elsif inputs.down
+    elsif will_down?
       state.depth_y -= state.speed
     end
 
@@ -301,20 +310,20 @@ class Game
     # exception is resting at the surface with his head out of the water
     # (breathing?) — a pause mode where he floats in place. Below the waterline he
     # always sinks. (sea floor / waterline clamps in update_depth_and_camera)
-    state.depth_y -= 0.15 unless inputs.up || breathing?
+    state.depth_y -= 0.15 unless will_up? || breathing?
 
     if state.direction == :right
-      if inputs.up && (inputs.left || inputs.right)
+      if will_up? && (will_left? || will_right?)
         state.angle += 0.5
-      elsif inputs.down && (inputs.left || inputs.right)
+      elsif will_down? && (will_left? || will_right?)
         state.angle -= 0.5
       else
         state.angle = 0
       end
     else
-      if inputs.up && (inputs.left || inputs.right)
+      if will_up? && (will_left? || will_right?)
         state.angle -= 0.5
-      elsif inputs.down && (inputs.left || inputs.right)
+      elsif will_down? && (will_left? || will_right?)
         state.angle += 0.5
       else
         state.angle = 0
@@ -497,7 +506,7 @@ class Game
   # faster but burns air quicker. Paused scenes never sprint. The decision is a
   # pure function so it stays trivially testable without stubbing inputs.
   def update_sprint
-    state.sprinting = sprint_active?(inputs.keyboard.key_held.space, moving?)
+    state.sprinting = sprint_active?(will_sprint?, moving?)
     state.speed = current_speed
   end
 
@@ -508,7 +517,7 @@ class Game
   end
 
   def moving?
-    !!(inputs.up || inputs.down || inputs.left || inputs.right)
+    !!(will_up? || will_down? || will_left? || will_right?)
   end
 
   def current_speed

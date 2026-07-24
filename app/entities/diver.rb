@@ -25,8 +25,11 @@ class Diver
     @current_args = current_args
   end
 
+  # Whether to show the swimming pose rather than the idle one. Game sets
+  # state.swim_pose each tick from will_* (keyboard OR the touch joystick), so the
+  # animation follows both without this renderer knowing which drove it.
   def movement?
-    @current_args.inputs.left || @current_args.inputs.right || @current_args.inputs.down
+    @current_args.state.swim_pose
   end
 
   def to_h
