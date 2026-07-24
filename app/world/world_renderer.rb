@@ -334,6 +334,10 @@ class Game
     lines = [{ text: "Dein Boot", size: 2, color: [232, 244, 252] }]
     lines << { text: "Anzug wird repariert", size: 0, color: [232, 202, 150], blink: true } if repairing_suit?
     lines << { text: "Aktionen", size: 0, color: [132, 168, 194] }
+    if state.film_roll.length > 0
+      lines << { text: "[ F ]  Film entwickeln (#{state.film_roll.length})",
+                 size: 0, color: [232, 226, 150] }
+    end
     lines << { text: "[ L ]  Logbuch & Lager", size: 0, color: [150, 198, 224] }
     lines << { text: "[ I ]  Alles einlagern (#{state.inventory.length})", size: 0, color: [150, 198, 224] }
     lines << { text: "[ Q ]  Spiel beenden", size: 0, color: [150, 198, 224] }

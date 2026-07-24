@@ -26,6 +26,7 @@ require "app/world/island_world.rb"
 require "app/world/world_stream.rb"
 require "app/world/world_renderer.rb"
 require "app/world/items.rb"
+require "app/world/photography.rb"
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
@@ -84,6 +85,7 @@ class Game
       basic_movements_per_tick
       update_depth_and_camera
       update_pickup # E near an item picks it up (if the pack has room)
+      update_camera # F: the shutter down here, the darkroom up at the boat
       update_boat_stash # I at the boat empties the pack into the hold
       update_oxygen
       update_suit
@@ -105,6 +107,7 @@ class Game
     state.player_y = CAMERA_ANCHOR                    # on-screen y, derived each tick from depth_y - camera_y
     state.direction = :right
     state.world_cache = {}
+    state.active_world_index = nil # nothing loaded yet: the first tick builds and stocks it
     state.island_sectors = roll_island_sectors
     state.dark_shark = { x: -300, y: 300 }
     state.game_scene = "title"
@@ -117,11 +120,13 @@ class Game
     state.story_told = true # the boat only tells it on a round started from the title
     state.initialized = true
 
+    state.album = {} # species documented for good — the one thing dying can't take
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)
     state.fish = [] # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
     reset_log       # the dive log starts empty each round
     reset_items     # scatter fresh treasures, empty the pack
+    reset_film      # a fresh roll, nothing exposed
     center_camera   # frame the diver right away instead of gliding in on the first ticks
   end
 
@@ -151,6 +156,10 @@ class Game
     state.angle = 0
     state.direction = :right
     state.world_cache = {}
+    # Forget which world is loaded, too: the cache alone isn't enough, and the
+    # round would otherwise start out on the *previous* round's segment — old
+    # island layout, old fish — until the diver happened to cross a border.
+    state.active_world_index = nil
     state.island_sectors = roll_island_sectors # a new round hides them somewhere else
     state.dark_shark = { x: -300, y: 300 }
     state.oxygen = OXYGEN_MAX
@@ -160,6 +169,7 @@ class Game
     state.speed = Diver::SPEED
     reset_log        # a new round, a fresh log
     reset_items      # ... and a fresh scatter of treasures
+    reset_film       # ... and a fresh film: whatever was on the old roll is lost
     spawn_at_surface # sets position (player_x, diver_global_x, depth_y, camera_y)
   end
 

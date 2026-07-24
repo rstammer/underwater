@@ -7,9 +7,74 @@ class Game
 
     render_debug
     render_gauges
+    render_film_gauge
     render_locator
     render_inventory
     render_pickup_prompt
+    render_photo_prompt
+    render_shutter # the flash and the line naming what he just caught, on top
+  end
+
+  FILM_INK = [214, 226, 240]
+
+  # How many frames are left on the roll, under the two gauges. It only matters
+  # under water, but it is quiet enough to leave up.
+  def render_film_gauge
+    outputs.labels << {
+      x: GAUGE_X, y: GAUGE_Y - GAUGE_GAP * 2 + 12,
+      text: "Film  #{state.film_left} / #{FILM_MAX}", size_enum: 1,
+      r: state.film_left.zero? ? 235 : FILM_INK[0],
+      g: state.film_left.zero? ? 150 : FILM_INK[1],
+      b: state.film_left.zero? ? 150 : FILM_INK[2],
+    }
+  end
+
+  # With a creature in the lens, a line naming it and how the shot would come
+  # out — so getting closer is visibly worth it before you spend the frame.
+  def render_photo_prompt
+    subject = photo_subject
+    return unless subject
+
+    species = subject[:species]
+    quality = photo_quality(subject[:distance])
+    text =
+      if state.film_left.zero?
+        "Kein Film mehr — am Boot entwickeln"
+      elsif !improves?(species.key, quality)
+        "#{species.name} — schon besser im Kasten"
+      else
+        "[ F ]  #{species.name}  (#{quality})"
+      end
+
+    cx = grid.w / 2
+    outputs.sprites << { x: cx - 280, y: 186, w: 560, h: 44, r: 12, g: 30, b: 48, a: 180, path: :solid }
+    outputs.labels << { x: cx, y: 208, text: text, size_enum: 2,
+                        alignment_enum: 1, vertical_alignment_enum: 1,
+                        r: 232, g: 244, b: 252 }
+  end
+
+  # The flash, and afterwards a line naming what he caught — with NEU! for a
+  # species that isn't in the book yet, which is the moment worth having.
+  def render_shutter
+    return unless state.shot_at
+
+    since = Kernel.tick_count - state.shot_at
+    if since < SHUTTER_TICKS
+      fade = 255 - (255 * since / SHUTTER_TICKS)
+      outputs.sprites << { x: 0, y: 0, w: grid.w, h: grid.h, r: 255, g: 255, b: 255,
+                           a: fade, path: :solid }
+    end
+    return if since > NOTE_TICKS || !state.shot_note
+
+    note = state.shot_note
+    text = "#{note[:name]}  —  #{note[:quality]}"
+    cx = grid.w / 2
+    outputs.labels << { x: cx, y: grid.h - 190, text: text, size_enum: 3,
+                        alignment_enum: 1, r: 236, g: 246, b: 255 }
+    return unless note[:fresh]
+
+    outputs.labels << { x: cx, y: grid.h - 150, text: "NEU für das Artenbuch", size_enum: 2,
+                        alignment_enum: 1, r: 255, g: 226, b: 140 }
   end
 
   INV_X = 20
