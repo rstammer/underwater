@@ -87,6 +87,14 @@ class Species
         shallowest: 0, deepest: 300, rarity: :rare, points: 70),
   ]
 
+  # The legend of the deep. Deliberately NOT in ALL: it never joins the roster or
+  # the Artenbuch, and it can't really be photographed — it only lets you believe
+  # you could (see app/world/kraken.rb). A name of question marks, the way a
+  # diver would log a thing they never quite saw.
+  KRAKEN = new(key: "kraken", name: "? ? ?", latin: "Architeuthis umbra",
+               sheet: "sprites/animals/dark_shark_32_32/shark.png", frame_w: 32, frame_h: 32,
+               biomes: [], shallowest: 130, deepest: 400, rarity: :rare, points: 0)
+
   BY_KEY = ALL.each_with_object({}) { |species, index| index[species.key] = species }
 
   def self.[](key)

@@ -382,7 +382,8 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `speed` | effektive Geschwindigkeit dieses Ticks (`Diver::SPEED`, beim Sprint ×`SPRINT_MULTIPLIER`); von Movement *und* `Diver#tick` gelesen |
 | `oxygen` | 0..`OXYGEN_MAX`; leer → ertrinken |
 | `suit` | 0..`SUIT_MAX` — Zustand des Anzugs; nimmt unterhalb `SUIT_DEPTH_LIMIT` Schaden, bei 0 → zerdrückt |
-| `death_cause` | `:eaten` (Hai) / `:drowned` (O2 leer) / `:crushed` (Anzug hin) / `nil` — steuert Game-Over-Text |
+| `death_cause` | `:eaten` (Hai) / `:drowned` (O2 leer) / `:crushed` (Anzug hin) / `:taken` (Kraken-Griff) / `nil` — steuert Game-Over-Text |
+| `kraken` | `{x:, y:, side:}` in Welt-Koordinaten oder `nil` — die Legende, nur tief unten präsent |
 | `diver` / `shark` | Entity-Instanzen (`Diver` / `DarkShark`) |
 | `fish` | Array von `SloppyScalar` — Schwarm des aktiven Bioms; Positionen als **lokale** Chunk-`x` (0..`SCREEN_WIDTH`) + Welt-`y`, gerendert via `place_in_current_chunk`. Jeder Fisch patrouilliert nur seinen freien Wasserstreifen (`from_x`/`to_x` aus `open_water_span`, dreht an den Enden) und driftet `DRIFT` px um seine Spawn-Tiefe (kein Wrap!) |
 | `dark_shark` | `{x:, y:}`-Hash der Hai-Position: **lokale** Chunk-`x` (wrappt bei `SCREEN_WIDTH`) + Welt-`y` (von der `DarkShark`-Entity in `to_h` gelesen). Bei jeder neuen Runde kommt er auf **Taucher-Tiefe** ±`SHARK_PATROL_SPREAD` rein |
@@ -572,6 +573,21 @@ Screen-Positionen und werden nicht direkt gesetzt.
   prüft die **ganze Körperhöhe** (`shark_span_solid?`, drei y-Punkte), und die
   vertikale Drift lehnt Ziel-`y` ab, die im Fels läge — sonst schlüpfte er in einen
   dünnen freistehenden Skerry.
+- **Kraken — die Legende der Tiefe (`app/world/kraken.rb`).** Kein Jäger wie der Hai,
+  sondern ein **Köder**: es hängt ab `KRAKEN_DEPTH`=150 m am Fog-Rand, `KRAKEN_GAP`=230 px
+  voraus (innerhalb `PHOTO_REACH`, damit die Kamera es als Motiv liest) und
+  `KRAKEN_DROP`=130 px **tiefer** — der Sog geht immer nach unten. Es steht als
+  `photo_subject` da („[ F ] ? ? ?"), aber `take_photo` routet auf `attempt_kraken_photo`:
+  Blitz, leere Notiz, **kein Film verbraucht** (damit man weiter probiert und weiter
+  absteigt). Wer folgt, easet mit ihm in den Anzug-Tod (`:crushed`, simuliert: 150 m →
+  zerdrückt bei ~183 m); die **Rettung ist nach oben** (über `KRAKEN_FADE`=120 m löst es
+  sich auf, Hysterese). `Species::KRAKEN` steht **nicht in `ALL`** → nie im Artenbuch,
+  nie im Register (`Species["kraken"]` = nil). Direkter Griff (`:taken`) nur, wenn man es
+  wirklich in eine Grabenwand drängt (`KRAKEN_GRAB`=64 px) — die Retreat-Distanz lässt
+  das fast nie zu. Gezeichnet **vor dem Fog** (`render_kraken` in `render_underwater`),
+  damit die Dunkelheit es zur Andeutung macht: dunkler Mantel, wehende Tentakel, ein
+  kaltes Auge, das selten aufblitzt. Die Seite (`side`) ist beim Erscheinen fixiert, damit
+  Wegdrehen es hinter einen zieht statt durch einen hindurch.
 - **Maßstab:** `PIXELS_PER_METRE = 14`. Der Anzug deckelt die *Meter*, also gibt
   ein großzügiger Meter dem Meer den Platz, sich tief anzufühlen: die Wassersäule
   ist im Median ~890 px — mehr als ein Bildschirm, man sieht von oben also nicht

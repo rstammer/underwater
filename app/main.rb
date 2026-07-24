@@ -29,6 +29,7 @@ require "app/world/world_stream.rb"
 require "app/world/world_renderer.rb"
 require "app/world/items.rb"
 require "app/world/photography.rb"
+require "app/world/kraken.rb"
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
@@ -95,6 +96,7 @@ class Game
       update_suit
       update_story # the boat's opening card retires the moment you first dive
       update_dive_hint # ... and the camera's rules come up, once the water closes
+      update_kraken # deep down, the legend hangs at the edge of the dark
       track_log # quietly record how deep you got and what you've seen
     end
     send("#{state.game_scene}_tick")
@@ -135,6 +137,7 @@ class Game
     state.initialized = true
 
     state.album = {} # species documented for good — the one thing dying can't take
+    state.kraken = nil # the legend only shows up when you go too deep
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)
     state.fish = [] # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
@@ -181,6 +184,7 @@ class Game
     state.death_cause = nil
     state.sprinting = false
     state.speed = Diver::SPEED
+    state.kraken = nil # a new round, the legend waits in the deep again
     reset_log        # a new round, a fresh log
     reset_items      # ... and a fresh scatter of treasures
     reset_film       # ... and a fresh film: whatever was on the old roll is lost

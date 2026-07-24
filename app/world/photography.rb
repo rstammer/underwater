@@ -66,6 +66,9 @@ class Game
       list << [Species["schattenhai"],
                world_index * SCREEN_WIDTH + state.dark_shark.x, state.dark_shark.y]
     end
+    # The kraken reads as a subject too — that's the whole lure. It already lives
+    # in world coordinates.
+    list << [Species::KRAKEN, state.kraken.x, state.kraken.y] if kraken_present?
     list
   end
 
@@ -110,6 +113,7 @@ class Game
     return unless subject
 
     species = subject[:species]
+    return attempt_kraken_photo if species.key == "kraken" # the shot that never lands
     quality = photo_quality(subject[:distance])
     return unless improves?(species.key, quality)
 

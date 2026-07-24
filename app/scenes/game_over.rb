@@ -42,6 +42,7 @@ class Game
     case state.death_cause
     when :drowned then "Dir ging die Luft aus — du bist ertrunken!"
     when :crushed then "Der Druck war zu groß — dein Anzug hat aufgegeben!"
+    when :taken then "Etwas hat dich hinab in die Dunkelheit gezogen …"
     else "Oh nein! Du wurdest gefressen!"
     end
   end

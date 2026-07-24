@@ -11,5 +11,6 @@ class Game
     render_world_items
     outputs.sprites << state.fish.map { |fish| place_in_current_chunk(fish.to_h) } if fauna_visible?
     outputs.sprites << place_in_current_chunk(state.shark.to_h) if shark_present?
+    render_kraken # the legend, drawn before the fog so the dark keeps it a suggestion
   end
 end

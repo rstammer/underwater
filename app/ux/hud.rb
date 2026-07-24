@@ -100,7 +100,7 @@ class Game
     return if since > NOTE_TICKS || !state.shot_note
 
     note = state.shot_note
-    text = "#{note[:name]}  —  #{note[:quality]}"
+    text = note[:quality] ? "#{note[:name]}  —  #{note[:quality]}" : note[:name] # the kraken leaves no grade
     cx = grid.w / 2
     outputs.labels << { x: cx, y: grid.h - 190, text: text, size_enum: 3,
                         alignment_enum: 1, r: 236, g: 246, b: 255 }
