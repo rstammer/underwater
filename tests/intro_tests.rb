@@ -216,6 +216,37 @@ class IntroTests
     assert.true! text.include?("Boot"), "and where it gets developed"
   end
 
+  # The thing that actually puts it away: swimming on down. You read it hanging
+  # under the surface; a few metres deeper and it is gone.
+  def test_the_camera_rules_go_once_he_swims_on_down(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.dive_hint_pending = true
+    args.state.depth_y = WATERLINE_Y - 3 * PIXELS_PER_METRE # just under, 3 m down
+    game.update_dive_hint
+    assert.true! game.dive_hint_visible?, "it's there while he reads"
+
+    args.state.depth_y -= (Game::DIVE_HINT_METRES - 2) * PIXELS_PER_METRE
+    assert.true! game.dive_hint_visible?, "a metre or two doesn't count as leaving"
+
+    args.state.depth_y -= 4 * PIXELS_PER_METRE
+    assert.false! game.dive_hint_visible?, "but swimming on down puts it away"
+  end
+
+  # And a backstop for someone who hovers there rather than diving.
+  def test_the_camera_rules_time_out_eventually(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.dive_hint_pending = true
+    args.state.depth_y = WATERLINE_Y - 3 * PIXELS_PER_METRE
+    game.update_dive_hint
+    assert.true! game.dive_hint_visible?
+
+    args.state.dive_hint_at = Kernel.tick_count - Game::DIVE_HINT_TICKS - 1
+
+    assert.false! game.dive_hint_visible?, "it doesn't hang there for ever"
+  end
+
   def test_the_camera_rules_come_up_only_once(args, assert)
     game = build_game(args)
     game.initialize_game(0)

@@ -439,9 +439,12 @@ Screen-Positionen und werden nicht direkt gesetzt.
   Abtauchen**, nicht auf der Boot-Karte. Am Boot ist noch nichts davon real; erst
   wenn Wasser über einem steht, bedeuten sie etwas. Ausgelöst wird das vom Wasser
   (`update_dive_hint`: `dive_hint_pending` + `!at_open_surface?`), nicht von einem
-  Timer, läuft nach `DIVE_HINT_TICKS` aus und verschwindet sofort, sobald er das
-  erste Foto gemacht hat (`dismiss_dive_hint` in `take_photo`). Einmal pro Runde
-  **vom Titel** (`start_round`), nicht nach jedem Neustart.
+  Timer. **Weg ist sie, sobald er `DIVE_HINT_METRES` tiefer ist als beim Auftauchen
+  der Karte** — man liest sie knapp unter der Oberfläche, und wer unterwegs ist,
+  braucht sie nicht mehr. `DIVE_HINT_TICKS` ist nur noch der Notausgang für
+  jemanden, der dort schwebt und zweimal liest; ein Foto räumt sie ebenfalls weg
+  (`dismiss_dive_hint` in `take_photo`). Einmal pro Runde **vom Titel**
+  (`start_round`), nicht nach jedem Neustart.
 - **Fotografieren (`app/world/photography.rb`) — das Ziel des Spiels.** Jede Art,
   die man zum ersten Mal ablichtet, ist eine Seite im **Artenbuch**; `album_score`
   liest die Punkte aus dem Buch (kein mitgeführter Zähler, der aus dem Tritt geraten

@@ -48,7 +48,8 @@ class Game
   # of the camera only mean something once there is water over your head, so
   # they are told there, once per round started from the title.
 
-  DIVE_HINT_TICKS = 720 # about twelve seconds — long enough to read, then gone
+  DIVE_HINT_METRES = 20 # how far down he has to get before the card is in the way
+  DIVE_HINT_TICKS = 1800 # backstop for someone who reads it while hovering
 
   def dive_hint_lines
     [
@@ -66,10 +67,17 @@ class Game
 
     state.dive_hint_pending = false
     state.dive_hint_at = Kernel.tick_count
+    state.dive_hint_depth = current_depth # where he was when he started reading
   end
 
+  # It goes when he has swum on down — you read it hanging just under the
+  # surface, and by the time you are properly on your way it is out of the way.
+  # The clock is only a backstop for someone who hovers there and reads twice.
   def dive_hint_visible?
-    !!state.dive_hint_at && Kernel.tick_count - state.dive_hint_at < DIVE_HINT_TICKS
+    return false unless state.dive_hint_at
+    return false if Kernel.tick_count - state.dive_hint_at >= DIVE_HINT_TICKS
+
+    current_depth - state.dive_hint_depth < DIVE_HINT_METRES
   end
 
   # Once he has actually taken a picture the card has done its job.
