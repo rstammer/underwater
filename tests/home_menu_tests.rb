@@ -5,47 +5,73 @@ class HomeMenuTests
     game
   end
 
-  # Standing at the boat, up at the surface, E opens the logbook and pauses.
-  def test_e_opens_the_logbook_at_the_boat(args, assert)
+  # Standing at the boat, up at the surface, L opens the logbook and pauses.
+  def test_l_opens_the_logbook_at_the_boat(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     game.spawn_at_surface # right beside the boat, head out
     args.state.game_scene = "area1" # in the water, not on the title screen
     assert.true! game.at_the_boat?, "the diver is at the boat"
 
-    game.toggle_home_menu(true, false)
+    game.toggle_home_menu(true)
 
     assert.equal! args.state.game_scene, "home_menu"
     assert.true! game.game_paused?, "and the world is paused behind it"
   end
 
-  # Out in open water, E is not the menu key — nothing opens.
-  def test_e_does_nothing_away_from_the_boat(args, assert)
+  # Out in open water there is no boat to open a logbook at — nothing happens.
+  def test_the_menu_does_not_open_away_from_the_boat(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     args.state.game_scene = "area1"
     args.state.diver_global_x = 4000 # far from home
     args.state.depth_y = -400        # and under water
 
-    game.toggle_home_menu(true, false)
+    game.toggle_home_menu(true)
 
     assert.equal! args.state.game_scene, "area1", "no boat here, no menu"
   end
 
-  # E or ESC closes it again, dropping back into the sector you're in.
+  # L closes it again, dropping back into the sector you're in.
   def test_the_menu_closes_again(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     game.spawn_at_surface
     args.state.game_scene = "area1"
 
-    game.toggle_home_menu(true, false) # open
-    game.toggle_home_menu(false, true) # ESC
-    assert.equal! args.state.game_scene, "area1", "ESC drops back into the near sector"
+    game.toggle_home_menu(true) # open
+    game.toggle_home_menu(true) # L
+    assert.equal! args.state.game_scene, "area1", "L closes it"
+  end
 
-    game.toggle_home_menu(true, false) # open again
-    game.toggle_home_menu(true, false) # E
-    assert.equal! args.state.game_scene, "area1", "E closes it too"
+  # ESC closes the boat screen too — and *only* that. It used to close the menu
+  # and then fall straight through to the title in the same tick, which threw the
+  # round away; so this one goes through a whole tick with the key held.
+  def test_esc_closes_the_menu_without_falling_through_to_the_title(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.spawn_at_surface
+    args.state.game_scene = "area1"
+    game.toggle_home_menu(true)
+
+    args.inputs.keyboard.key_down.escape = true
+    game.tick
+
+    assert.equal! args.state.game_scene, "area1", "ESC drops back into the water, no further"
+  end
+
+  # Out in the water it still is the way back to the title screen.
+  def test_esc_in_the_water_goes_to_the_title(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.game_scene = "area1"
+    args.state.diver_global_x = 4000
+    args.state.depth_y = -400
+
+    args.inputs.keyboard.key_down.escape = true
+    game.tick
+
+    assert.equal! args.state.game_scene, "title", "ESC out there still bails out"
   end
 
   # The log fills in as you dive: the deepest you reached, the sectors and islands
@@ -120,7 +146,7 @@ class HomeMenuTests
     game = build_game(args)
     game.initialize_game(0)
     game.spawn_at_surface
-    game.toggle_home_menu(true, false)
+    game.toggle_home_menu(true)
 
     game.home_menu_tick
 

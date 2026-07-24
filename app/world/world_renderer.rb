@@ -88,7 +88,10 @@ class Game
     end
     if home_visible?
       outputs.sprites << home_boat
-      render_boat_hint if at_the_boat?
+      # Not while the boat screen is up: labels always draw over sprites in
+      # DragonRuby, so the card's text would come straight through the menu
+      # panel even though its own backing box sits behind it.
+      render_boat_hint if at_the_boat? && !game_paused?
     end
   end
 
@@ -310,25 +313,39 @@ class Game
   # by its *top* and grows downward, so adding lines can never push it off the top
   # of the screen; the repair line shows (blinking) only while the suit is
   # actually being patched up.
+  # Before the first dive the card carries the story instead of the actions —
+  # same card, same place, so the opening is something the boat says rather than
+  # a screen to click past.
   def render_boat_hint
+    if story_pending?
+      render_boat_card(boat_story_lines, STORY_W)
+    else
+      render_boat_card(boat_action_lines, BOAT_HINT_W)
+    end
+  end
+
+  def boat_action_lines
     lines = [{ text: "Dein Boot", size: 2, color: [232, 244, 252] }]
     lines << { text: "Anzug wird repariert", size: 0, color: [232, 202, 150], blink: true } if repairing_suit?
     lines << { text: "Aktionen", size: 0, color: [132, 168, 194] }
-    lines << { text: "[ L ]  Logbuch öffnen", size: 0, color: [150, 198, 224] }
-    lines << { text: "[ I ]  Items einlagern (#{state.inventory.length})", size: 0, color: [150, 198, 224] }
+    lines << { text: "[ L ]  Logbuch & Lager", size: 0, color: [150, 198, 224] }
+    lines << { text: "[ I ]  Alles einlagern (#{state.inventory.length})", size: 0, color: [150, 198, 224] }
     lines << { text: "[ Q ]  Spiel beenden", size: 0, color: [150, 198, 224] }
+    lines
+  end
 
+  def render_boat_card(lines, width)
     pad = 16
     height = pad + 12
     lines.each { |line| height += boat_line_height(line) }
 
     x = SURFACE_BOAT_X - state.camera_x
     top = WATERLINE_Y + 210 - state.camera_y # top edge; the card hangs just above the boat
-    left = x - BOAT_HINT_W / 2
+    left = x - width / 2
 
-    outputs.sprites << { x: left, y: top - height, w: BOAT_HINT_W, h: height,
-                         r: 18, g: 42, b: 66, a: 175, path: :solid }
-    outputs.sprites << { x: left, y: top - 3, w: BOAT_HINT_W, h: 3,
+    outputs.sprites << { x: left, y: top - height, w: width, h: height,
+                         r: 18, g: 42, b: 66, a: 220, path: :solid }
+    outputs.sprites << { x: left, y: top - 3, w: width, h: 3,
                          r: 120, g: 190, b: 220, a: 190, path: :solid }
 
     ly = top - pad

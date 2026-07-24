@@ -1,6 +1,9 @@
 require "app/ux/hud.rb"
 
+require "app/ux/story.rb"
+
 require "app/scenes/title.rb"
+require "app/scenes/name.rb"
 require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
 require "app/scenes/area2.rb"
@@ -70,7 +73,9 @@ class Game
     ) || 0
 
     update_scene
-    update_home_menu # E at the boat opens the logbook; E/ESC closes it
+    update_home_menu # L at the boat opens the boat screen and closes it again
+    update_exchange  # and while it's open, the arrows and E sort pack against hold
+    update_escape    # ESC: out of the boat screen, or out of the dive to the title
     quit_game if at_the_boat? && inputs.keyboard.key_down.q # Q at the boat quits
     update_sprint
     update_characters(sprite_index)
@@ -81,6 +86,7 @@ class Game
       update_boat_stash # I at the boat empties the pack into the hold
       update_oxygen
       update_suit
+      update_story # the boat's opening card retires the moment you first dive
       track_log # quietly record how deep you got and what you've seen
     end
     send("#{state.game_scene}_tick")
@@ -106,6 +112,9 @@ class Game
     state.death_cause = nil
     state.sprinting = false
     state.speed = Diver::SPEED
+    state.player_name = ""  # typed in on the way past the title
+    state.typing = false    # ... while text input is switched on
+    state.story_told = true # the boat only tells it on a round started from the title
     state.initialized = true
 
     state.diver = Diver.new(args, sprite_index)
@@ -255,11 +264,6 @@ class Game
   end
 
   def basic_movements_per_tick
-    if inputs.keyboard.key_down.escape
-      state.game_scene = "title"
-      return
-    end
-
     # Horizontal movement is in world space (diver_global_x); the camera turns it
     # into an on-screen position later, so no wrapping at the screen edge.
     if inputs.left
@@ -554,23 +558,35 @@ class Game
   end
 
   def game_paused?
-    ["title", "game_over", "home_menu"].include?(state.game_scene)
+    ["title", "name", "game_over", "home_menu"].include?(state.game_scene)
   end
 
-  # The home menu: press E at the boat to open the logbook, E or ESC to close it.
-  # Kept in one place so a single key press does exactly one thing — the frozen
-  # world sits behind it, so the world's own input is off while it's open.
+  # The boat screen: press L at the boat to open it, L to close it again. The
+  # frozen world sits behind it, so the world's own input is off while it's up.
   def update_home_menu
-    toggle_home_menu(menu_key?, inputs.keyboard.key_down.escape)
+    toggle_home_menu(menu_key?)
   end
 
   # The state change on its own, so it's testable without faking key presses.
-  def toggle_home_menu(open_or_close, close_only)
+  def toggle_home_menu(open_or_close)
     if state.game_scene == "home_menu"
-      resume_scene if open_or_close || close_only
+      resume_scene if open_or_close
     elsif !game_paused? && at_the_boat? && open_or_close
       state.game_scene = "home_menu"
+      reset_exchange # every visit starts on the first thing you brought up
     end
+  end
+
+  # ESC means one thing per press. Deciding that in a single place is the whole
+  # point: it used to close the boat screen here and then, later in the same
+  # tick, still read as "leave the dive" in basic_movements_per_tick — so one tap
+  # dropped you on the title screen and the round was gone.
+  def update_escape
+    return unless inputs.keyboard.key_down.escape
+    return resume_scene if state.game_scene == "home_menu"
+    return abandon_name if state.game_scene == "name"
+
+    state.game_scene = "title" unless game_paused?
   end
 
   def menu_key?

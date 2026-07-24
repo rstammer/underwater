@@ -1,8 +1,159 @@
+# The way into a round: the title asks for your name, and the boat tells you the
+# rest while you float alongside it.
 class IntroTests
   def build_game(args)
     game = Game.new
     game.args = args
     game
+  end
+
+  # A round started from the title goes past the name screen first.
+  def test_the_title_asks_for_a_name(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    args.inputs.keyboard.key_down.space = true
+    game.tick
+
+    assert.equal! args.state.game_scene, "name"
+    assert.true! game.game_paused?, "nothing drains while you type"
+  end
+
+  def test_typing_fills_the_field(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    game.type_name(["R", "o", "b", "i", "n"])
+
+    assert.equal! args.state.player_name, "Robin"
+    assert.equal! game.diver_name, "Robin", "and that's who goes down there"
+  end
+
+  def test_backspace_takes_a_letter_back(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.type_name(["A", "b"])
+
+    game.backspace_name
+    assert.equal! args.state.player_name, "A"
+
+    game.backspace_name
+    game.backspace_name # one too many
+    assert.equal! args.state.player_name, "", "an empty field stays empty"
+  end
+
+  def test_the_field_has_a_limit_and_ignores_control_characters(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    game.type_name(["x"] * (Game::NAME_MAX + 8))
+    assert.equal! args.state.player_name.length, Game::NAME_MAX, "the field fills up and stops"
+
+    game.backspace_name
+    game.type_name(["\t"])
+    assert.equal! args.state.player_name.length, Game::NAME_MAX - 1, "a tab is not a letter"
+  end
+
+  def test_a_name_may_contain_spaces(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    game.type_name(["A", "n", "n", " ", "K", "a"])
+
+    assert.equal! args.state.player_name, "Ann Ka", "space types, it doesn't confirm"
+  end
+
+  def test_enter_needs_an_actual_name(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.game_scene = "name"
+
+    game.confirm_name
+    assert.equal! args.state.game_scene, "name", "a blank field goes nowhere"
+
+    game.type_name(["   "]) # nothing but blanks is still blank
+    game.confirm_name
+    assert.equal! args.state.game_scene, "name", "and neither does whitespace"
+
+    game.type_name(["P", "i", "a"])
+    game.confirm_name
+    assert.equal! args.state.game_scene, "area1", "a name gets you in the water"
+    assert.true! game.breathing?, "floating beside the boat"
+  end
+
+  def test_esc_backs_out_of_the_name_screen(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.game_scene = "name"
+
+    args.inputs.keyboard.key_down.escape = true
+    game.tick
+
+    assert.equal! args.state.game_scene, "title"
+  end
+
+  # The story is on the boat's own card, in the world — not a screen in between.
+  def test_the_boat_tells_the_story_before_the_first_dive(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.type_name(["P", "i", "a"])
+    game.confirm_name
+
+    game.area1_tick
+    text = args.outputs.labels.map { |label| label[:text] }.join(" ")
+
+    assert.true! game.story_pending?, "it hasn't been told yet"
+    assert.true! text.include?("Pia"), "the boat greets you by name"
+    assert.true! text.include?("Schatzsucher"), "and says what you're out here for"
+  end
+
+  # Diving is the acknowledgement — after that the card is the boat's actions again.
+  def test_the_story_retires_once_you_dive(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.type_name(["P", "i", "a"])
+    game.confirm_name
+
+    args.state.depth_y = -400 # under you go
+    game.update_story
+    assert.false! game.story_pending?, "told, once and for all"
+
+    game.spawn_at_surface # and back up at the boat again
+    game.update_story
+    args.outputs.labels.clear
+    game.area1_tick
+    text = args.outputs.labels.map { |label| label[:text] }.join(" ")
+
+    assert.false! text.include?("Neugier"), "the story doesn't come back"
+    assert.true! text.include?("Logbuch"), "the card is the boat's actions now"
+  end
+
+  # A retry after drowning drops you straight back in — no name screen, no story.
+  def test_a_retry_skips_the_way_in(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.game_scene = "game_over"
+
+    args.inputs.keyboard.key_down.space = true
+    game.tick
+
+    assert.equal! args.state.game_scene, "area1", "back in the water"
+    assert.false! game.story_pending?, "and the boat doesn't start over"
+  end
+
+  # The card doesn't wrap: it draws the lines as written. So measure them — this
+  # is the test that complains when the prose gets rewritten a little too long.
+  def test_the_story_fits_the_card(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    usable = Game::STORY_W - 32
+
+    game.story_lines.each do |line|
+      width = args.gtk.calcstringbox(line, 0)[0]
+      assert.true! width <= usable, "\"#{line}\" runs #{width.to_i} px, the card holds #{usable}"
+    end
+    assert.true! args.gtk.calcstringbox(game.story_closing, 0)[0] <= usable, "so does the closing line"
+    assert.true! args.gtk.calcstringbox("W" * Game::NAME_MAX, 2)[0] <= usable, "and the longest name"
   end
 
   def test_spawn_at_surface_floats_at_the_waterline(args, assert)

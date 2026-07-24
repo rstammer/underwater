@@ -125,18 +125,6 @@ class ItemsTests
     assert.equal! args.state.stash.length, 0, "nothing to store, nothing stored"
   end
 
-  def test_the_logbook_counts_carried_and_stored_items(args, assert)
-    game = build_game(args)
-    game.initialize_game(0)
-    args.state.inventory = ["shoe", "can"]
-    args.state.stash = ["bottle", "jewel", "key"]
-
-    rows = Hash[game.logbook_rows]
-
-    assert.equal! rows["Gegenstände dabei"], "2 / #{Game::INVENTORY_MAX}"
-    assert.equal! rows["Eingelagert"], "3"
-  end
-
   def test_the_inventory_hud_renders(args, assert)
     game = build_game(args)
     game.initialize_game(0)

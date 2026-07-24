@@ -30,6 +30,7 @@ class Game
     state.inventory = []
     state.stash = []
     state.world_items = roll_world_items
+    reset_exchange
   end
 
   # Scatter ITEM_COUNT items on the open sea floor around home — never on the
@@ -95,6 +96,92 @@ class Game
 
     state.stash.concat(state.inventory)
     state.inventory = []
+  end
+
+  # --- The exchange at the boat -------------------------------------------
+  #
+  # Two lists side by side: what you carry (the pack) and what lies in the
+  # boat's hold. A cursor walks them — left/right picks the side, up/down the
+  # row, E moves the selected piece across. Everything below is a plain state
+  # change so the whole interaction tests without a single key press; the boat
+  # screen in app/scenes/home_menu.rb only draws what these methods say.
+
+  PACK_SIDE = "pack"
+  HOLD_SIDE = "hold"
+
+  # The hold, gathered into one row per kind — six cans read better as "Dose 6"
+  # than as six identical rows. Ordered like ITEM_KINDS so the rows don't shuffle
+  # around under the cursor as things come and go.
+  def hold_stacks
+    ITEM_KINDS.map { |kind| { kind: kind, count: state.stash.count { |stored| stored == kind } } }
+              .reject { |stack| stack[:count].zero? }
+  end
+
+  def exchange_rows(side)
+    side == PACK_SIDE ? state.inventory : hold_stacks
+  end
+
+  # The cursor starts on what you just brought up — that's what you came to sort.
+  def reset_exchange
+    state.exchange_side = PACK_SIDE
+    state.exchange_index = 0
+  end
+
+  # dx picks the side (-1 pack, +1 hold), drow walks the rows (+1 = one further
+  # down the list) and wraps at either end — with this few rows, wrapping beats
+  # bumping into a wall.
+  def move_exchange(dx, drow)
+    state.exchange_side = dx < 0 ? PACK_SIDE : HOLD_SIDE unless dx.zero?
+    state.exchange_index += drow
+    clamp_exchange
+  end
+
+  # Keep the cursor on a row that is actually there — after a step, after
+  # switching sides, and after a transfer took the row away underneath it.
+  def clamp_exchange
+    rows = exchange_rows(state.exchange_side).length
+    state.exchange_index = rows - 1 if state.exchange_index < 0
+    state.exchange_index = 0 if rows.zero? || state.exchange_index >= rows
+  end
+
+  # E on the boat screen: whatever the cursor is on goes to the other side.
+  def transfer_selected
+    state.exchange_side == PACK_SIDE ? stow_selected : fetch_selected
+  end
+
+  # Out of the pack, into the hold — which takes as much as you can bring it.
+  def stow_selected
+    kind = state.inventory[state.exchange_index]
+    return unless kind
+
+    state.inventory.delete_at(state.exchange_index)
+    state.stash << kind
+    clamp_exchange # the row is gone; keep the cursor on one that exists
+  end
+
+  # One piece off the selected stack, back into the pack — if there's room.
+  def fetch_selected
+    return if inventory_full?
+
+    stack = hold_stacks[state.exchange_index]
+    return unless stack
+
+    state.stash.delete_at(state.stash.index(stack[:kind]))
+    state.inventory << stack[:kind]
+    clamp_exchange # emptying a stack drops its row out from under the cursor
+  end
+
+  # Menu keys, live only while the boat screen is up. The world's own input is
+  # off then (game_paused?), so E means "move this" here and nothing else.
+  def update_exchange
+    return unless state.game_scene == "home_menu"
+
+    keys = inputs.keyboard.key_down
+    move_exchange(-1, 0) if keys.left
+    move_exchange(1, 0) if keys.right
+    move_exchange(0, -1) if keys.up
+    move_exchange(0, 1) if keys.down
+    transfer_selected if keys.e || keys.enter
   end
 
   # Pick up the item under the diver, if there is one and the pack has room. The

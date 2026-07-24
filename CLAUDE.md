@@ -46,7 +46,7 @@ Singleton delegieren; `boot` initialisiert `args.state = {}` (kein nil-Auto-
 Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
 
 - `app/main.rb` — `class Game` (Loop + Helfer) + `boot`/`tick`/`reset`
-- `app/scenes/` — `title`/`area1`/`area2`/`game_over`, **reopenen `class Game`**
+- `app/scenes/` — `title`/`name`/`area1`/`area2`/`game_over`, **reopenen `class Game`**
   und definieren `<scene>_tick`; Dispatch via `send("#{state.game_scene}_tick")`.
   `area1`/`area2` rendern dieselbe kontinuierliche, durchscrollende Welt
   (`render_underwater`) und sind nur noch Sektor-Labels; eine eigene „surface"-
@@ -60,8 +60,8 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
   sichtbar sind, Welt→Screen-Offsets, Fauna-Spawn), `world_renderer` (reopenet
   `Game`; zeichnet Wasser, Himmel, Boden, Fels, Luftblasen, Deko, Boot),
   `fog_of_war`
-- `app/ux/` — `hud` (reopenet
-  `Game`: O2- und Anzug-Balken, Locator, Tiefenanzeige, Debug-Readout)
+- `app/ux/` — `hud` (reopenet `Game`: O2- und Anzug-Balken, Locator, Tiefenanzeige,
+  Debug-Readout) und `story` (der Eröffnungstext, den das Boot erzählt)
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
   Seetang, Fels, Boot; für die Inseln: Palme groß/klein, Busch, Gras, Treibholz,
@@ -78,6 +78,9 @@ kritisch:
 
 1. `initialize_game` (nur beim ersten Tick, `unless state.initialized`)
 2. `update_scene` — setzt `state.game_scene` (State-Machine, s. u.)
+2b. `update_home_menu` / `update_exchange` — **vor** dem Pause-Check, denn sie sind
+   die einzige Eingabe, die im pausierten Boot-Screen noch zählt (Menü auf/zu,
+   Cursor, Umpacken)
 3. `update_sprint` — setzt `state.sprinting` + `state.speed` (vor jeder Bewegung)
 4. `update_characters` — Hai/Skalare ticken; **Hai-Kollision (in Welt-Koordinaten,
    auf `depth_y`) → game_over (`death_cause = :eaten`)**
@@ -106,17 +109,27 @@ sind eine durchgehende Kamerafahrt (s. Kamera). `game_scene` steuert nur noch da
    area1 ⇄ area2   (diver_global_x < 1281 → area1, sonst area2; nur ein Label —
                     beide rendern dieselbe kontinuierliche, durchscrollende Welt)
 
-   title ──[Leertaste/z/j/A]──► area1 (Spielstart, an der Oberfläche/atmend)
-   <überall> ──[Hai / O2 leer]──► game_over ──[Leertaste]──► area1 (reset_game)
+   title ──[Leertaste/z/j/A]──► name ──[Enter]──► area1 (start_round, atmend)
+                                name ──[ESC]──► title
+   <überall> ──[Hai / O2 leer]──► game_over ──[Leertaste]──► area1 (reset_game,
+                                  **ohne** name/Story — ein Retry klickt nichts weg)
    <am Boot> ──[L]──► home_menu ──[L/ESC]──► area1/area2 (resume_scene)
-   <überall> ──[ESC]──► title
+                      (drin: ←/→ Spalte, ↑/↓ Zeile, E schiebt Rucksack ⇄ Lager)
+   <im Wasser> ──[ESC]──► title
 ```
 
-`title`, `game_over` und `home_menu` sind **pausiert** (`game_paused?`): kein
+`title`, `name`, `game_over` und `home_menu` sind **pausiert** (`game_paused?`): kein
 O2-/Anzug-Drain, kein HUD, **und Bewegung + Kamera stehen still** (die Welt friert
 ein, statt dass der Taucher hinter dem Menü davondriftet). Der Menü-Umschalter
-`toggle_home_menu(open_or_close, close_only)` ist von der Tastenabfrage getrennt,
-damit er ohne simulierte Eingaben testbar ist. Das Logbuch selbst: `home_menu.rb`.
+`toggle_home_menu(open_or_close)` ist von der Tastenabfrage getrennt, damit er ohne
+simulierte Eingaben testbar ist. Der Boot-Screen selbst: `home_menu.rb`.
+
+**ESC wird an genau einer Stelle entschieden** (`update_escape`): im Boot-Screen
+schließt es ihn, sonst verlässt es den Tauchgang zum Titel. Das war mal auf zwei
+Stellen verteilt (Menü-Toggle **und** `basic_movements_per_tick`) — mit dem Ergebnis,
+dass ein einziger Druck beides tat und man aus dem Menü direkt auf dem Titelbildschirm
+landete, Runde weg. Ein `key_down` ist einen ganzen Tick lang wahr; wer ihn an zwei
+Stellen liest, verarbeitet ihn zweimal.
 
 ### Kamera (beide Achsen, kontinuierlich)
 
@@ -313,6 +326,9 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `log_deepest` / `log_sectors` / `log_islands` / `log_caves` | Logbuch der Runde: tiefste Meterzahl + Index-Sets (Sektoren/Inseln/Höhlen); `track_log` füllt, `reset_log` leert |
 | `world_items` | versteckte Sammelstücke `{kind:, x:, y:, collected:}` in Welt-Koordinaten (pro Runde gewürfelt, `reset_items`) |
 | `inventory` / `stash` | getragene Gegenstände (max `INVENTORY_MAX`) bzw. am Boot eingelagerte (unbegrenzt) |
+| `player_name` / `typing` | der eingetippte Name (`diver_name` liefert ihn bzw. `DIVER_NAME` als Rückfall) und ob gerade Text-Eingabe läuft |
+| `story_told` | ob die Eröffnung am Boot durch ist — `false` nur ab `start_round`, wird beim ersten Abtauchen `true` |
+| `exchange_side` / `exchange_index` | Cursor im Boot-Screen: welche Spalte (`"pack"`/`"hold"`) und welche Zeile darin — nur dort relevant, `reset_exchange` beim Öffnen |
 
 Koordinaten-Merksatz: **hoch schwimmen = `depth_y` steigt = flacher; seitlich =
 `diver_global_x`.** Wasserlinie bei `WATERLINE_Y`, der Grund liegt je nach Ort
@@ -330,18 +346,58 @@ Screen-Positionen und werden nicht direkt gesetzt.
   reicht (gedacht als späteres Zuhause zum Anlegen/Einsteigen). Liegt man daneben,
   erscheint eine kleine Karte über dem Boot (`render_boat_hint`): Titel „Dein Boot",
   eine **blinkende** Status-Zeile „Anzug wird repariert" **nur solange
-  `repairing_suit?`** (`suit < SUIT_MAX`), dann **Aktionen**: „[ L ] Logbuch
-  öffnen", „[ I ] Items einlagern (N)" (`store_items`) und „[ Q ] Spiel beenden"
+  `repairing_suit?`** (`suit < SUIT_MAX`), dann **Aktionen**: „[ L ] Logbuch &
+  Lager", „[ I ] Alles einlagern (N)" (`store_items`) und „[ Q ] Spiel beenden"
   (`quit_game` → `$gtk.request_quit`, alle nur wenn `at_the_boat?`). Sonst bleibt
   der Bildschirm frei von Text (die alten Szenen-Titel sind weg). Die Karte ist am
   **oberen Rand verankert und wächst nach unten** (dynamische Höhe aus den Zeilen),
   damit sie nie über den oberen Bildrand hinausläuft.
-- **Logbuch (Home-Menü):** `E` am Boot öffnet `home_menu` (pausiert, Welt friert
-  hinter einem Schleier ein) — die Bilanz der Runde: tiefster Tauchgang, erkundete
-  Sektoren, gefundene Inseln, durchtauchte Höhlen. Gezählt wird pro Tauch-Tick in
-  `track_log` (Sektoren/Inseln/Höhlen als Index-Sets → kein Doppelzählen; Höhle
-  zählt, sobald man in ihrer Luftkammer atmet), zurückgesetzt pro Runde
-  (`reset_log`). Zeilen liefert `logbook_rows` (reine Methode → testbar).
+- **Name (`app/scenes/name.rb`):** vor dem ersten Tauchgang fragt das Spiel, wie der
+  Spieler heißt (`state.player_name`, max `NAME_MAX`). Eingabe läuft über
+  **`args.inputs.text`** — das füllt sich nur, wenn Text-Eingabe eingeschaltet ist,
+  deshalb `begin_typing`/`end_typing` (`$gtk.start_text_input`/`stop_text_input`)
+  um den Screen herum; beides läuft auch im Test-Runner. **Enter** bestätigt (nicht
+  Leertaste — die ist ein legales Zeichen in einem Namen), Backspace löscht, ESC
+  zurück zum Titel. Leer/nur Leerzeichen zählt nicht als Name. `type_name` /
+  `backspace_name` / `confirm_name` sind reine State-Änderungen → testbar ohne
+  simulierte Tasten.
+- **Story am Boot (`app/ux/story.rb`):** die Eröffnung ist **kein eigener Screen**,
+  sondern die Karte, die ohnehin über dem Boot hängt (`render_boat_card`) — man liest
+  sie an der Oberfläche neben dem Boot, mit dem Meer schon darunter. Solange
+  `story_pending?`, trägt die Karte die Story (`boat_story_lines`, Überschrift =
+  `diver_name`), danach wieder die Aktionen (`boat_action_lines`). **Quittiert wird
+  durchs Abtauchen** (`update_story`: `story_told` sobald `!at_open_surface?`) — keine
+  Taste zum Wegklicken, und sie kommt nicht wieder. Nur bei einer Runde **vom Titel**
+  (`start_round`); nach game_over geht's direkt weiter. Text in `story_lines`
+  (`""` = Absatz), zum Umschreiben gedacht — die Karte **bricht nicht um**, deshalb
+  misst `test_the_story_fits_the_card` jede Zeile mit `calcstringbox` gegen `STORY_W`
+  und meckert, sobald sie zu lang wird.
+- **Boot-Screen (Home-Menü):** `L` am Boot öffnet `home_menu` (pausiert, Welt friert
+  hinter einem Schleier ein) — drei Spalten in `render_boat_screen`:
+  - **Logbuch** (links) — die Bilanz der Runde: tiefster Tauchgang, erkundete
+    Sektoren, gefundene Inseln, durchtauchte Höhlen. Gezählt wird pro Tauch-Tick in
+    `track_log` (Sektoren/Inseln/Höhlen als Index-Sets → kein Doppelzählen; Höhle
+    zählt, sobald man in ihrer Luftkammer atmet), zurückgesetzt pro Runde
+    (`reset_log`). Zeilen liefert `logbook_rows` (reine Methode → testbar). Was man
+    dabei/eingelagert hat, steht **nicht** mehr als Zeile drin — das zeigen die
+    beiden Spalten daneben ohnehin genauer.
+  - **Rucksack** (Mitte) — `INVENTORY_MAX` Zeilen, leere als dezenter Strich, damit
+    man den Platz sieht; die Überschrift wird warm, wenn er voll ist.
+  - **Lager** (rechts) — `hold_stacks`: **eine Zeile je Art mit Anzahl** (sechs
+    Dosen lesen sich als „Dose 6", nicht als sechs gleiche Zeilen), sortiert wie
+    `ITEM_KINDS`, damit die Zeilen unter dem Cursor nicht springen. Bei vollem
+    Rucksack sind die Zeilen gedimmt — da kann nichts hoch, bevor was runtergeht.
+- **Tauschen am Boot (`app/world/items.rb`, „exchange"):** ein Cursor über beiden
+  Listen — `←/→` wählt die Seite (`state.exchange_side`, `"pack"`/`"hold"`),
+  `↑/↓` die Zeile (`state.exchange_index`, wrappt an beiden Enden), **`E`**
+  schiebt das Ausgewählte auf die andere Seite (`transfer_selected` →
+  `stow_selected` / `fetch_selected`). Rein aus dem Lager geht nur, solange der
+  Rucksack Platz hat. `clamp_exchange` hält den Cursor auf einer Zeile, die es
+  wirklich gibt — auch wenn ein Transfer die Zeile gerade unter ihm wegnimmt (letztes
+  Stück eines Stapels). Alles reine State-Änderungen: `update_exchange` liest die
+  Tasten (nur wenn `game_scene == "home_menu"`), die Logik selbst ist ohne simulierte
+  Eingaben testbar (`tests/stash_tests.rb`). `reset_exchange` beim Öffnen des Menüs
+  und pro Runde. **`I` am Boot** bleibt als Abkürzung „alles auf einmal einlagern".
 - **Gegenstände / Inventar (`app/world/items.rb`):** Fünf Sammelstücke
   (Flaschenpost, Schuh, Dose, Schmuck, Schlüssel; Sprites via
   `tools/make_item_sprites.rb` → `sprites/items/`) liegen versteckt auf dem
@@ -353,9 +409,11 @@ Screen-Positionen und werden nicht direkt gesetzt.
   `INVENTORY_MAX` = 3**; HUD zeigt drei Slots + einen Prompt in Reichweite
   („[ E ] … aufheben" bzw. „Inventar voll"; HUD-Slots **unten links**, klar von den
   Gauges oben getrennt). **Einlagern mit I am Boot** (`store_items`) leert den
-  Rucksack in `state.stash` (unbegrenzt). Aufheben ist **E**, das Boot-Logbuch **L**
-  — keine geteilte Taste mehr; Items spawnen ohnehin nie am Boot. Loop:
-  tauchen → finden → drei tragen → heimbringen → einlagern → weiter.
+  Rucksack in `state.stash` (unbegrenzt) — feiner sortieren geht im Boot-Screen
+  (s. „Tauschen am Boot"). Aufheben ist **E**, das Boot-Menü **L** — keine geteilte
+  Taste mehr; Items spawnen ohnehin nie am Boot. Loop: tauchen → finden → drei
+  tragen → heimbringen → einlagern → **umpacken, was man mit rausnehmen will** →
+  weiter.
 - **Bewegung (kontinuierlich, beide Achsen):** Es gibt keinen Übergang mehr — der
   Taucher bewegt sich in `depth_y` (vertikal) und `diver_global_x` (horizontal),
   die Kamera scrollt die Welt weich durch. Vertikal: nahe dem Grund ruht die
@@ -520,5 +578,18 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
   bekommt an jeder Chunk-Grenze eine Stufe.
 - **HUD zuletzt rendern.** `render_panel` muss ans Ende von `tick`, sonst
   überdecken Szene/Fog den O2-Balken.
+- **Ein Panel deckt keine Labels ab.** `solids < sprites < labels` gilt *global*,
+  nicht nur innerhalb eines Buckets: ein deckendes Menü-Panel (Sprite) verdeckt zwar
+  den Kasten der Boot-Karte, aber **nicht deren Text** — der stand mitten im Boot-
+  Screen. Ein Overlay macht nichts unsichtbar; was drunter nicht hingehört, darf gar
+  nicht erst gezeichnet werden (`render_boat_hint ... && !game_paused?`).
+- **`vertical_alignment_enum: 2` heißt: `y` ist die *Oberkante*.** Eine Linie unter
+  so eine Überschrift gehört auf `y - calcstringbox(text)[1] - Luft`, nicht auf einen
+  geratenen Festwert — sonst läuft sie durch die Buchstaben. Für alles, was sich an
+  Textmaßen ausrichtet (Trennlinien, Kartenhöhen, Zeilenumbruch), **messen** statt
+  schätzen: `args.gtk.calcstringbox(text, size_enum)` läuft auch im Test-Runner.
+- **Ein `key_down` gilt den ganzen Tick.** Wer dieselbe Taste an zwei Stellen im Tick
+  abfragt, verarbeitet sie zweimal — so schloss ESC erst das Menü und warf einen
+  danach noch auf den Titelbildschirm. Eine Taste, eine Stelle (`update_escape`).
 - **`--test` exit-code lügt.** Immer 0 — nur `bin/test` (mit Output-Parsing)
   gibt einen echten Exit-Code für CI.
