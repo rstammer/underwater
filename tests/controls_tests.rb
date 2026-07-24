@@ -144,6 +144,67 @@ class ControlsTests
     assert.equal! args.state.film_roll.length, 1, "the shutter fired from the button"
   end
 
+  # --- getting past the paused screens on a phone ---------------------------
+
+  def test_a_tap_gets_past_the_title(args, assert)
+    game = build_game(args)
+    game.initialize_game(0) # scene: title
+    touch(args, [{ id: 1, x: 640, y: 360 }])
+
+    game.tick
+
+    assert.equal! args.state.game_scene, "name", "a tap on the title moves on to the name"
+  end
+
+  def test_the_start_button_dives_in_under_the_default_name(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.game_scene = "name" # no name typed — a phone has no keyboard
+    button = game.control_layout.find { |b| b[:id] == :start }
+    touch(args, [{ id: 1, x: button[:x] + 10, y: button[:y] + 10 }])
+
+    game.tick
+
+    assert.equal! args.state.game_scene, "area1", "tapping start dives in"
+    assert.equal! game.diver_name, Game::DIVER_NAME, "under the default name"
+    assert.true! game.breathing?, "floating at the surface, ready"
+  end
+
+  def test_a_typed_name_still_wins_over_the_default(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.game_scene = "name"
+    game.type_name(["P", "i", "a"])
+    game.touch_start_name
+
+    assert.equal! args.state.game_scene, "area1"
+    assert.equal! game.diver_name, "Pia", "the name he typed, not the default"
+  end
+
+  def test_a_tap_retries_after_game_over(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.game_scene = "game_over"
+    args.state.death_cause = :drowned
+    touch(args, [{ id: 1, x: 640, y: 360 }])
+
+    game.tick
+
+    assert.equal! args.state.game_scene, "area1", "a tap tries again"
+  end
+
+  # A held finger from one screen must not carry through and skip the next.
+  def test_a_held_finger_does_not_double_advance(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    touch(args, [{ id: 1, x: 640, y: 360 }])
+    game.tick # title -> name
+    assert.equal! args.state.game_scene, "name"
+
+    game.tick # same finger still down, no new touch
+    assert.equal! args.state.game_scene, "name", "holding it doesn't tap through the name screen"
+  end
+
   def test_the_controls_render_without_error(args, assert)
     game = diving(args)
     touch(args, [{ id: 1, x: 220, y: 380 }])

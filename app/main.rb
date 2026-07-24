@@ -128,6 +128,8 @@ class Game
     state.touch_intents = {}
     state.touch_tapped = []
     state.touch_pressed = []
+    state.touch_ids = []
+    state.touch_began = false
     state.swim_pose = false
     state.initialized = true
 

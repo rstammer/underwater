@@ -18,6 +18,7 @@ class Game
 
   def name_tick
     read_name_input
+    touch_start_name if tapped?(:start) # the phone's way in: tap "Los geht's"
 
     outputs.sprites << title_background
     outputs.sprites << title_light_rays
@@ -91,11 +92,29 @@ class Game
 
     render_name_field(left, bottom)
 
-    hint = named? ? "Enter  —  los geht's" : "… tipp deinen Namen"
-    ink = named? ? MENU_ACCENT : MENU_DIM_INK
-    outputs.labels << { x: cx, y: bottom + 56, text: hint, size_enum: 1,
-                        alignment_enum: 1, vertical_alignment_enum: 2,
-                        r: ink[0], g: ink[1], b: ink[2] }
+    if state.touch_seen
+      render_name_start_button
+    else
+      hint = named? ? "Enter  —  los geht's" : "… tipp deinen Namen"
+      ink = named? ? MENU_ACCENT : MENU_DIM_INK
+      outputs.labels << { x: cx, y: bottom + 56, text: hint, size_enum: 1,
+                          alignment_enum: 1, vertical_alignment_enum: 2,
+                          r: ink[0], g: ink[1], b: ink[2] }
+    end
+  end
+
+  # The phone's way in, drawn from the same rect the hit-test reads (control_layout).
+  def render_name_start_button
+    button = control_layout.find { |b| b[:id] == :start }
+    return unless button
+
+    pressed = (state.touch_pressed || []).include?(:start)
+    outputs.sprites << { x: button[:x], y: button[:y], w: button[:w], h: button[:h],
+                         r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2],
+                         a: pressed ? 255 : 210, path: :solid }
+    outputs.labels << { x: button[:x] + button[:w] / 2, y: button[:y] + button[:h] / 2,
+                        text: button[:label], size_enum: 4, alignment_enum: 1,
+                        vertical_alignment_enum: 1, r: 10, g: 28, b: 44 }
   end
 
   # The field itself: what's been typed so far, on a line, with a caret blinking

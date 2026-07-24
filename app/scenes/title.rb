@@ -11,7 +11,7 @@ class Game
   ]
 
   def title_tick
-    if fire_input?
+    if fire_input? || touch_began? # a key, or a tap on a phone
       state.game_scene = "name" # who's going down there, first
       return
     end
@@ -132,10 +132,13 @@ class Game
                 alignment_enum: 1, r: 236, g: 246, b: 255 }
     labels << { x: cx, y: grid.h - 170, text: "Tauche ein und erkunde die Unterwasserwelt",
                 size_enum: 4, alignment_enum: 1, r: 205, g: 228, b: 246 }
-    labels << { x: cx, y: 118, text: "Pfeile / WASD  bewegen      Leertaste  sprinten      ESC  Pause",
-                size_enum: 1, alignment_enum: 1, r: 188, g: 214, b: 236, a: 210 }
+    unless state.touch_seen
+      labels << { x: cx, y: 118, text: "Pfeile / WASD  bewegen      Leertaste  sprinten      ESC  Pause",
+                  size_enum: 1, alignment_enum: 1, r: 188, g: 214, b: 236, a: 210 }
+    end
     if Kernel.tick_count.idiv(30).even?
-      labels << { x: cx, y: 72, text: "Leertaste drücken zum Starten",
+      start = state.touch_seen ? "Tippen zum Starten" : "Leertaste drücken zum Starten"
+      labels << { x: cx, y: 72, text: start,
                   size_enum: 4, alignment_enum: 1, r: 255, g: 244, b: 205 }
     end
     labels

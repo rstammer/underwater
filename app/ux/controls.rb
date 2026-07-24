@@ -27,16 +27,19 @@ class Game
     case control_context
     when :diving
       [{ id: :photo, label: "F", x: SCREEN_WIDTH - 184, y: 44, w: 140, h: 140 }]
+    when :name
+      [{ id: :start, label: name_start_label, x: (SCREEN_WIDTH - 360) / 2, y: 208, w: 360, h: 64 }]
     else
       []
     end
   end
 
-  # Touch only steers the diver while he is actually diving; menus and the title
-  # get their own touch handling later, and a stray thumb mustn't move a frozen
-  # world.
+  # The joystick steers only while diving; the paused screens get taps (anywhere,
+  # or on a button) but never a stick, and a stray thumb mustn't move a frozen
+  # world behind a menu.
   def control_context
     return :diving if !game_paused? && ["area1", "area2"].include?(state.game_scene)
+    return state.game_scene.to_sym if ["title", "name", "game_over"].include?(state.game_scene)
 
     :none
   end
@@ -51,26 +54,32 @@ class Game
     points = touch_points
     state.touch_seen = true if points.length > 0
 
-    unless control_context == :diving
-      clear_controls
-      return
+    # A new touch this tick — the "tap anywhere to go on" of the title and the
+    # game-over screen.
+    ids = points.map { |point| point[:id] }
+    state.touch_began = (ids - (state.touch_ids || [])).length > 0
+    state.touch_ids = ids
+
+    if control_context == :diving
+      update_stick(points)
+      state.touch_intents = stick_intents(points)
+    else
+      state.stick_id = nil
+      state.stick_anchor = nil
+      state.touch_intents = {}
     end
 
-    update_stick(points)
+    # Buttons are hit-tested against whatever the current context draws, so the
+    # F button underwater and the start button on the name screen both work here.
     buttons = buttons_under(points)
     state.touch_tapped = buttons - (state.touch_pressed || []) # rising edge only
     state.touch_pressed = buttons
-    state.touch_intents = stick_intents(points)
     state.swim_pose = will_left? || will_right? || will_down?
   end
 
-  def clear_controls
-    state.stick_id = nil
-    state.stick_anchor = nil
-    state.touch_intents = {}
-    state.touch_tapped = []
-    state.touch_pressed = []
-    state.swim_pose = will_left? || will_right? || will_down? # keyboard only here
+  # Did a fresh finger land this tick? Used where any tap means "go on".
+  def touch_began?
+    !!state.touch_began
   end
 
   # The floating joystick: the first touch that lands in the left zone (and not on
@@ -159,6 +168,19 @@ class Game
 
   def will_sprint?
     inputs.keyboard.key_held.space || touch?(:sprint)
+  end
+
+  # The start button on the name screen names the default so a phone player knows
+  # they can just tap through; once they've typed something, it's their name.
+  def name_start_label
+    named? ? "Los geht's" : "Los als #{DIVER_NAME}"
+  end
+
+  # Tapping start dives in — under the typed name, or the default if the field is
+  # still empty (a phone has no keyboard to type one).
+  def touch_start_name
+    state.player_name = DIVER_NAME if state.player_name.strip.empty?
+    confirm_name
   end
 
   # --- drawing --------------------------------------------------------------

@@ -1,6 +1,6 @@
 class Game
   def game_over_tick
-    if fire_input?
+    if fire_input? || touch_began? # a key, or a tap on a phone
       state.game_scene = "area1" # restart at the surface, mirroring a fresh start
       reset_game
       return
