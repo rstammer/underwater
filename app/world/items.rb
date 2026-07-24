@@ -22,6 +22,8 @@ class Game
   ITEM_REACH = 74     # px radius within which E grabs one
   ITEM_LIFT = 12      # rest a little above the sand
   ITEM_COUNT = 8      # how many are hidden out there each round
+  ITEM_SPACING = 300  # px two finds keep from each other — well past ITEM_REACH,
+                      # so one stop never picks up two
   ITEM_MIN_SECTOR = 1 # spread across the sectors near home ...
   ITEM_MAX_SECTOR = 9 # ... but not too far out to ever find
 
@@ -38,7 +40,6 @@ class Game
   # stacked on top of each other. Rolled once; positions then live in state.
   def roll_world_items
     items = []
-    used = {}
     attempts = 0
     while items.length < ITEM_COUNT && attempts < 400
       attempts += 1
@@ -46,10 +47,10 @@ class Game
       next if sector.zero? || island_sector?(sector)
 
       wx = sector * SCREEN_WIDTH + 240 + rand(SCREEN_WIDTH - 480) # clear of the segment edges
-      slot = wx.idiv(140)
-      next if used[slot] # keep them apart
+      # Real distance, not a grid bucket: two slots either side of a boundary can
+      # be a pixel apart, and then one find hands you two.
+      next if items.any? { |item| (item[:x] - wx).abs < ITEM_SPACING }
 
-      used[slot] = true
       items << { kind: ITEM_KINDS[rand(ITEM_KINDS.length)],
                  x: wx, y: WorldGenerator.floor_y_at(wx) + ITEM_LIFT, collected: false }
     end
@@ -61,8 +62,11 @@ class Game
     rand(2).zero? ? -s : s
   end
 
+  # An island is wider than a segment, so "not on an island" means not on any
+  # segment one of them reaches into — not just the sector it is centred on, or
+  # treasures end up buried in the flank of the one next door.
   def island_sector?(sector)
-    !!state.island_sectors && state.island_sectors.include?(sector)
+    !islands_over(sector).empty?
   end
 
   # The nearest un-taken item the diver could grab right now, or nil.

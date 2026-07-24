@@ -181,6 +181,113 @@ class IslandTests
     end
   end
 
+  # The first sector in a range whose island has an upper passage of its own.
+  def sector_with_gallery(range, &fits)
+    range.find do |sector|
+      galleries = island_for(sector).galleries
+      !galleries.empty? && (fits.nil? || galleries.any? { |g| fits.call(g) })
+    end
+  end
+
+  # Islands are riddled, not hollowed out with one corridor: over a handful of
+  # them, some carry a passage above the corridor with rock in between.
+  def test_islands_carry_upper_passages(args, assert)
+    with_gallery = (2..12).count { |sector| !island_for(sector).galleries.empty? }
+
+    assert.true! with_gallery >= 3, "several islands of eleven have an upper passage (#{with_gallery})"
+  end
+
+  # A gallery column carries two slabs — the rock between the levels, and the
+  # island's own lid — with swimmable water above and below the middle rock.
+  def test_a_gallery_is_a_second_passage_with_rock_between(args, assert)
+    sector = sector_with_gallery(2..12)
+    isle = island_for(sector)
+    slices = slices_of(isle)
+    gallery = isle.galleries.first
+    x = gallery[:from] + IslandWorld::SHAFT_W + 80 # past the chimney, in the passage proper
+
+    slabs = slabs_at(slices, x)
+    assert.equal! slabs.length, 2, "sector #{sector}: two slabs over the corridor at #{x}"
+    lower, upper = slabs
+    assert.true! lower[:crown] - lower[:ceiling] >= IslandWorld::ROCK_SPAN,
+                 "the rock between the levels has real thickness (#{lower[:crown] - lower[:ceiling]})"
+    assert.true! lower[:ceiling] - floor_at(slices, x) >= Diver::HEIGHT * 2,
+                 "the corridor underneath stays swimmable"
+    assert.true! upper[:ceiling] - lower[:crown] >= Diver::HEIGHT * 2,
+                 "and so does the passage above it"
+    assert.true! upper[:crown] > upper[:ceiling], "with the island still closed over the top"
+  end
+
+  # The chimney is the join: there, and only there, the middle rock is missing
+  # and the water runs from the corridor floor straight up into the gallery.
+  def test_a_chimney_joins_the_two_levels(args, assert)
+    sector = sector_with_gallery(2..12)
+    isle = island_for(sector)
+    slices = slices_of(isle)
+    gallery = isle.galleries.first
+    x = gallery[:from] + IslandWorld::SHAFT_W.idiv(2)
+
+    slabs = slabs_at(slices, x)
+    assert.equal! slabs.length, 1, "sector #{sector}: no rock between the levels in the chimney"
+    assert.true! slabs[0][:ceiling] >= gallery[:ceiling], "it is open all the way to the gallery roof"
+    world = slices[x.idiv(SCREEN_WIDTH)]
+    [gallery[:floor] - 20, gallery[:floor] + 20].each do |y|
+      assert.false! world.solid_at?(x % SCREEN_WIDTH, y),
+                    "open water right through the level of the middle rock (#{y})"
+    end
+  end
+
+  # The one that matters: the upper passage has to be *reachable*. Swim up the
+  # chimney from the corridor, then along the gallery — the same moves the player
+  # would make, run through the real depth clamp and the real wall check.
+  def test_you_can_swim_up_the_chimney_and_along_the_gallery(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    sector = sector_with_gallery(2..12)
+    args.state.island_sectors = [sector]
+    args.state.world_cache = {} # initialize_game already cached segments for the rolled sectors
+    isle = island_for(sector)
+    gallery = isle.galleries.first
+
+    args.state.diver_global_x = gallery[:from] + IslandWorld::SHAFT_W.idiv(2)
+    args.state.depth_y = -99_999 # sink to the corridor floor
+    game.update_depth_and_camera
+    assert.true! args.state.depth_y < gallery[:floor],
+                 "he starts down in the corridor (#{args.state.depth_y} under #{gallery[:floor]})"
+
+    600.times do
+      args.state.depth_y += Diver::SPEED
+      game.update_depth_and_camera
+    end
+    assert.true! args.state.depth_y > gallery[:floor],
+                 "the chimney let him up into the gallery (#{args.state.depth_y})"
+
+    600.times { game.swim_sideways(Diver::SPEED) }
+    assert.true! args.state.diver_global_x > gallery[:from] + IslandWorld::SHAFT_W + 100,
+                 "and he swims on along the upper passage (#{args.state.diver_global_x})"
+  end
+
+  # A dead end is worth the detour: its roof lifts at the far end and holds air,
+  # so swimming up the wrong-looking passage buys you a lungful.
+  def test_a_dead_end_gallery_holds_air(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    sector = sector_with_gallery(2..30) { |g| g[:dome] }
+    assert.false! sector.nil?, "some island in thirty ends a passage in a pocket of air"
+
+    args.state.island_sectors = [sector]
+    args.state.world_cache = {} # initialize_game already cached segments for the rolled sectors
+    isle = island_for(sector)
+    gallery = isle.galleries.find { |g| g[:dome] }
+
+    args.state.diver_global_x = gallery[:to] - IslandWorld::DOME_SPAN.idiv(2)
+    args.state.depth_y = 99_999 # float up as far as the rock allows
+    game.update_depth_and_camera
+
+    assert.true! game.breathing?, "his head is in the trapped air up there"
+    assert.false! game.at_open_surface?, "deep inside the island, nowhere near daylight"
+  end
+
   # The tunnel meets the sea floor flush at both mouths, so there is no step to
   # climb on the way in or out — even though the mouths now lie in segments of
   # their own, far from the island's home.
@@ -320,9 +427,12 @@ class IslandTests
         world.air_pockets.each do |air|
           first = index * SCREEN_WIDTH + air[:x]
           xs_between(first, first + air[:w]).each do |x|
-            ceiling = slabs_at(slices, x).first[:ceiling]
-            assert.equal! ceiling, air[:y] + air[:h],
-                          "sector #{sector}: the air reaches exactly up to the rock at #{x}"
+            # Air sits under a roof — the corridor's dome, or the raised roof at
+            # the end of an upper passage, so it is *some* slab, not always the
+            # lowest one.
+            ceilings = slabs_at(slices, x).map { |slab| slab[:ceiling] }
+            assert.true! ceilings.include?(air[:y] + air[:h]),
+                         "sector #{sector}: the air reaches up to rock at #{x} (#{ceilings.inspect})"
             assert.true! floor_at(slices, x) < air[:y], "and floats above the corridor floor"
           end
         end

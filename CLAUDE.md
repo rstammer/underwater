@@ -241,14 +241,38 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   (`WorldGenerator.terrace_start`), das gibt Plateaus und Schultern statt einer
   glatten Kuppe; nach oben deckelt `CROWN_MAX`, sonst schneidet der Bildrand den
   Gipfel ab.
-- **Der Tunnel** ist pro Insel anders: der Boden (`tunnel_floor_y`) ist eine Rampe
-  zwischen dem Sand beider Mündungen **plus ein Sack oder Buckel** (`@sag`, an den
-  Enden null — deshalb keine Stufe beim Rein-/Rausschwimmen), die Höhe
-  (`tunnel_height`) wechselt zwischen **Engstelle und Halle**
+- **Der Hauptgang** ist pro Insel anders: der Boden (`tunnel_floor_y_at`) ist eine
+  Rampe zwischen dem Sand beider Mündungen **plus ein Sack oder Buckel** (`@sag`, an
+  den Enden null — deshalb keine Stufe beim Rein-/Rausschwimmen), die Höhe
+  (`tunnel_height_at`) wechselt zwischen **Engstelle und Halle**
   (`TUNNEL_MIN`..`TUNNEL_MAX`, nie enger als `MIN_GAP`), und unterwegs heben
   **ein bis zwei Luftkammern** (`chambers`, Position gewürfelt) die Decke — dort
   taucht man auf und atmet. Im Korridor wächst Seetang, Koralle, Fels
   (`tunnel_decor`).
+- **Galerien: die zweite Ebene** (`galleries`, `column_slabs`). Über Abschnitten des
+  Hauptgangs laufen **waagerechte obere Gänge**, mit einer Felsschicht (`ROCK_SPAN`)
+  dazwischen — dafür ist die Slab-Liste pro Spalte da: Korridor-Spalte = ein Slab
+  (die Insel darüber), Galerie-Spalte = **zwei** (Zwischenfels + Inseldeckel),
+  Kamin-Spalte = wieder eins, weil dort der Zwischenfels fehlt und das Wasser vom
+  Korridorboden **durchgehend hochsteht**. Der **Kamin** (`shaft?`, `SHAFT_W`) sitzt
+  an jedem offenen Ende; eine von drei Galerien ist eine **Sackgasse** (`dead_end`)
+  und hebt am toten Ende ihre Decke (`GALLERY_RISE`) über eine **Luftkammer** — der
+  Lohn dafür, den falsch aussehenden Gang hochgeschwommen zu sein.
+  - **Gepasst statt gesetzt** (`fit_gallery`): die Galerie ist waagerecht, existiert
+    also nur, wo sie zwischen den **höchsten Punkt des Korridors darunter** und den
+    **dünnsten Teil der Insel darüber** passt. Passt sie nicht, gibt es keine —
+    deshalb hat eine flache, niedrige Insel schlicht einen Korridor und eine hohe
+    ist durchlöchert (gemessen: 9 von 11 Inseln bekommen eine).
+  - **Über eine Kammer darf sie laufen** (`corridor_ceiling_at` rechnet die Kuppel
+    mit ein, die Galerie sitzt dort einfach höher). **Ein Kamin darf es nicht**
+    (`shafts_hit_a_chamber?`): der Kamin nimmt den Zwischenfels weg — inklusive der
+    Kuppel, die die Kammerluft hielt. Der Taucher taucht dann in Luft ohne Decke
+    auf, `clamp_depth` hält ihn dort fest, und der Weg nach oben ist zu. (Genau so
+    ist es beim ersten Versuch passiert; die Durchschwimm-Simulation hat es
+    gefunden, kein Auge.)
+  - Die Galerie bleibt **unter Wasser** (`WATERLINE_Y - MIN_GAP`): darüber würde der
+    Taucher im Berginneren an der Meeres-Wasserlinie treiben und `breathing?` wäre
+    wahr — Höhle wird taghell, der bekannte Fehlerfall.
 - **Bewuchs oben** steht auf den **Plateaus** (`plateaus` = Läufe gleicher
   Kronenhöhe; ein Platz je `PLANT_SPACING` px): Treibholz und Krabben am Strand,
   weiter oben, was in die Lücke passt. Geprüft wird der **Fuß** der Pflanze
@@ -509,7 +533,8 @@ Screen-Positionen und werden nicht direkt gesetzt.
 `SHORE_LIP`, `SHORE_HEIGHT`, `TUNNEL_HEIGHT`, `DOME_SPAN`, `DOME_RISE`,
 `AIR_DEPTH`, `CROWN_STEP`, `PLANT_SPACING`, `MARGIN`, `GULL_HEIGHT`, `SCALES`;
 Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
-`DOME_RISE`; Skerries: `SKERRY_LIP_MIN/MAX`, `SKERRY_DEPTH`.
+`DOME_RISE`; Galerien: `GALLERY_MIN/MAX`, `GALLERY_HEIGHT`, `GALLERY_RISE`,
+`ROCK_SPAN`, `SHAFT_W`, `GALLERY_GAP`; Skerries: `SKERRY_LIP_MIN/MAX`, `SKERRY_DEPTH`.
 
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
 `CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=240`, `CAMERA_FLOOR_SLACK=60`,
