@@ -46,7 +46,7 @@ Singleton delegieren; `boot` initialisiert `args.state = {}` (kein nil-Auto-
 Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
 
 - `app/main.rb` — `class Game` (Loop + Helfer) + `boot`/`tick`/`reset`
-- `app/scenes/` — `title`/`name`/`area1`/`area2`/`game_over`, **reopenen `class Game`**
+- `app/scenes/` — `title`/`name`/`area1`/`area2`/`game_over`/`pause`, **reopenen `class Game`**
   und definieren `<scene>_tick`; Dispatch via `send("#{state.game_scene}_tick")`.
   `area1`/`area2` rendern dieselbe kontinuierliche, durchscrollende Welt
   (`render_underwater`) und sind nur noch Sektor-Labels; eine eigene „surface"-
@@ -115,21 +115,27 @@ sind eine durchgehende Kamerafahrt (s. Kamera). `game_scene` steuert nur noch da
                                   **ohne** name/Story — ein Retry klickt nichts weg)
    <am Boot> ──[L]──► home_menu ──[L/ESC]──► area1/area2 (resume_scene)
                       (drin: ←/→ Spalte, ↑/↓ Zeile, E schiebt Rucksack ⇄ Lager)
-   <im Wasser> ──[ESC]──► title
+   <im Wasser> ──[ESC / Pause-Knopf]──► pause ──[ESC/Leertaste/Tap]──► area1/area2
+                                        pause ──[Q / Beenden]──► title
 ```
 
-`title`, `name`, `game_over` und `home_menu` sind **pausiert** (`game_paused?`): kein
-O2-/Anzug-Drain, kein HUD, **und Bewegung + Kamera stehen still** (die Welt friert
+`title`, `name`, `game_over`, `home_menu` und `pause` sind **pausiert** (`game_paused?`):
+kein O2-/Anzug-Drain, kein HUD, **und Bewegung + Kamera stehen still** (die Welt friert
 ein, statt dass der Taucher hinter dem Menü davondriftet). Der Menü-Umschalter
 `toggle_home_menu(open_or_close)` ist von der Tastenabfrage getrennt, damit er ohne
 simulierte Eingaben testbar ist. Der Boot-Screen selbst: `home_menu.rb`.
 
-**ESC wird an genau einer Stelle entschieden** (`update_escape`): im Boot-Screen
-schließt es ihn, sonst verlässt es den Tauchgang zum Titel. Das war mal auf zwei
-Stellen verteilt (Menü-Toggle **und** `basic_movements_per_tick`) — mit dem Ergebnis,
-dass ein einziger Druck beides tat und man aus dem Menü direkt auf dem Titelbildschirm
-landete, Runde weg. Ein `key_down` ist einen ganzen Tick lang wahr; wer ihn an zwei
-Stellen liest, verarbeitet ihn zweimal.
+**Pausenmenü (`app/scenes/pause.rb`):** ESC (oder der Pause-Knopf) im Tauchgang friert
+die Runde **ein statt sie wegzuwerfen** — Q/„Beenden" geht zum Titel, ESC/Leertaste/Tap
+spielt weiter (`resume_scene`, zurück in den richtigen Sektor). Früher sprang ESC direkt
+zum Titel und die Runde war weg.
+
+**ESC (und der Pause-Knopf) werden an genau einer Stelle entschieden** (`update_escape`,
+`case state.game_scene`): Boot-Screen zu, Name → Titel, Pause → weiter, im Wasser → Pause
+auf. **Gotcha, zweimal gelernt:** ein `key_down`/Tap ist einen ganzen Tick lang wahr —
+wer ihn an zwei Stellen liest, verarbeitet ihn zweimal. Beim Pausenmenü hätte derselbe
+Tap die Pause geöffnet *und* im selben Tick wieder geschlossen; `open_pause` merkt sich
+`state.paused_at = tick_count`, und `read_pause_input` ignoriert den Öffnungs-Tick.
 
 ### Kamera (beide Achsen, kontinuierlich)
 

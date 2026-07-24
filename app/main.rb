@@ -9,6 +9,7 @@ require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
 require "app/scenes/area2.rb"
 require "app/scenes/home_menu.rb"
+require "app/scenes/pause.rb"
 
 require "app/entities/dark_shark.rb"
 require "app/entities/creature.rb"
@@ -593,7 +594,7 @@ class Game
   end
 
   def game_paused?
-    ["title", "name", "game_over", "home_menu"].include?(state.game_scene)
+    ["title", "name", "game_over", "home_menu", "pause"].include?(state.game_scene)
   end
 
   # The boat screen: press L at the boat to open it, L to close it again. The
@@ -612,16 +613,30 @@ class Game
     end
   end
 
-  # ESC means one thing per press. Deciding that in a single place is the whole
-  # point: it used to close the boat screen here and then, later in the same
-  # tick, still read as "leave the dive" in basic_movements_per_tick — so one tap
-  # dropped you on the title screen and the round was gone.
+  # ESC (and the on-screen pause button) means one thing per screen, decided in a
+  # single place. Underwater it opens the pause menu rather than dropping you on
+  # the title — ESC used to throw the whole round away with no way back.
   def update_escape
-    return unless inputs.keyboard.key_down.escape
-    return resume_scene if state.game_scene == "home_menu"
-    return abandon_name if state.game_scene == "name"
+    escape = inputs.keyboard.key_down.escape
+    case state.game_scene
+    when "home_menu" then resume_scene if escape
+    when "name" then abandon_name if escape
+    when "pause" then resume_scene if escape # ESC also closes the pause menu
+    when "area1", "area2" then open_pause if escape || tapped?(:pause)
+    end
+  end
 
-    state.game_scene = "title" unless game_paused?
+  def open_pause
+    state.game_scene = "pause"
+    # Remember the tick: the same tap (or key) that opened the menu must not be
+    # read as "carry on" by pause_tick later in this very tick.
+    state.paused_at = Kernel.tick_count
+  end
+
+  # "Spiel beenden" from the pause menu: back to the title, where a new dive
+  # begins. Not a hard quit — on the web that would just freeze a dead tab.
+  def quit_to_title
+    state.game_scene = "title"
   end
 
   def menu_key?

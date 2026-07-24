@@ -26,9 +26,12 @@ class Game
   def control_layout
     case control_context
     when :diving
-      [{ id: :photo, label: "F", x: SCREEN_WIDTH - 184, y: 44, w: 140, h: 140 }]
+      [{ id: :photo, label: "F", x: SCREEN_WIDTH - 184, y: 44, w: 140, h: 140 },
+       { id: :pause, label: "II", x: SCREEN_WIDTH - 108, y: SCREEN_HEIGHT - 150, w: 88, h: 88 }]
     when :name
       [{ id: :start, label: name_start_label, x: (SCREEN_WIDTH - 360) / 2, y: 208, w: 360, h: 64 }]
+    when :pause
+      [{ id: :quit, label: "Beenden", x: (SCREEN_WIDTH - 300) / 2, y: 300, w: 300, h: 68 }]
     else
       []
     end
@@ -39,7 +42,7 @@ class Game
   # world behind a menu.
   def control_context
     return :diving if !game_paused? && ["area1", "area2"].include?(state.game_scene)
-    return state.game_scene.to_sym if ["title", "name", "game_over"].include?(state.game_scene)
+    return state.game_scene.to_sym if ["title", "name", "game_over", "pause"].include?(state.game_scene)
 
     :none
   end

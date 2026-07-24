@@ -60,8 +60,8 @@ class HomeMenuTests
     assert.equal! args.state.game_scene, "area1", "ESC drops back into the water, no further"
   end
 
-  # Out in the water it still is the way back to the title screen.
-  def test_esc_in_the_water_goes_to_the_title(args, assert)
+  # Out in the water ESC opens the pause menu — it does not throw the round away.
+  def test_esc_in_the_water_opens_the_pause_menu(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     args.state.game_scene = "area1"
@@ -71,7 +71,8 @@ class HomeMenuTests
     args.inputs.keyboard.key_down.escape = true
     game.tick
 
-    assert.equal! args.state.game_scene, "title", "ESC out there still bails out"
+    assert.equal! args.state.game_scene, "pause", "ESC pauses rather than bailing out"
+    assert.true! game.game_paused?, "and the world freezes behind it"
   end
 
   # The log fills in as you dive: the deepest you reached, the sectors and islands
