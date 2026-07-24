@@ -1,10 +1,14 @@
 # Before the first dive: who's going down there? The name is the player's own,
 # typed in, and the boat greets them by it (see app/ux/story.rb).
 #
-# Text entry in DragonRuby comes through args.inputs.text, which only fills up
-# while text input is switched on — hence begin_typing/end_typing around the
-# screen. Enter confirms (space is a legal character in a name, so it can't be
-# the confirm key here), backspace deletes, ESC goes back to the title.
+# Typed characters arrive as inputs.keyboard.key_down.char — one per tick, the
+# way DragonRuby's own docs do text entry. NOT via args.inputs.text: that only
+# fills while text input is switched on with DR.start_text_input, which is a Pro
+# tier feature and quietly does nothing on this Standard build, so the field
+# stayed empty and the game could not be started at all.
+#
+# Enter confirms (space is a legal character in a name, so it can't be the
+# confirm key here), backspace deletes, ESC goes back to the title.
 class Game
   NAME_MAX = 16
   NAME_PROMPT = "Wie heißt du?"
@@ -13,7 +17,6 @@ class Game
   NAME_H = 340
 
   def name_tick
-    begin_typing unless state.typing
     read_name_input
 
     outputs.sprites << title_background
@@ -23,21 +26,11 @@ class Game
     render_name_card
   end
 
-  def begin_typing
-    state.typing = true
-    $gtk.start_text_input
-  end
-
-  def end_typing
-    state.typing = false
-    $gtk.stop_text_input
-  end
-
   def read_name_input
     return confirm_name if inputs.keyboard.key_down.enter
 
     backspace_name if inputs.keyboard.key_down.backspace || inputs.keyboard.key_down.delete
-    type_name(inputs.text)
+    type_name([inputs.keyboard.key_down.char])
   end
 
   # Whatever was typed this tick, as far as the field still has room. Control
@@ -47,7 +40,7 @@ class Game
 
     chars.each do |char|
       break if state.player_name.length >= NAME_MAX
-      next unless char.length == 1 && char.ord >= 32
+      next unless char && char.length == 1 && char.ord >= 32
 
       state.player_name += char
     end
@@ -61,7 +54,6 @@ class Game
   def confirm_name
     return unless named?
 
-    end_typing
     start_round
   end
 
@@ -73,7 +65,6 @@ class Game
   end
 
   def abandon_name
-    end_typing
     state.game_scene = "title"
   end
 

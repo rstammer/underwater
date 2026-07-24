@@ -372,7 +372,7 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `log_deepest` / `log_sectors` / `log_islands` / `log_caves` | Logbuch der Runde: tiefste Meterzahl + Index-Sets (Sektoren/Inseln/Höhlen); `track_log` füllt, `reset_log` leert |
 | `world_items` | versteckte Sammelstücke `{kind:, x:, y:, collected:}` in Welt-Koordinaten (pro Runde gewürfelt, `reset_items`) |
 | `inventory` / `stash` | getragene Gegenstände (max `INVENTORY_MAX`) bzw. am Boot eingelagerte (unbegrenzt) |
-| `player_name` / `typing` | der eingetippte Name (`diver_name` liefert ihn bzw. `DIVER_NAME` als Rückfall) und ob gerade Text-Eingabe läuft |
+| `player_name` | der eingetippte Name; `diver_name` liefert ihn bzw. `DIVER_NAME` als Rückfall |
 | `story_told` | ob die Eröffnung am Boot durch ist — `false` nur ab `start_round`, wird beim ersten Abtauchen `true` |
 | `exchange_side` / `exchange_index` | Cursor im Boot-Screen: welche Spalte (`"pack"`/`"hold"`) und welche Zeile darin — nur dort relevant, `reset_exchange` beim Öffnen |
 
@@ -400,9 +400,9 @@ Screen-Positionen und werden nicht direkt gesetzt.
   damit sie nie über den oberen Bildrand hinausläuft.
 - **Name (`app/scenes/name.rb`):** vor dem ersten Tauchgang fragt das Spiel, wie der
   Spieler heißt (`state.player_name`, max `NAME_MAX`). Eingabe läuft über
-  **`args.inputs.text`** — das füllt sich nur, wenn Text-Eingabe eingeschaltet ist,
-  deshalb `begin_typing`/`end_typing` (`$gtk.start_text_input`/`stop_text_input`)
-  um den Screen herum; beides läuft auch im Test-Runner. **Enter** bestätigt (nicht
+  **`inputs.keyboard.key_down.char`** — ein Zeichen pro Tick, so wie DragonRubys
+  eigene Doku Texteingabe macht. **Nicht** über `args.inputs.text` (s. Gotchas).
+  **Enter** bestätigt (nicht
   Leertaste — die ist ein legales Zeichen in einem Namen), Backspace löscht, ESC
   zurück zum Titel. Leer/nur Leerzeichen zählt nicht als Name. `type_name` /
   `backspace_name` / `confirm_name` sind reine State-Änderungen → testbar ohne
@@ -641,6 +641,17 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
   geratenen Festwert — sonst läuft sie durch die Buchstaben. Für alles, was sich an
   Textmaßen ausrichtet (Trennlinien, Kartenhöhen, Zeilenumbruch), **messen** statt
   schätzen: `args.gtk.calcstringbox(text, size_enum)` läuft auch im Test-Runner.
+- **Texteingabe: `key_down.char`, nicht `args.inputs.text`.** `args.inputs.text`
+  füllt sich nur, wenn `DR.start_text_input` lief — und das ist ein **[Pro]-Feature**,
+  während hier eine **Standard**-Lizenz läuft: kein Fehler, kein Log, es passiert
+  einfach nichts. Das Namensfeld blieb leer und das Spiel war **gar nicht mehr
+  startbar**. `inputs.keyboard.key_down.char` liefert das getippte Zeichen ohne
+  jeden Modus.
+- **Ein Test, der die Engine umgeht, prüft die Engine nicht.** Alle Namens-Tests
+  riefen `type_name(["R","o",…])` direkt auf und waren grün, während im Spiel keine
+  Taste ankam. Wo Eingabe im Spiel kaputtgehen kann, muss **mindestens ein Test
+  durch `game.tick` und über die echten `args.inputs`** gehen
+  (`test_a_whole_round_can_be_started_from_the_keyboard`).
 - **Ein `key_down` gilt den ganzen Tick.** Wer dieselbe Taste an zwei Stellen im Tick
   abfragt, verarbeitet sie zweimal — so schloss ESC erst das Menü und warf einen
   danach noch auf den Titelbildschirm. Eine Taste, eine Stelle (`update_escape`).

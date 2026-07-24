@@ -29,6 +29,48 @@ class IntroTests
     assert.equal! game.diver_name, "Robin", "and that's who goes down there"
   end
 
+  # The one that matters: drive it the way the *engine* does, one character per
+  # tick through inputs.keyboard.key_down.char, and start the round with Enter.
+  # The first version read args.inputs.text instead, which only fills while
+  # DR.start_text_input is on — a Pro tier feature that quietly does nothing on
+  # this build. Nothing could be typed, so the game could not be started at all,
+  # and every test passed because they all called type_name directly.
+  def test_a_whole_round_can_be_started_from_the_keyboard(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    args.inputs.keyboard.key_down.space = true # "Leertaste drücken zum Starten"
+    game.tick
+    assert.equal! args.state.game_scene, "name"
+
+    "Pia".each_char do |char|
+      args.inputs.keyboard.key_down.space = false
+      args.inputs.keyboard.key_down.char = char
+      game.tick
+    end
+    assert.equal! args.state.player_name, "Pia", "the keys land in the field"
+
+    args.inputs.keyboard.key_down.char = nil
+    args.inputs.keyboard.key_down.enter = true
+    game.tick
+
+    assert.equal! args.state.game_scene, "area1", "and Enter puts him in the water"
+    assert.equal! game.diver_name, "Pia", "under his own name"
+  end
+
+  # Backspace has to reach the field the same way.
+  def test_backspace_reaches_the_field_through_the_keyboard(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.game_scene = "name"
+    game.type_name(["A", "b"])
+
+    args.inputs.keyboard.key_down.backspace = true
+    game.tick
+
+    assert.equal! args.state.player_name, "A"
+  end
+
   def test_backspace_takes_a_letter_back(args, assert)
     game = build_game(args)
     game.initialize_game(0)

@@ -113,7 +113,6 @@ class Game
     state.sprinting = false
     state.speed = Diver::SPEED
     state.player_name = ""  # typed in on the way past the title
-    state.typing = false    # ... while text input is switched on
     state.story_told = true # the boat only tells it on a round started from the title
     state.initialized = true
 
