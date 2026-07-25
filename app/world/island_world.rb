@@ -548,7 +548,10 @@ class IslandWorld
   def plant_for(flat, room, seed)
     kinds =
       if flat[:y] - WATERLINE_Y < SHORE_HEIGHT
-        ["grass", "driftwood", "crab", "grass", "driftwood", "bush"]
+        # No crab here any more: the beach carries real ones now (spawn_shore_life),
+        # which walk about and photograph. A decor crab beside a living one would
+        # only be the same animal drawn twice, one of them a fake.
+        ["grass", "driftwood", "grass", "grass", "driftwood", "bush"]
       elsif room >= base_width("palm") + MARGIN
         ["palm", "bush", "palm", "palm_small", "bush", "palm"]
       elsif room >= base_width("palm_small") + MARGIN

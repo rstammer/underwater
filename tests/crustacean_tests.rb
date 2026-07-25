@@ -139,6 +139,149 @@ class CrustaceanTests
     end
   end
 
+  # --- the beach -----------------------------------------------------------
+  #
+  # Above the waterline, on an island's shore. The rule that falls out of it is
+  # a nice one: under water you photograph the sea, up in the air you photograph
+  # the land — so surfacing beside an island is worth something beyond breathing.
+
+  def test_the_roster_has_something_living_on_the_beach(args, assert)
+    shore = Species::ALL.select { |s| s.habitat == :shore }
+
+    assert.true! shore.length >= 1, "there is life above the waterline"
+    shore.each { |s| assert.true! s.points > 0, "#{s.name} is worth something" }
+  end
+
+  def test_neither_sea_roll_ever_returns_a_beach_dweller(args, assert)
+    200.times do
+      swimmer = Species.pick(Biome::SANDBANK, 20)
+      crawler = Species.pick_floor(Biome::SANDBANK, 20)
+
+      assert.false! swimmer && swimmer.habitat == :shore, "the swarm has no beach crabs"
+      assert.false! crawler && crawler.habitat == :shore, "nor does the sea floor"
+    end
+  end
+
+  # An island's home sector holds its high middle — measured, that stretch stands
+  # 160..304 px out of the water, which is cliff, not beach. The shores are out on
+  # the flanks, in the neighbouring segments. So: stamp the island, then find the
+  # segment that actually has a beach on it and dive there.
+  def beach_segment(args, game)
+    args.state.island_sectors = [4]
+    args.state.world_cache = {}
+    (2..6).each do |index|
+      world = game.world_for(index)
+      game.spawn_fauna(world)
+      return { index: index, world: world } unless args.state.shore_life.empty?
+    end
+    nil
+  end
+
+  def test_an_island_segment_gets_crabs_on_its_beach(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+
+    beach = beach_segment(args, game)
+
+    assert.false! beach.nil?, "an island has a shore somewhere along it"
+    assert.true! args.state.shore_life.length > 0, "the beach is inhabited"
+    args.state.shore_life.each do |crab|
+      assert.equal! crab.species.habitat, :shore, "#{crab.species.name} lives up here"
+      assert.true! crab.y > WATERLINE_Y, "it is out of the water (#{crab.y})"
+    end
+  end
+
+  def test_open_sea_has_no_beach_to_put_a_crab_on(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.island_sectors = []
+    args.state.world_cache = {}
+
+    game.spawn_fauna(game.world_for(3))
+
+    assert.equal! args.state.shore_life.length, 0, "no island, no beach, no crabs"
+  end
+
+  def test_a_beach_crab_keeps_its_feet_dry(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    beach_segment(args, game)
+
+    1200.times { |i| args.state.shore_life.each { |crab| crab.tick(args, i % 8) } }
+
+    args.state.shore_life.each do |crab|
+      assert.true! crab.y > WATERLINE_Y, "#{crab.species.name} never walked into the sea (#{crab.y})"
+    end
+  end
+
+  # The two halves of the rule, checked from both sides.
+  def test_from_the_surface_the_beach_is_what_you_can_shoot(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    beach = beach_segment(args, game)
+    crab = args.state.shore_life.first
+    args.state.game_scene = "area1"
+    args.state.fish = []
+    args.state.crawlers = []
+    args.state.direction = :right
+    args.state.diver_global_x = beach[:index] * SCREEN_WIDTH + crab.x - 60 # in the water just off it
+    args.state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH # head out, looking at the shore
+
+    subject = game.photo_subject
+
+    assert.false! subject.nil?, "there is something on the beach to photograph"
+    assert.equal! subject[:species].habitat, :shore
+  end
+
+  def test_under_water_the_beach_is_out_of_the_picture(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    beach = beach_segment(args, game)
+    crab = args.state.shore_life.first
+    args.state.game_scene = "area1"
+    args.state.fish = []
+    args.state.crawlers = []
+    args.state.direction = :right
+    args.state.diver_global_x = beach[:index] * SCREEN_WIDTH + crab.x - 60
+    args.state.depth_y = WATERLINE_Y - 200 # ducked under: the shore is above the surface
+
+    assert.equal! game.photo_subject, nil, "from down here you don't shoot the beach"
+  end
+
+  def test_beach_crabs_reach_the_screen_on_a_real_tick(args, assert)
+    game = build_game(args)
+    game.tick # boots the game on the title screen
+    beach = beach_segment(args, game)
+    crab = args.state.shore_life.first
+    args.state.game_scene = "area1"
+    args.state.diver_global_x = beach[:index] * SCREEN_WIDTH + crab.x
+    args.state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH
+    game.tick # floating off the beach; the tick loads the segment and stocks it
+
+    args.outputs.sprites.clear
+    game.tick
+
+    drawn = args.outputs.sprites.flatten.map { |s| s[:path] }
+    assert.true! drawn.include?(Species["strandkrabbe"].sheet), "the beach crab is drawn"
+  end
+
+  def test_a_beach_crab_gets_noticed_from_the_surface(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    beach = beach_segment(args, game)
+    crab = args.state.shore_life.first
+    args.state.game_scene = "area1"
+    args.state.fish = []
+    args.state.crawlers = []
+    args.state.sighted = {}
+    args.state.diver_global_x = beach[:index] * SCREEN_WIDTH + crab.x - 60
+    args.state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH
+
+    game.update_sightings
+
+    assert.true! args.state.sighted[crab.species.key], "you have seen it scuttling about"
+  end
+
   def test_a_crustacean_draws_from_its_species_sheet(args, assert)
     game = build_game(args)
     game.initialize_game(0)

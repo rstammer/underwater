@@ -10,7 +10,10 @@ class Game
   def render_underwater
     render_world
     render_world_items
-    outputs.sprites << creatures.map { |c| place_in_current_chunk(c.to_h) } if fauna_visible?
+    outputs.sprites << sea_creatures.map { |c| place_in_current_chunk(c.to_h) } if fauna_visible?
+    # The beach crabs stand in the daylight, so they show from either side of the
+    # surface — like the island they are scuttling about on.
+    outputs.sprites << shore_creatures.map { |c| place_in_current_chunk(c.to_h) }
     outputs.sprites << place_in_current_chunk(state.shark.to_h) if shark_present?
     render_kraken # the legend, drawn before the fog so the dark keeps it a suggestion
   end

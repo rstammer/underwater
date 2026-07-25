@@ -82,12 +82,28 @@ class Game
   CRAWL_CLEARANCE = 20 # px of water a crab needs over the sand to be standing there
   CRAWL_RANGE = 200    # ... and how far along the floor it wanders from where it hatched
 
-  # Everything alive in this segment, whether it swims or walks. Photography and
-  # sightings ask this rather than the two lists, so a crab counts as a subject
-  # exactly the way a fish does — which is the whole point of putting them in the
-  # roster instead of making them decor.
+  # Everything alive in this segment: the swarm, the crabs on its floor, and the
+  # crabs on its beach. This is the list that gets ticked.
   def creatures
+    sea_creatures + shore_creatures
+  end
+
+  # In the water — what the swarm and the sea floor hold.
+  def sea_creatures
     (state.fish || []) + (state.crawlers || [])
+  end
+
+  # Above the waterline, on an island's beach.
+  def shore_creatures
+    state.shore_life || []
+  end
+
+  # What the camera and the eye can reach right now — and it is one or the other,
+  # never both, because your head is on one side of the surface or the other.
+  # Ducked under, you are looking at the sea; up in the air, at the land. That is
+  # what gives surfacing beside an island a point beyond catching your breath.
+  def creatures_in_view
+    at_open_surface? ? shore_creatures : sea_creatures
   end
 
   # A fresh population for the world's biome: the swarm in the water column, and
@@ -95,6 +111,7 @@ class Game
   def spawn_fauna(world)
     spawn_swarm(world)
     spawn_crawlers(world)
+    spawn_shore_life(world)
   end
 
   # A fresh fish swarm for the world's biome (colours and count from the biome).
@@ -164,17 +181,60 @@ class Game
     !world.solid_at?(x, world.floor[col] + CRAWL_CLEARANCE)
   end
 
+  SHORE_BAND = 110  # px of rock above the water that still counts as beach
+  SHORE_CRABS = 4   # how many of them a beach carries at most
+
+  # Crabs on the beach, where an island breaks the surface. Placed off the world
+  # itself rather than off the island's own decor list, so any rock standing in
+  # the sun gets them — and a segment with no island simply comes out empty.
+  def spawn_shore_life(world)
+    beaches = beach_columns(world)
+    state.shore_life = []
+    return if beaches.empty?
+
+    species = Species.pick_shore(world.biome)
+    return unless species
+
+    SHORE_CRABS.times do
+      col = beaches[rand(beaches.length)]
+      from_x, to_x = beach_span(world, col)
+      state.shore_life << Crustacean.new(args, 0, species: species, world: world,
+                                         x: col * World::COLUMN_WIDTH,
+                                         from_x: from_x, to_x: to_x, ground: :crown)
+    end
+  end
+
+  # The columns of a segment whose rock stands out of the water, but only just —
+  # the strip between the waterline and the point where a beach becomes a cliff.
+  def beach_columns(world)
+    (0...world.columns).select { |col| beach?(world, col) }
+  end
+
+  def beach?(world, col)
+    crown = world.crown_y_at(col * World::COLUMN_WIDTH)
+    !crown.nil? && crown > WATERLINE_Y && crown <= WATERLINE_Y + SHORE_BAND
+  end
+
+  # How far along the beach it can walk before the sand runs out — into the sea
+  # at one end, up the cliff at the other.
+  def beach_span(world, col)
+    left = col
+    left -= 1 while left > 0 && beach?(world, left - 1)
+    right = col
+    right += 1 while right < world.columns - 1 && beach?(world, right + 1)
+    [left * World::COLUMN_WIDTH, right * World::COLUMN_WIDTH]
+  end
+
   SIGHT_RANGE = 520 # px within which a creature is close enough to have been seen
 
   # Note which species the diver has laid eyes on. The Artenbuch lists only these,
   # so the book fills in as you explore rather than spoiling the whole sea up
-  # front. Sighting is being near a creature under water — nothing hidden at the
-  # surface, and the fog doesn't reach much past this range anyway.
+  # front. Sighting is being near a creature you can actually see — the sea from
+  # under it, the beach from above it — and the fog doesn't reach much past this
+  # range anyway.
   def update_sightings
-    return unless fauna_visible?
-
     state.sighted ||= {}
-    creatures.each do |creature|
+    creatures_in_view.each do |creature|
       mark_sighted(creature.species.key, world_index * SCREEN_WIDTH + creature.x, creature.y)
     end
     if shark_present?

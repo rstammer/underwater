@@ -39,10 +39,10 @@ class Game
   end
 
   # What the lens is on: the nearest creature in front of him and within reach.
-  # Nothing at the surface — from up there you see water and sky.
+  # Which creatures those are depends on which side of the surface his head is
+  # on (see creatures_in_view) — out in open water with his head up there is
+  # nothing but sky, but beside an island there is a beach.
   def photo_subject
-    return nil unless fauna_visible?
-
     best = nil
     photo_candidates.each do |species, world_x, y|
       next unless in_front?(world_x)
@@ -56,11 +56,11 @@ class Game
     best
   end
 
-  # Everything photographable right now, in world coordinates: the swarm of the
-  # current segment, whatever walks on its floor, and the shark if it is about.
-  # Fish and crabs alike carry a local chunk x.
+  # Everything photographable right now, in world coordinates: whatever is on
+  # this side of the surface, plus the shark if it is about. Fish and crabs alike
+  # carry a local chunk x.
   def photo_candidates
-    list = creatures.map do |creature|
+    list = creatures_in_view.map do |creature|
       [creature.species, world_index * SCREEN_WIDTH + creature.x, creature.y]
     end
     if shark_present?

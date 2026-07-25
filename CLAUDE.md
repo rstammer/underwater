@@ -195,8 +195,30 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   häufig *sein*, sonst fühlt sich nichts wie ein Fund an; findet sich für eine Tiefe
   nichts, fällt es auf „irgendwas aus diesem Biom" zurück, damit kein Meeresabschnitt
   leer bleibt. Eine Art hinzufügen = **eine Zeile in `ALL`**, sonst nichts.
+  - **`habitat` sagt, wo in der Wassersäule eine Art lebt** — und damit, zu welcher
+    Bevölkerung sie gehört: `:water` = Schwarm, `:floor` = läuft auf dem Sand,
+    `:shore` = läuft **über** der Wasserlinie am Strand. Die drei werden **getrennt
+    gewürfelt** (`pick` / `pick_floor` / `pick_shore`), sonst spawnt ein Krebs
+    freischwebend im Wasser oder ein Fisch sitzt auf dem Grund.
+  - **`pick_floor` hat bewusst KEINEN Fallback** (anders als `pick`): passt für diese
+    Tiefe keine Bodenart, bleibt der Sand **leer**. Dass die Abgrundkrabbe erst ab
+    105 m vorkommt, ist der ganze Grund, dort runterzutauchen — ein Fallback würde
+    sie auf der flachen Bank verschenken.
+  - **Tiefenbänder gegen den echten Boden setzen, nicht gegen eine glatte Skala.**
+    Beim ersten Wurf war die Languste (`:uncommon`) die **häufigste Art im Meer**:
+    sie war die einzige, deren Band die Tiefen abdeckte, auf denen der Meeresboden
+    meistens liegt. Bei neuen Bodenarten die Verteilung **messen** (Wegwerf-Test über
+    ~80 Segmente, Arten zählen), nicht schätzen.
 - **`Creature`** (`app/entities/creature.rb`, früher `SloppyScalar`) — ein Fisch, der
   seine Art trägt; alles Optische kommt aus `species`.
+- **`Crustacean`** (`app/entities/crustacean.rb`) — Krebse, Hummer, Langusten:
+  dieselbe Idee wie `Creature`, aber die **senkrechte Position gehört ihnen nicht**.
+  Sie liegt auf dem Untergrund und wird jeden Tick neu davon gelesen (`ground_y`),
+  also klettern sie über Terrassen statt hindurchzugleiten. `ground:` sagt, *welcher*
+  Untergrund: `:sand` = Meeresboden (`floor_y_at`), `:crown` = Oberkante des Felsens
+  (`crown_y_at`) — also ein **Strand**. Sie **huschen in Schüben** (`DASH`/`REST`)
+  statt gleichmäßig zu kriechen; das liest sich als Krebs und macht sie nebenbei zu
+  Motiven, an die man sich heranschleichen kann.
 - **`WorldGenerator.floor_y_at(world_x)`** — **die eine Wahrheit über den
   Meeresgrund.** Kein Würfeln pro Segment, sondern eine Funktion der Welt-`x`,
   geschichtet aus mehreren Noise-Oktaven: `shelf` (sehr breit — ganze Regionen
@@ -385,6 +407,8 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `death_cause` | `:eaten` (Hai) / `:drowned` (O2 leer) / `:crushed` (Anzug hin) / `:taken` (Kraken-Griff) / `nil` — steuert Game-Over-Text |
 | `kraken` | `{x:, y:, side:}` in Welt-Koordinaten oder `nil` — die Legende, nur tief unten präsent |
 | `diver` / `shark` | Entity-Instanzen (`Diver` / `DarkShark`) |
+| `crawlers` | Array von `Crustacean` — was auf dem Sand des aktiven Segments läuft (`spawn_crawlers`); lokale Chunk-`x`, `y` vom Boden gelesen |
+| `shore_life` | Array von `Crustacean` mit `ground: :crown` — was auf dem **Strand** des Segments läuft (`spawn_shore_life`), leer ohne Insel |
 | `fish` | Array von `SloppyScalar` — Schwarm des aktiven Bioms; Positionen als **lokale** Chunk-`x` (0..`SCREEN_WIDTH`) + Welt-`y`, gerendert via `place_in_current_chunk`. Jeder Fisch patrouilliert nur seinen freien Wasserstreifen (`from_x`/`to_x` aus `open_water_span`, dreht an den Enden) und driftet `DRIFT` px um seine Spawn-Tiefe (kein Wrap!) |
 | `dark_shark` | `{x:, y:}`-Hash der Hai-Position: **lokale** Chunk-`x` (wrappt bei `SCREEN_WIDTH`) + Welt-`y` (von der `DarkShark`-Entity in `to_h` gelesen). Bei jeder neuen Runde kommt er auf **Taucher-Tiefe** ±`SHARK_PATROL_SPREAD` rein |
 | `active_world` / `active_world_index` | gecachtes aktuelles Chunk (Biom/Fauna) + sein Segment-Index (Neu-Setzen nur bei Segmentwechsel) |
@@ -458,8 +482,12 @@ Screen-Positionen und werden nicht direkt gesetzt.
   liest die Punkte aus dem Buch (kein mitgeführter Zähler, der aus dem Tritt geraten
   kann). **`F`** ist der Auslöser.
   - **Motiv** (`photo_subject`): die nächste Kreatur in `PHOTO_REACH`, die **vor** ihm
-    ist (`in_front?`, `state.direction`) — über die Schulter schießen gilt nicht. An
-    der Oberfläche gibt es nichts (`fauna_visible?`).
+    ist (`in_front?`, `state.direction`) — über die Schulter schießen gilt nicht.
+  - **Unter Wasser das Meer, oben das Land** (`creatures_in_view`): welche Kreaturen
+    überhaupt in Frage kommen, hängt davon ab, auf welcher Seite der Oberfläche sein
+    Kopf ist. Untergetaucht sind es Schwarm + Bodenkrebse, aufgetaucht **nur der
+    Strand**. Im offenen Meer heißt das weiterhin „oben gibt es nichts"; neben einer
+    Insel heißt es, dass Auftauchen etwas anderes ist als nur Luftholen.
   - **Qualität** (`photo_quality`) aus der Entfernung: `perfekt`/`gut`/`unscharf`,
     und **Sprinten kostet eine Stufe** — man nähert sich also leise statt zu pflügen.
   - **Film ist knapp:** `FILM_MAX` Aufnahmen pro Tauchgang. Ein Foto ist **belichteter

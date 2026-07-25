@@ -15,14 +15,20 @@ class Crustacean
 
   attr_reader :species
 
-  # from_x/to_x bound the stretch of sand it can walk — worked out at spawn, so
-  # it never wanders into an island's flank. Both are segment-local, like a fish.
+  # from_x/to_x bound the stretch it can walk — worked out at spawn, so it never
+  # wanders into an island's flank or off a beach into the sea. Both are
+  # segment-local, like a fish.
+  #
+  # ground says which surface it belongs to: :sand is the sea floor, :crown the
+  # top of the rock — a beach, which is the same animal walking on the other
+  # side of the waterline.
   def initialize(current_args, sprite_index, species:, world:, x: 100,
-                 from_x: nil, to_x: nil)
+                 from_x: nil, to_x: nil, ground: :sand)
     @sprite_index = sprite_index
     @current_args = current_args
     @species = species
     @world = world
+    @ground = ground
     @x = x
     @from_x = from_x || x - 120
     @to_x = to_x || x + 120
@@ -31,7 +37,16 @@ class Crustacean
     @size = [2, 2, 3].sample
     @dash = DASH.sample
     @rest = 0
-    @y = @world.floor_y_at(@x)
+    @y = ground_y
+  end
+
+  # The surface under its feet. A beach crab falls back to the sand if it should
+  # ever find itself over open water — it can't, given its span, but a nil here
+  # would be a crash rather than a bug you can see.
+  def ground_y
+    return @world.floor_y_at(@x) if @ground == :sand
+
+    @world.crown_y_at(@x) || @world.floor_y_at(@x)
   end
 
   def x
@@ -66,7 +81,7 @@ class Crustacean
       end
     end
 
-    @y = @world.floor_y_at(@x)
+    @y = ground_y
   end
 
   def turn_at_the_ends

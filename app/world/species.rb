@@ -139,6 +139,16 @@ class Species
         sheet: SHELLS + "abgrundkrabbe.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Tiefsee"],
         shallowest: 105, deepest: 280, rarity: :rare, points: 55),
+
+    # --- above the waterline -------------------------------------------------
+    # A beach is a habitat too. It photographs from the water with your head in
+    # the air, which turns surfacing beside an island into something you do for
+    # a reason rather than only for breath. Beaches happen in every biome, so
+    # this one is at home on all of them.
+    new(key: "strandkrabbe", name: "Flinke Strandkrabbe", latin: "Carcinus litoralis",
+        sheet: SHELLS + "strandkrabbe.png", frame_w: 20, frame_h: 12, habitat: :shore,
+        biomes: ["Sandbank", "Kelpwald", "Riff", "Tiefsee"],
+        shallowest: 0, deepest: 5, rarity: :common, points: 14),
   ]
 
   # The legend of the deep. Deliberately NOT in ALL: it never joins the roster or
@@ -171,6 +181,12 @@ class Species
   # worth going down for — a fallback would hand it to you on a shallow bank.
   def self.pick_floor(biome, depth)
     weighted(ALL.select { |s| s.habitat == :floor && s.lives_at?(biome.name, depth) })
+  end
+
+  # What lives on the beaches of this biome's islands. No depth: up here there
+  # is only the one band of sand between the water and the palms.
+  def self.pick_shore(biome)
+    weighted(ALL.select { |s| s.habitat == :shore && s.biomes.include?(biome.name) })
   end
 
   # Everything in the water column. The shark is excluded because it is placed

@@ -143,8 +143,9 @@ class Game
     state.kraken = nil # the legend only shows up when you go too deep
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)
-    state.fish = []     # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
-    state.crawlers = [] # ... and what walks about on that segment's sea floor
+    state.fish = []       # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
+    state.crawlers = []   # ... what walks about on that segment's sea floor
+    state.shore_life = [] # ... and what walks about on its beach, if it has one
     reset_log       # the dive log starts empty each round
     reset_items     # scatter fresh treasures, empty the pack
     reset_film      # a fresh roll, nothing exposed
@@ -209,6 +210,7 @@ class Game
 
     state.fish ||= []     # resilience against stale state (e.g. DragonRuby hot reload)
     state.crawlers ||= []
+    state.shore_life ||= []
     creatures.each { |creature| creature.tick(args, sprite_index) }
 
     if shark_present?

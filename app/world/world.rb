@@ -73,6 +73,13 @@ class World
   # idiv, not `/`: in DragonRuby Integer / Integer is a Float, and a Float index
   # reads the wrong column without ever complaining. Callers pass fractional x
   # (a fish's or a crab's position), so this has to land on a whole column.
+  # World y of the top of the highest rock over a segment-local x — the skyline,
+  # which above the waterline is an island's beach and ridges. nil in open water.
+  def crown_y_at(x)
+    slabs = slabs_at(x)
+    slabs.empty? ? nil : slabs.map { |slab| slab[:crown] }.max
+  end
+
   def column_at(x)
     col = x.idiv(COLUMN_WIDTH)
     return 0 if col < 0
