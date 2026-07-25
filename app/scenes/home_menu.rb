@@ -87,7 +87,8 @@ class Game
       elsif book_page?
         "[ Tab ] Logbuch & Lager   ·   L / ESC schließen"
       else
-        "Pfeiltasten wählen   ·   [ E ] verschieben   ·   [ Tab ] Artenbuch   ·   L / ESC schließen"
+        "Pfeiltasten wählen   ·   [ E ] verschieben   ·   [ V ] verkaufen   ·   " \
+        "[ Tab ] Artenbuch   ·   L / ESC schließen"
       end
     outputs.labels << { x: (left + right) / 2, y: bottom + MENU_PAD, text: hint,
                         size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
@@ -111,7 +112,7 @@ class Game
     Species::ALL.select { |species| species_known?(species.key) }.map do |species|
       quality = state.album[species.key]
       { species: species, quality: quality,
-        points: quality ? photo_points(species, quality) : 0 }
+        fee: quality ? photo_fee(species, quality) : 0 }
     end
   end
 
@@ -160,7 +161,7 @@ class Game
     heading = "Artenbuch  #{album_found} / #{all.length}"
     heading += "    Seite #{state.artenbuch_page + 1} / #{artenbuch_pages}" if artenbuch_pages > 1
     column_heading(x, head_y, heading, BOOK_COL_W)
-    column_heading(x + BOOK_COL_W + 56, head_y, "Punkte  #{album_score}", BOOK_COL_W)
+    column_heading(x + BOOK_COL_W + 56, head_y, "Guthaben  #{state.credits} Cr", BOOK_COL_W)
 
     if all.empty?
       outputs.labels << { x: cx, y: row_y - 40, text: "Noch nichts gesichtet — tauch und sieh dich um.",
@@ -205,7 +206,7 @@ class Game
                         vertical_alignment_enum: 1,
                         r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2], a: 150 }
 
-    right = found ? "#{row[:quality]}   #{row[:points]}" : "—"
+    right = found ? "#{row[:quality]}   #{row[:fee]}" : "—"
     outputs.labels << { x: x + BOOK_COL_W, y: y, text: right, size_enum: 1,
                         alignment_enum: 2, vertical_alignment_enum: 1,
                         r: ink[0], g: ink[1], b: ink[2] }
@@ -291,6 +292,12 @@ class Game
     ink = live ? MENU_INK : MENU_DIM_INK
     outputs.labels << { x: x + 52, y: y, text: ITEM_NAMES[kind], size_enum: 1,
                         vertical_alignment_enum: 1, r: ink[0], g: ink[1], b: ink[2] }
+    # What it fetches, under the name — so you can see which of them is worth
+    # carrying home before you decide what to drop.
+    outputs.labels << { x: x + 52, y: y - 17, text: "#{ITEM_VALUES[kind]} Cr", size_enum: 0,
+                        vertical_alignment_enum: 1,
+                        r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2],
+                        a: live ? 190 : 110 }
     return unless count
 
     outputs.labels << { x: x + MENU_COL_W, y: y, text: "#{count}", size_enum: 2, alignment_enum: 2,

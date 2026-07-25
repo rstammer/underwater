@@ -21,18 +21,18 @@ class Game
   # One entry per line, "" for a paragraph break.
   def story_lines
     [
-      "Hobby-Meeresbiologe. Und Schatzsucher.",
-      "Was davon zuerst da war, weißt du selbst nicht mehr.",
+      "Freier Fotograf. Spezialgebiet: alles, was unter Wasser",
+      "lebt. Festanstellung war noch nie deins.",
       "",
-      "Unter dir liegt ein Meer, von dem du die ersten Meter",
-      "kennst. Zwischen Kelp und Riff, in den Höhlen der Inseln",
-      "und drunten in den Gräben lebt allerlei, das noch nie",
-      "jemand aufgeschrieben hat.",
+      "Die Magazine zahlen für Bilder, die sonst keiner hat —",
+      "und von dem, was hier unten schwimmt, hat keiner welche.",
       "",
       "Dafür die Kamera an deinem Gurt: jede Art einmal scharf",
       "im Bild, und sie steht in deinem Artenbuch. Entwickelt",
-      "wird hier an Bord — was du nicht heimbringst, zählt nicht.",
+      "wird hier an Bord, und dort wird auch abgerechnet —",
+      "was du nicht heimbringst, bezahlt dir niemand.",
       "",
+      "Was du sonst noch vom Grund holst, geht vom Boot aus weg.",
       "Der Anzug hält hundert Meter aus, die Luft ein paar",
       "Minuten. Alles andere ist Neugier.",
     ]

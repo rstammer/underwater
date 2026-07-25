@@ -152,14 +152,24 @@ class Game
   end
 
   # At the boat: everything on the roll that beats what is in the book goes into
-  # it, and a fresh film goes in the camera.
+  # it, the magazine pays for it, and a fresh film goes in the camera.
+  #
+  # A better picture of something you have already been paid for earns the
+  # *difference*, not the fee over again — otherwise photographing the same fish
+  # badly and then well would pay twice for one animal. It also keeps a tidy
+  # invariant: what the photography has earned you is exactly album_score.
   def develop_film
+    earned = 0
     state.film_roll.each do |shot|
       known = state.album[shot[:key]]
       next if known && QUALITY_RANK[known] >= QUALITY_RANK[shot[:quality]]
 
+      species = Species[shot[:key]]
+      earned += photo_fee(species, shot[:quality]) - (known ? photo_fee(species, known) : 0)
       state.album[shot[:key]] = shot[:quality]
     end
+    state.credits += earned
+    state.last_payment = earned # so the boat can say what the magazine paid
     developed = state.film_roll.length
     state.film_roll = []
     state.film_left = FILM_MAX
@@ -167,18 +177,19 @@ class Game
     developed
   end
 
-  # The score is read off the book rather than tallied up as you go — then it
-  # can never drift out of step with what is actually documented.
+  # What the whole book has earned. Read off the book rather than tallied up as
+  # you go — then it can never drift out of step with what is actually
+  # documented, and it is the photography half of the credit balance.
   def album_score
     state.album.reduce(0) do |sum, (key, quality)|
-      sum + photo_points(Species[key], quality)
+      sum + photo_fee(Species[key], quality)
     end
   end
 
-  def photo_points(species, quality)
+  def photo_fee(species, quality)
     return 0 unless species
 
-    (species.points * QUALITY_FACTOR[quality]).round
+    (species.fee * QUALITY_FACTOR[quality]).round
   end
 
   def album_found

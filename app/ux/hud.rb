@@ -9,6 +9,7 @@ class Game
     render_gauges
     render_film_gauge
     render_locator
+    render_credits
     render_inventory
     render_dive_hint
     render_flash    # the shutter going off, over the whole picture
@@ -259,6 +260,19 @@ class Game
 
   def locator_text
     "Sektor #{world_index}    Tiefe #{current_depth} m"
+  end
+
+  CREDIT_INK = [236, 226, 150]
+
+  # The balance, under the locator. Always up: what you are down here for is
+  # money, and a freelance's balance is the one number he never stops knowing.
+  def render_credits
+    outputs.labels << {
+      x: grid.w - 20, y: grid.h - 44,
+      text: "#{state.credits} Cr",
+      size_enum: 2, alignment_enum: 2,
+      r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2],
+    }
   end
 
   # Depth below the surface in metres — a whole number from the diver's world

@@ -15,7 +15,7 @@ class CrustaceanTests
     assert.true! crawlers.length >= 5, "there is a spread of them (#{crawlers.length})"
     crawlers.each do |species|
       assert.false! species.name.empty?, "#{species.key} has a name"
-      assert.true! species.points > 0, "#{species.name} is worth something"
+      assert.true! species.fee > 0, "#{species.name} is worth something"
     end
   end
 
@@ -149,7 +149,7 @@ class CrustaceanTests
     shore = Species::ALL.select { |s| s.habitat == :shore }
 
     assert.true! shore.length >= 1, "there is life above the waterline"
-    shore.each { |s| assert.true! s.points > 0, "#{s.name} is worth something" }
+    shore.each { |s| assert.true! s.fee > 0, "#{s.name} is worth something" }
   end
 
   def test_neither_sea_roll_ever_returns_a_beach_dweller(args, assert)

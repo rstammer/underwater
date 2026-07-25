@@ -150,7 +150,7 @@ class IntroTests
 
     assert.true! game.story_pending?, "it hasn't been told yet"
     assert.true! text.include?("Pia"), "the boat greets you by name"
-    assert.true! text.include?("Schatzsucher"), "and says what you're out here for"
+    assert.true! text.include?("Fotograf"), "and says what you're out here for"
   end
 
   # Diving is the acknowledgement — after that the card is the boat's actions again.

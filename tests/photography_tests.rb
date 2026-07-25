@@ -152,7 +152,7 @@ class PhotographyTests
 
     args.state.album = { "burgunder" => :gut }
     good = game.album_score
-    assert.equal! good, Species["burgunder"].points, "a good photo is worth the species"
+    assert.equal! good, Species["burgunder"].fee, "a good photo is worth the species"
 
     args.state.album = { "burgunder" => :perfekt }
     assert.true! game.album_score > good, "a perfect one is worth more"

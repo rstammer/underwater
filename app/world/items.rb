@@ -16,6 +16,11 @@ class Game
     "bottle" => "Flaschenpost", "shoe" => "Schuh", "can" => "Dose",
     "jewel" => "Schmuck", "key" => "Schlüssel",
   }
+  # What a find fetches, sold from the boat. A tin can is a tin can; a piece of
+  # jewellery off the sea floor is a month of tinned cans.
+  ITEM_VALUES = {
+    "bottle" => 14, "shoe" => 4, "can" => 3, "jewel" => 65, "key" => 22,
+  }
   ITEM_KINDS = ITEM_SPRITES.keys
   ITEM_SCALE = 3
   INVENTORY_MAX = 3   # how many the diver can carry at once
@@ -156,6 +161,21 @@ class Game
     state.exchange_side == PACK_SIDE ? stow_selected : fetch_selected
   end
 
+  # V: sell the selected find, one piece at a time, from the boat. Only out of
+  # the hold — you sell what you have brought home and put away, not what is
+  # still in your hands on the way down.
+  def sell_selected
+    return unless state.exchange_side == HOLD_SIDE
+
+    stack = hold_stacks[state.exchange_index]
+    return unless stack
+
+    state.stash.delete_at(state.stash.index(stack[:kind]))
+    state.credits += ITEM_VALUES[stack[:kind]]
+    state.last_payment = ITEM_VALUES[stack[:kind]]
+    clamp_exchange # selling the last of a kind takes its row away
+  end
+
   # Out of the pack, into the hold — which takes as much as you can bring it.
   def stow_selected
     kind = state.inventory[state.exchange_index]
@@ -190,6 +210,7 @@ class Game
     move_exchange(0, -1) if keys.up
     move_exchange(0, 1) if keys.down
     transfer_selected if keys.e || keys.enter
+    sell_selected if keys.v
   end
 
   # Pick up the item under the diver, if there is one and the pack has room. The

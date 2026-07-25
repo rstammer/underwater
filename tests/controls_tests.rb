@@ -201,6 +201,7 @@ class ControlsTests
   def test_a_held_finger_does_not_double_advance(args, assert)
     game = build_game(args)
     game.initialize_game(0)
+    args.state.saved_book = SaveFile.blank # no book, so the title is a doorway
     touch(args, [{ id: 1, x: 640, y: 360 }])
     game.tick # title -> name
     assert.equal! args.state.game_scene, "name"

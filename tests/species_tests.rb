@@ -13,7 +13,7 @@ class SpeciesTests
     Species::ALL.each do |species|
       assert.false! species.name.empty?, "#{species.key} has a name"
       assert.false! species.latin.empty?, "#{species.key} has a latin name"
-      assert.true! species.points > 0, "#{species.name} is worth something"
+      assert.true! species.fee > 0, "#{species.name} is worth something"
       assert.true! Species::RARITIES.key?(species.rarity), "#{species.name}: #{species.rarity}?"
       assert.true! species.deepest > species.shallowest,
                    "#{species.name} lives in a band of water, not a line"

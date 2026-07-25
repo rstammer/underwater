@@ -151,6 +151,10 @@ class Game
     state.airborne = false # ... and whether his feet are off the ground at all
     state.initialized = true
 
+    # The balance. Like the book, it is the work of many dives and dying can't
+    # take it — only the undeveloped film goes down with you.
+    state.credits = 0
+    state.last_payment = nil
     state.album = {} # species documented for good — the one thing dying can't take
     state.sighted = {} # species laid eyes on — the Artenbuch only lists what you've seen
     # What is on disk from last time. Loaded, not applied: the title asks first,
@@ -869,7 +873,7 @@ class Game
   def save_book(path = book_path)
     $gtk.write_file(path, SaveFile.encode(name: state.player_name,
                                           album: state.album, sighted: state.sighted,
-                                          seed: state.world_seed))
+                                          seed: state.world_seed, credits: state.credits))
   end
 
   # Carry the saved book on: same diver, same pages, same sea, straight into the
@@ -881,6 +885,7 @@ class Game
     state.sighted = book[:sighted]
     # A book written before seas had seeds hasn't got one; that diver gets a
     # fresh sea rather than an error.
+    state.credits = book[:credits]
     state.world_seed = book[:seed] || new_world_seed
     reset_game # rebuild the world from that seed before he is put in it
     start_round(told: true)
@@ -893,6 +898,7 @@ class Game
     state.album = {}
     state.sighted = {}
     state.player_name = ""
+    state.credits = 0
     state.world_seed = new_world_seed
     reset_game
     state.game_scene = "name"
