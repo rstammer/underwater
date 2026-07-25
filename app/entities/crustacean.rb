@@ -1,0 +1,106 @@
+# A crab, a lobster, a langoustine — something that walks on the sea floor
+# rather than swimming over it. Sibling of Creature: same idea (it carries a
+# species and everything about how it looks comes from there), but its vertical
+# position is not its own. It rests on the sand, so its y is read from the
+# terrain under it every tick, and it climbs whatever the floor does.
+#
+# It scuttles rather than crawls: short dashes with pauses in between, which is
+# what makes a crab read as a crab and not as a slow fish. It also makes them
+# far easier to photograph well — standing still is what you want from a subject
+# you have to get close to.
+class Crustacean
+  SPEEDS = [0.2, 0.3, 0.45]
+  DASH = [40, 70, 110]  # ticks of scuttling before it thinks better of it
+  REST = [30, 60, 100]  # ... and ticks of sitting there afterwards
+
+  attr_reader :species
+
+  # from_x/to_x bound the stretch of sand it can walk — worked out at spawn, so
+  # it never wanders into an island's flank. Both are segment-local, like a fish.
+  def initialize(current_args, sprite_index, species:, world:, x: 100,
+                 from_x: nil, to_x: nil)
+    @sprite_index = sprite_index
+    @current_args = current_args
+    @species = species
+    @world = world
+    @x = x
+    @from_x = from_x || x - 120
+    @to_x = to_x || x + 120
+    @heading = [1, -1].sample
+    @speed = SPEEDS.sample
+    @size = [2, 2, 3].sample
+    @dash = DASH.sample
+    @rest = 0
+    @y = @world.floor_y_at(@x)
+  end
+
+  def x
+    @x
+  end
+
+  def y
+    @y
+  end
+
+  def size
+    @size
+  end
+
+  # Sit for a spell, then dash a little way, then sit again. Whatever the x ends
+  # up as, the y is the sand under it — so it walks up over a terrace instead of
+  # through it.
+  def tick(current_args, sprite_index)
+    @sprite_index = sprite_index
+    @current_args = current_args
+
+    if @rest > 0
+      @rest -= 1
+    else
+      @x += @speed * @heading
+      turn_at_the_ends
+      @dash -= 1
+      if @dash <= 0
+        @dash = DASH.sample
+        @rest = REST.sample
+        @heading = -@heading if rand(2).zero? # as often as not, it goes back
+      end
+    end
+
+    @y = @world.floor_y_at(@x)
+  end
+
+  def turn_at_the_ends
+    if @x >= @to_x
+      @x = @to_x
+      @heading = -1
+    elsif @x <= @from_x
+      @x = @from_x
+      @heading = 1
+    end
+  end
+
+  def w
+    species.frame_w * size
+  end
+
+  def h
+    species.frame_h * size
+  end
+
+  # Drawn resting *on* the sand: y is the floor, and a sprite's y is its bottom
+  # edge, so it stands on the terrace rather than sinking into it.
+  def to_h
+    {
+      x: @x - w / 2,
+      y: @y,
+      flip_horizontally: @heading < 0,
+      w: w,
+      h: h,
+      path: species.sheet,
+      source_x: species.frame_w * @sprite_index,
+      source_y: species.frame_h * (@sprite_index / species.frames_per_row).floor,
+      source_w: species.frame_w,
+      source_h: species.frame_h,
+    }
+  end
+end

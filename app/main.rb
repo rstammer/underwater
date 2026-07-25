@@ -13,6 +13,7 @@ require "app/scenes/pause.rb"
 
 require "app/entities/dark_shark.rb"
 require "app/entities/creature.rb"
+require "app/entities/crustacean.rb"
 require "app/entities/diver.rb"
 
 require "app/world/fog_of_war.rb"
@@ -142,7 +143,8 @@ class Game
     state.kraken = nil # the legend only shows up when you go too deep
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)
-    state.fish = [] # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
+    state.fish = []     # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
+    state.crawlers = [] # ... and what walks about on that segment's sea floor
     reset_log       # the dive log starts empty each round
     reset_items     # scatter fresh treasures, empty the pack
     reset_film      # a fresh roll, nothing exposed
@@ -205,8 +207,9 @@ class Game
     state.diver.tick(args, sprite_index)
     return if game_paused?
 
-    state.fish ||= [] # resilience against stale state (e.g. DragonRuby hot reload)
-    state.fish.each { |fish| fish.tick(args, sprite_index) }
+    state.fish ||= []     # resilience against stale state (e.g. DragonRuby hot reload)
+    state.crawlers ||= []
+    creatures.each { |creature| creature.tick(args, sprite_index) }
 
     if shark_present?
       # Collide in world space: on-screen x/y are camera-relative, so compare the

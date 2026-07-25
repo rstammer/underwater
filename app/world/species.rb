@@ -16,12 +16,18 @@ class Species
 
   SCALAR = "sprites/animals/scalar_32_16/"
   BASS = "sprites/animals/bass1_32_16/"
+  SHELLS = "sprites/animals/crustaceans/"
 
   attr_reader :key, :name, :latin, :sheet, :frame_w, :frame_h, :frames_per_row,
-              :biomes, :shallowest, :deepest, :rarity, :points
+              :biomes, :shallowest, :deepest, :rarity, :points, :habitat
 
+  # habitat says *where in the water* a species lives, and so which of the sea's
+  # populations it belongs to: :water is the swarm in the column, :floor walks on
+  # the sand. It is not decoration — the two are rolled separately, so a crab
+  # never spawns hanging in mid-water and a fish never rests on the bottom.
   def initialize(key:, name:, latin:, sheet:, biomes:, shallowest:, deepest:,
-                 rarity:, points:, frame_w: 32, frame_h: 16, frames_per_row: 8)
+                 rarity:, points:, frame_w: 32, frame_h: 16, frames_per_row: 8,
+                 habitat: :water)
     @key = key
     @name = name
     @latin = latin
@@ -34,6 +40,7 @@ class Species
     @deepest = deepest
     @rarity = rarity
     @points = points
+    @habitat = habitat
   end
 
   def lives_at?(biome_name, depth)
@@ -85,6 +92,53 @@ class Species
         sheet: "sprites/animals/dark_shark_32_32/shark.png",
         frame_w: 32, frame_h: 32, biomes: ["Tiefsee"],
         shallowest: 0, deepest: 300, rarity: :rare, points: 70),
+
+    # --- the sea floor ------------------------------------------------------
+    # Crustaceans. They are not just more species: they are the reason to look
+    # *down*. Everything above swims past you at eye level, so a roster that
+    # lives on the sand rewards a different way of diving — slow, close to the
+    # bottom, and reading the terrain.
+    # The depth bands are set against where the sea floor actually *is* (roughly
+    # 20–95 m over the shelf, far deeper in the troughs), not against a tidy
+    # scale — otherwise a whole biome's sand comes out bare, and whichever
+    # species happens to span the common depths becomes the one you always see
+    # however rare it is meant to be.
+    new(key: "taschenkrebs", name: "Gemeiner Taschenkrebs", latin: "Cancer vulgaris",
+        sheet: SHELLS + "taschenkrebs.png", frame_w: 20, frame_h: 12, habitat: :floor,
+        biomes: ["Sandbank", "Riff"],
+        shallowest: 0, deepest: 70, rarity: :common, points: 6),
+
+    new(key: "einsiedler", name: "Einsiedler Fritz", latin: "Eremita domestica",
+        sheet: SHELLS + "einsiedler.png", frame_w: 20, frame_h: 12, habitat: :floor,
+        biomes: ["Sandbank", "Riff"],
+        shallowest: 0, deepest: 80, rarity: :common, points: 8),
+
+    new(key: "winkerkrabbe", name: "Grüne Winkerkrabbe", latin: "Uca salutans",
+        sheet: SHELLS + "winkerkrabbe.png", frame_w: 20, frame_h: 12, habitat: :floor,
+        biomes: ["Kelpwald", "Sandbank"],
+        shallowest: 0, deepest: 75, rarity: :common, points: 10),
+
+    new(key: "schlickkrebs", name: "Grauer Schlickkrebs", latin: "Cancer limosus",
+        sheet: SHELLS + "schlickkrebs.png", frame_w: 20, frame_h: 12, habitat: :floor,
+        biomes: ["Tiefsee", "Kelpwald"],
+        shallowest: 50, deepest: 165, rarity: :common, points: 12),
+
+    new(key: "hummer", name: "Roter Panzerhummer", latin: "Homarus loricatus",
+        sheet: SHELLS + "hummer.png", frame_w: 20, frame_h: 12, habitat: :floor,
+        biomes: ["Riff", "Kelpwald"],
+        shallowest: 15, deepest: 95, rarity: :uncommon, points: 20),
+
+    new(key: "languste", name: "Gestreifte Languste", latin: "Palinurus fasciatus",
+        sheet: SHELLS + "languste.png", frame_w: 20, frame_h: 12, habitat: :floor,
+        biomes: ["Riff", "Tiefsee"],
+        shallowest: 45, deepest: 130, rarity: :uncommon, points: 28),
+
+    # Down where the suit already complains. The last page of the crustacean
+    # chapter costs the same kind of nerve the Laternenträger does.
+    new(key: "abgrundkrabbe", name: "Blasse Abgrundkrabbe", latin: "Macrocheira abyssi",
+        sheet: SHELLS + "abgrundkrabbe.png", frame_w: 20, frame_h: 12, habitat: :floor,
+        biomes: ["Tiefsee"],
+        shallowest: 105, deepest: 280, rarity: :rare, points: 55),
   ]
 
   # The legend of the deep. Deliberately NOT in ALL: it never joins the roster or
@@ -106,9 +160,23 @@ class Species
   # lives in the biome at all — a stretch of sea should never come out empty
   # just because its floor happens to sit at an awkward depth.
   def self.pick(biome, depth)
-    here = ALL.select { |s| s.lives_at?(biome.name, depth) && s.key != "schattenhai" }
-    here = ALL.select { |s| s.biomes.include?(biome.name) && s.key != "schattenhai" } if here.empty?
+    here = swimmers.select { |s| s.lives_at?(biome.name, depth) }
+    here = swimmers.select { |s| s.biomes.include?(biome.name) } if here.empty?
     weighted(here)
+  end
+
+  # What is walking about on the sand here. Deliberately *without* the fallback
+  # the swimming roll has: if nothing on the roster lives on this floor at this
+  # depth, the sand is simply bare. The deep crab staying deep is what makes it
+  # worth going down for — a fallback would hand it to you on a shallow bank.
+  def self.pick_floor(biome, depth)
+    weighted(ALL.select { |s| s.habitat == :floor && s.lives_at?(biome.name, depth) })
+  end
+
+  # Everything in the water column. The shark is excluded because it is placed
+  # by the biome itself, not spawned into the swarm.
+  def self.swimmers
+    ALL.select { |s| s.habitat == :water && s.key != "schattenhai" }
   end
 
   def self.weighted(candidates)

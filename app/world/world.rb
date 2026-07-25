@@ -70,8 +70,11 @@ class World
     roof[column_at(x)] || []
   end
 
+  # idiv, not `/`: in DragonRuby Integer / Integer is a Float, and a Float index
+  # reads the wrong column without ever complaining. Callers pass fractional x
+  # (a fish's or a crab's position), so this has to land on a whole column.
   def column_at(x)
-    col = x / COLUMN_WIDTH
+    col = x.idiv(COLUMN_WIDTH)
     return 0 if col < 0
     return columns - 1 if col >= columns
 

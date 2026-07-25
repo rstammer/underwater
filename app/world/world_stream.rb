@@ -79,10 +79,28 @@ class Game
     visible_world_indices.include?(0)
   end
 
+  CRAWL_CLEARANCE = 20 # px of water a crab needs over the sand to be standing there
+  CRAWL_RANGE = 200    # ... and how far along the floor it wanders from where it hatched
+
+  # Everything alive in this segment, whether it swims or walks. Photography and
+  # sightings ask this rather than the two lists, so a crab counts as a subject
+  # exactly the way a fish does — which is the whole point of putting them in the
+  # roster instead of making them decor.
+  def creatures
+    (state.fish || []) + (state.crawlers || [])
+  end
+
+  # A fresh population for the world's biome: the swarm in the water column, and
+  # whatever walks about on its floor.
+  def spawn_fauna(world)
+    spawn_swarm(world)
+    spawn_crawlers(world)
+  end
+
   # A fresh fish swarm for the world's biome (colours and count from the biome).
   # They're spawned in the water just above this segment's own sea floor, so a
   # deep trench has its own fish down there instead of an empty void.
-  def spawn_fauna(world)
+  def spawn_swarm(world)
     biome = world.biome
     state.fish = biome.fish_count.times.map do
       col = rand(world.columns)
@@ -105,6 +123,47 @@ class Game
     end
   end
 
+  # What walks on this segment's sand. Depth is read from the floor itself, so a
+  # segment whose bottom lies in a trench gets the things that live down there
+  # and a shallow bank gets its own. Where nothing on the roster fits — the deep
+  # sea up on a shelf, say — the sand is simply bare; pick_floor doesn't invent
+  # a resident the way the swimming roll does.
+  def spawn_crawlers(world)
+    biome = world.biome
+    state.crawlers = biome.crab_count.times.map do
+      col = rand(world.columns)
+      floor_y = world.floor[col]
+      next unless standing_room?(world, col)
+
+      species = Species.pick_floor(biome, depth_in_metres(floor_y))
+      next unless species
+
+      x = col * World::COLUMN_WIDTH
+      from_x, to_x = crawl_span(world, col)
+      Crustacean.new(args, 0, species: species, world: world,
+                     x: x, from_x: from_x, to_x: to_x)
+    end.compact
+  end
+
+  # How far along the sand a crab can walk from here before rock is in its way.
+  # It reads the floor rather than the water column a fish gets: what stops a
+  # crab is an island's flank sitting *on* the bottom, not a roof overhead.
+  def crawl_span(world, col)
+    reach = CRAWL_RANGE.idiv(World::COLUMN_WIDTH)
+    left = col
+    left -= 1 while left > 0 && col - left < reach && standing_room?(world, left - 1)
+    right = col
+    right += 1 while right < world.columns - 1 && right - col < reach && standing_room?(world, right + 1)
+    [left * World::COLUMN_WIDTH, right * World::COLUMN_WIDTH]
+  end
+
+  # Is there open water resting on the sand in this column, or is the floor here
+  # buried under rock?
+  def standing_room?(world, col)
+    x = col * World::COLUMN_WIDTH
+    !world.solid_at?(x, world.floor[col] + CRAWL_CLEARANCE)
+  end
+
   SIGHT_RANGE = 520 # px within which a creature is close enough to have been seen
 
   # Note which species the diver has laid eyes on. The Artenbuch lists only these,
@@ -115,8 +174,8 @@ class Game
     return unless fauna_visible?
 
     state.sighted ||= {}
-    state.fish.each do |fish|
-      mark_sighted(fish.species.key, world_index * SCREEN_WIDTH + fish.x, fish.y)
+    creatures.each do |creature|
+      mark_sighted(creature.species.key, world_index * SCREEN_WIDTH + creature.x, creature.y)
     end
     if shark_present?
       mark_sighted("schattenhai", world_index * SCREEN_WIDTH + state.dark_shark.x, state.dark_shark.y)

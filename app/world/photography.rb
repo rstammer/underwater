@@ -57,10 +57,11 @@ class Game
   end
 
   # Everything photographable right now, in world coordinates: the swarm of the
-  # current segment, and the shark if it is about. Fish carry a local chunk x.
+  # current segment, whatever walks on its floor, and the shark if it is about.
+  # Fish and crabs alike carry a local chunk x.
   def photo_candidates
-    list = state.fish.map do |fish|
-      [fish.species, world_index * SCREEN_WIDTH + fish.x, fish.y]
+    list = creatures.map do |creature|
+      [creature.species, world_index * SCREEN_WIDTH + creature.x, creature.y]
     end
     if shark_present?
       list << [Species["schattenhai"],

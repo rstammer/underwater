@@ -15,10 +15,11 @@ class PhotographyTests
     args.state.diver_global_x = 600
     args.state.depth_y = -400 # well under the surface, so the fauna is out
     args.state.direction = facing
-    game.current_world # load the segment *first* — loading it stocks it with fish
+    game.current_world # load the segment *first* — loading it stocks it with life
     args.state.fish = [Creature.new(args, 0, species: Species[species_key],
                                     x: 600 + away, y: -400)]
-    game
+    args.state.crawlers = [] # ... and the crabs it stocked the floor with go too,
+    game                     #     so the one fish is the only subject in the water
   end
 
   def test_nothing_to_photograph_at_the_surface(args, assert)
