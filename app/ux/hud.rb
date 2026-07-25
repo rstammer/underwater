@@ -104,15 +104,15 @@ class Game
   end
 
   # A species tells you its name only once it is in the Artenbuch — which is to
-  # say once you have brought a picture of it home and developed it. Down here,
-  # anything you haven't is three question marks.
+  # say once you have brought a picture of it home and developed it. Until then
+  # you get what you could actually tell by looking at it (Species#tease): "rot
+  # und schlecht gelaunt", "ein Schneckenhaus mit Beinen".
   #
-  # That is the whole answer to "have I got this one already?": if it has a name,
-  # you have. No extra badge, no second thing to read.
-  UNKNOWN_NAME = "? ? ?"
-
+  # That is still the whole answer to "have I got this one already?" — a name
+  # means yes, a description means no — but a description is something to read
+  # rather than a row of question marks to squint at.
   def species_label(species)
-    state.album[species.key] ? species.name : UNKNOWN_NAME
+    state.album[species.key] ? species.name : species.tease
   end
 
   # And the colour says what this shot would be worth, at a glance:
@@ -140,7 +140,10 @@ class Game
       if state.film_left.zero?
         "Kein Film mehr — am Boot entwickeln"
       elsif !improves?(species.key, quality)
-        "#{species_label(species)} — schon besser im Kasten"
+        # Nothing to gain here, so it says nothing about it: the name alone, in
+        # the colour that means "you have this". Being told off for swimming past
+        # something you already own gets old fast.
+        species_label(species)
       else
         "[ F ]  #{species_label(species)}  (#{quality})"
       end

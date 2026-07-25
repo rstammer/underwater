@@ -25,14 +25,20 @@ class Species
   SHELLS = "sprites/animals/crustaceans/"
 
   attr_reader :key, :name, :latin, :sheet, :frame_w, :frame_h, :frames_per_row,
-              :biomes, :shallowest, :deepest, :rarity, :points, :habitat
+              :biomes, :shallowest, :deepest, :rarity, :points, :habitat, :tease
 
   # habitat says *where in the water* a species lives, and so which of the sea's
   # populations it belongs to: :water is the swarm in the column, :floor walks on
   # the sand. It is not decoration — the two are rolled separately, so a crab
   # never spawns hanging in mid-water and a fish never rests on the bottom.
+  #
+  # tease is what you call it before you know what it is: down in the water a
+  # species gives its name only once it is in the Artenbuch, and until then this
+  # is what the lens says instead. It has to be short enough for one line and
+  # loose enough to be a guess — what a diver would scribble having seen a thing
+  # go past, not a description of it.
   def initialize(key:, name:, latin:, sheet:, biomes:, shallowest:, deepest:,
-                 rarity:, points:, frame_w: 32, frame_h: 16, frames_per_row: 8,
+                 rarity:, points:, tease:, frame_w: 32, frame_h: 16, frames_per_row: 8,
                  habitat: :water)
     @key = key
     @name = name
@@ -47,6 +53,7 @@ class Species
     @rarity = rarity
     @points = points
     @habitat = habitat
+    @tease = tease
   end
 
   def lives_at?(biome_name, depth)
@@ -60,44 +67,54 @@ class Species
   ALL = [
     new(key: "burgunder", name: "Blauer Burgunder", latin: "Vinum caeruleum",
         sheet: SCALAR + "blue.png", biomes: ["Sandbank", "Riff"],
-        shallowest: 0, deepest: 55, rarity: :common, points: 5),
+        shallowest: 0, deepest: 55, rarity: :common, tease: "etwas Blaues, sehr Gemütliches",
+        points: 5),
 
     new(key: "hornhering", name: "Gemeiner Hornhering", latin: "Clupea cornuta",
         sheet: BASS + "grey.png", biomes: ["Sandbank", "Kelpwald"],
-        shallowest: 0, deepest: 70, rarity: :common, points: 5),
+        shallowest: 0, deepest: 70, rarity: :common, tease: "grau, mit Hörnchen am Kopf",
+        points: 5),
 
     new(key: "scalarus", name: "Scalarus Coloris", latin: "Scalarus coloris",
         sheet: SCALAR + "orange.png", biomes: ["Riff", "Sandbank"],
-        shallowest: 0, deepest: 60, rarity: :common, points: 6),
+        shallowest: 0, deepest: 60, rarity: :common, tease: "bunt und auffällig flach",
+        points: 6),
 
     new(key: "zottelmaul", name: "Grünes Zottelmaul", latin: "Barbatus vorax",
         sheet: SCALAR + "green.png", biomes: ["Kelpwald"],
-        shallowest: 0, deepest: 80, rarity: :common, points: 8),
+        shallowest: 0, deepest: 80, rarity: :common, tease: "grün und ziemlich zottelig",
+        points: 8),
 
     new(key: "doktor", name: "Dicker Doktor", latin: "Medicus obesus",
         sheet: BASS + "orange.png", biomes: ["Kelpwald", "Riff"],
-        shallowest: 10, deepest: 75, rarity: :uncommon, points: 14),
+        shallowest: 10, deepest: 75, rarity: :uncommon, tease: "auffällig gut genährt",
+        points: 14),
 
     new(key: "rabauke", name: "Roter Rabaukenbarsch", latin: "Perca turbulenta",
         sheet: BASS + "red.png", biomes: ["Riff"],
-        shallowest: 5, deepest: 65, rarity: :uncommon, points: 16),
+        shallowest: 5, deepest: 65, rarity: :uncommon, tease: "rot und schlecht gelaunt",
+        points: 16),
 
     new(key: "prunkflosser", name: "Purpurner Prunkflosser", latin: "Pompa purpurea",
         sheet: SCALAR + "purple.png", biomes: ["Riff", "Tiefsee"],
-        shallowest: 40, deepest: 120, rarity: :uncommon, points: 22),
+        shallowest: 40, deepest: 120, rarity: :uncommon, tease: "lila, hält sich für was",
+        points: 22),
 
     new(key: "truebfisch", name: "Tiefblauer Trübfisch", latin: "Obscurus caeruleus",
         sheet: BASS + "blue.png", biomes: ["Tiefsee"],
-        shallowest: 60, deepest: 200, rarity: :common, points: 18),
+        shallowest: 60, deepest: 200, rarity: :common, tease: "blau, wirkt bedrückt",
+        points: 18),
 
     new(key: "laternentraeger", name: "Fahler Laternenträger", latin: "Lucerna abyssi",
         sheet: SCALAR + "purple.png", biomes: ["Tiefsee"],
-        shallowest: 95, deepest: 260, rarity: :rare, points: 45),
+        shallowest: 95, deepest: 260, rarity: :rare, tease: "blass, leuchtet vor sich hin",
+        points: 45),
 
     new(key: "schattenhai", name: "Schwarzer Schattenhai", latin: "Carcharias umbra",
         sheet: "sprites/animals/dark_shark_32_32/shark.png",
         frame_w: 32, frame_h: 32, biomes: ["Tiefsee"],
-        shallowest: 0, deepest: 300, rarity: :rare, points: 70),
+        shallowest: 0, deepest: 300, rarity: :rare, tease: "groß. sehr groß.",
+        points: 70),
 
     # --- the sea floor ------------------------------------------------------
     # Crustaceans. They are not just more species: they are the reason to look
@@ -112,39 +129,46 @@ class Species
     new(key: "taschenkrebs", name: "Gemeiner Taschenkrebs", latin: "Cancer vulgaris",
         sheet: SHELLS + "taschenkrebs.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Sandbank", "Riff"],
-        shallowest: 0, deepest: 70, rarity: :common, points: 6),
+        shallowest: 0, deepest: 70, rarity: :common, tease: "krabbelt seitwärts, hat Scheren",
+        points: 6),
 
     new(key: "einsiedler", name: "Einsiedler Fritz", latin: "Eremita domestica",
         sheet: SHELLS + "einsiedler.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Sandbank", "Riff"],
-        shallowest: 0, deepest: 80, rarity: :common, points: 8),
+        shallowest: 0, deepest: 80, rarity: :common, tease: "ein Schneckenhaus mit Beinen",
+        points: 8),
 
     new(key: "winkerkrabbe", name: "Grüne Winkerkrabbe", latin: "Uca salutans",
         sheet: SHELLS + "winkerkrabbe.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Kelpwald", "Sandbank"],
-        shallowest: 0, deepest: 75, rarity: :common, points: 10),
+        shallowest: 0, deepest: 75, rarity: :common, tease: "winkt mit einer Riesenschere",
+        points: 10),
 
     new(key: "schlickkrebs", name: "Grauer Schlickkrebs", latin: "Cancer limosus",
         sheet: SHELLS + "schlickkrebs.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Tiefsee", "Kelpwald"],
-        shallowest: 50, deepest: 165, rarity: :common, points: 12),
+        shallowest: 50, deepest: 165, rarity: :common, tease: "grau, staubt beim Laufen",
+        points: 12),
 
     new(key: "hummer", name: "Roter Panzerhummer", latin: "Homarus loricatus",
         sheet: SHELLS + "hummer.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Riff", "Kelpwald"],
-        shallowest: 15, deepest: 95, rarity: :uncommon, points: 20),
+        shallowest: 15, deepest: 95, rarity: :uncommon, tease: "rot, gepanzert, sehr wehrhaft",
+        points: 20),
 
     new(key: "languste", name: "Gestreifte Languste", latin: "Palinurus fasciatus",
         sheet: SHELLS + "languste.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Riff", "Tiefsee"],
-        shallowest: 55, deepest: 130, rarity: :uncommon, points: 28),
+        shallowest: 55, deepest: 130, rarity: :uncommon, tease: "gestreift, unfassbar lange Fühler",
+        points: 28),
 
     # Down where the suit already complains. The last page of the crustacean
     # chapter costs the same kind of nerve the Laternenträger does.
     new(key: "abgrundkrabbe", name: "Blasse Abgrundkrabbe", latin: "Macrocheira abyssi",
         sheet: SHELLS + "abgrundkrabbe.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Tiefsee"],
-        shallowest: 105, deepest: 280, rarity: :rare, points: 55),
+        shallowest: 105, deepest: 280, rarity: :rare, tease: "blass, viel zu lange Beine",
+        points: 55),
 
     # --- above the waterline -------------------------------------------------
     # A beach is a habitat too. It photographs from the water with your head in
@@ -154,7 +178,8 @@ class Species
     new(key: "strandkrabbe", name: "Flinke Strandkrabbe", latin: "Carcinus litoralis",
         sheet: SHELLS + "strandkrabbe.png", frame_w: 20, frame_h: 12, habitat: :shore,
         biomes: ["Sandbank", "Kelpwald", "Riff", "Tiefsee"],
-        shallowest: 0, deepest: 5, rarity: :common, points: 14),
+        shallowest: 0, deepest: 5, rarity: :common, tease: "flink, immer im Trockenen",
+        points: 14),
   ]
 
   # The legend of the deep. Deliberately NOT in ALL: it never joins the roster or
@@ -163,7 +188,8 @@ class Species
   # diver would log a thing they never quite saw.
   KRAKEN = new(key: "kraken", name: "? ? ?", latin: "Architeuthis umbra",
                sheet: "sprites/animals/dark_shark_32_32/shark.png", frame_w: 32, frame_h: 32,
-               biomes: [], shallowest: 130, deepest: 400, rarity: :rare, points: 0)
+               biomes: [], shallowest: 130, deepest: 400, rarity: :rare, tease: "da ist etwas",
+        points: 0)
 
   BY_KEY = ALL.each_with_object({}) { |species, index| index[species.key] = species }
 

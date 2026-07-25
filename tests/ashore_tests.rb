@@ -622,15 +622,59 @@ class AshoreTests
     assert.equal! slabs.count { |s| s[:sand] }, 0, "and none of it is beach"
   end
 
-  # Stacks say "the rock reaches out here" — in front of sand they would say the
-  # opposite, and (measured) they fence off the wade completely, because a skerry
-  # is a wall at exactly the depth you walk ashore at.
-  def test_sand_shores_have_no_stacks_off_them(args, assert)
+  # Stacks say "the rock reaches out here, and you cannot swim straight in" —
+  # which is exactly what needs saying off a beach too, because from the surface
+  # the island's own flank is invisible (nothing under the waterline is drawn from
+  # up in the air) and you swim into a wall you cannot see.
+  def test_only_rock_shores_have_stacks_off_them(args, assert)
     through = IslandWorld.new(WorldGenerator.generate(0), sector_with_shore(:through))
     rocky = IslandWorld.new(WorldGenerator.generate(0), sector_with_shore(:rock))
 
     assert.equal! through.skerry_clusters.length, 0, "a beach island has none"
     assert.equal! rocky.skerry_clusters.length, 2, "a rock coast has them off both shores"
+  end
+
+  # ... and they must not shut the beach off. A skerry is a wall at the surface,
+  # which is the depth you wade in at — but it only reaches SKERRY_DEPTH down, so
+  # the way past is under it. This swims the way a player would: push toward the
+  # island, duck when something is in the way, rise again when it isn't.
+  def swim_in_ducking(game, args, sector, from_left)
+    isle = IslandWorld.new(WorldGenerator.generate(sector), sector)
+    args.state.island_sectors = [sector]
+    args.state.world_cache = {}
+    args.state.diver_global_x = from_left ? isle.first_x - 600 : isle.last_x + 600
+    args.state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH
+    game.center_camera
+
+    step = from_left ? 2 : -2
+    highest = args.state.depth_y
+    6000.times do
+      if game.blocked?(args.state.diver_global_x + step)
+        args.state.depth_y -= 3 # something in the way: go under it
+      else
+        game.swim_sideways(step)
+        # Rise only when rising wouldn't put him back into the rock — staying
+        # down until he is properly past is what a player does, and what the
+        # earlier model failed to do.
+        here = args.state.depth_y
+        args.state.depth_y = here + 2
+        args.state.depth_y = here if game.blocked?(args.state.diver_global_x + step)
+      end
+      game.clamp_depth
+      highest = args.state.depth_y if args.state.depth_y > highest
+    end
+    { isle: isle, x: args.state.diver_global_x, highest: highest,
+      ashore: highest - Diver::HEIGHT > WATERLINE_Y }
+  end
+
+  def test_the_stacks_do_not_shut_the_beach_off(args, assert)
+    game = diving(args)
+
+    walk = swim_in_ducking(game, args, IslandWorld::HOME_SECTOR, true)
+
+    assert.true! walk[:ashore],
+                 "ducking under the rocks still gets you onto the beach " \
+                 "(got to #{walk[:highest] - WATERLINE_Y} above the water)"
   end
 
   # Standing on an island is being in the air, with everything that follows.

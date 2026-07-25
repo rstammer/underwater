@@ -436,11 +436,17 @@ class IslandWorld
   # edge in the shallows — [first world x, width in columns], rolled from the home
   # sector so they scatter differently every round. In world x, so both segments
   # of a shore that falls on a border place the same rocks.
-  # Only off a rock shore. Stacks are what says "the rock reaches out here and
-  # you cannot swim straight in" — in front of a beach they would be saying the
-  # opposite of what the sand says, and (measured) they fence the wade off
-  # completely: a skerry is a wall at the surface, which is exactly the depth you
-  # walk ashore at.
+  # Only off a rock shore, and this has now been measured twice.
+  #
+  # A stack is solid from SKERRY_DEPTH below the water to a little above it, so
+  # meeting one at the surface means going under. Off a rock coast that is the
+  # point. Off a beach it is fatal to the beach: ducking puts the diver *below*
+  # the height the sand starts at, and an island is solid rock from its crown all
+  # the way down — so he surfaces into the underside of the beach he was trying
+  # to walk up. A beach can only be waded from the surface.
+  #
+  # (Simulated both ways: swimming in at a fixed depth, and diving under and
+  # rising again when the way up is clear. Neither gets ashore.)
   def skerry_clusters
     clusters = []
     unless sand_side?(0.0)

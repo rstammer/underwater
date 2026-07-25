@@ -283,7 +283,7 @@ class PhotographyTests
     assert.true! args.outputs.labels.length > 0, "film counter and prompt draw"
     # Nothing is in the book in this round, so it can't name it yet — it says
     # only that there is something new on the film.
-    assert.true! text.include?(Game::UNKNOWN_NAME), "and reports what he just caught"
+    assert.true! text.include?(Species["burgunder"].tease), "and reports what he just caught"
     assert.true! text.include?("Neues"), "as something worth bringing home"
   end
 
@@ -318,7 +318,8 @@ class PhotographyTests
     line = game.photo_message
 
     assert.false! line[:text].include?("Blauer Burgunder"), "it doesn't give itself away"
-    assert.true! line[:text].include?(Game::UNKNOWN_NAME), "it is a question mark"
+    assert.true! line[:text].include?(Species["burgunder"].tease),
+                 "it is what you could tell by looking at it"
     assert.equal! line[:color], Game::NEW_INK, "and it is worth the film"
   end
 
@@ -350,7 +351,7 @@ class PhotographyTests
 
     game.take_photo
 
-    assert.true! args.state.shot_note[:name].include?(Game::UNKNOWN_NAME),
+    assert.true! args.state.shot_note[:name].include?(Species["burgunder"].tease),
                  "exposed film, not a discovery"
     assert.true! args.state.shot_note[:fresh], "but it does say it is something new"
   end
