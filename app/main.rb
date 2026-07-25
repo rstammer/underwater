@@ -801,8 +801,17 @@ class Game
   # Where the book lives. Under the test runner, somewhere disposable — saving
   # happens the moment a species is first sighted, so any test that swims near a
   # fish would otherwise write over the real thing.
-  def book_path
-    $gtk.argv.to_s.include?("--test") ? SaveFile::TEST_PATH : SaveFile::PATH
+  # The runtime is an argument so the guard below can actually be tested against
+  # one that hasn't got argv.
+  def book_path(runtime = $gtk)
+    # argv is documented as a development/debugging thing, and this runs on every
+    # save — including in the browser build, where the book lives in the
+    # IndexedDB and there is no command line at all. Ask before reaching for it:
+    # a missing method here would take the game down the first time anyone swam
+    # past a fish.
+    return SaveFile::PATH unless runtime.respond_to?(:argv)
+
+    runtime.argv.to_s.include?("--test") ? SaveFile::TEST_PATH : SaveFile::PATH
   end
 
   # The path is an argument on top of that, so a test can do a real round trip

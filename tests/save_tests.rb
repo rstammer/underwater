@@ -90,6 +90,20 @@ class SaveTests
     assert.true! back[:sighted]["hummer"]
   end
 
+  # Where the book goes must never depend on something that might not be there.
+  # In the browser build the file lives in the IndexedDB and there is no command
+  # line to ask about, so book_path has to cope with argv simply not existing —
+  # it runs on every save, and a missing method would take the game down the
+  # first time anyone swam past a fish.
+  def test_the_book_still_has_a_home_without_a_command_line(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    no_command_line = Object.new # the browser build, near enough
+
+    assert.equal! game.book_path(no_command_line), SaveFile::PATH,
+                  "it falls back to the real path instead of blowing up"
+  end
+
   def test_a_book_that_was_never_saved_reads_as_nothing(args, assert)
     game = build_game(args)
     game.initialize_game(0)
