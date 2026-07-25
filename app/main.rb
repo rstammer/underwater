@@ -245,6 +245,7 @@ class Game
     state.fish ||= []     # resilience against stale state (e.g. DragonRuby hot reload)
     state.crawlers ||= []
     state.shore_life ||= []
+    update_shyness # before they tick, so a frightened one leaves this very frame
     creatures.each { |creature| creature.tick(args, sprite_index) }
 
     if shark_present?
@@ -264,6 +265,32 @@ class Game
         state.death_cause = :eaten
       end
       update_shark(sprite_index)
+    end
+  end
+
+  # Most things down here won't be swum up to. Come at one and it leaves; the
+  # only way to get near enough for a perfect frame is to stop and let it come
+  # back to you — which is the whole of the photography now being a matter of
+  # patience rather than of swimming fast.
+  #
+  # It is *moving* that frightens them, not being there: holding still is what
+  # settles them. And it is a property of the species (Species#shy), because the
+  # shark hunts you and a crab already scuttles.
+  CURIOUS_REACH = 3 # how far out a settled one will come to look, in shy-lengths
+
+  def update_shyness
+    offset = world_index * SCREEN_WIDTH
+    local_x = state.diver_global_x - offset
+    creatures.each do |creature|
+      shy = creature.species.shy
+      next if shy.zero?
+
+      distance = photo_distance(offset + creature.x, creature.y)
+      if moving?
+        creature.bolt_from(local_x) if distance <= shy
+      elsif distance <= shy * CURIOUS_REACH
+        creature.drawn_to(local_x)
+      end
     end
   end
 

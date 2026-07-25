@@ -5,6 +5,10 @@
 class Creature
   SPEEDS = [0.25, 0.5, 0.75, 0.65, 0.35, 0.15]
   DRIFT = 60 # how far it wanders from the depth it was spawned at
+  BOLT_SPEED = 1.7  # how fast a startled one leaves — comfortably faster than a
+                    # swimming diver, so chasing is hopeless by design
+  BOLT_TICKS = 40   # and how long it keeps going after the last fright, so the
+                    # flight reads as a startle rather than a switch
 
   attr_reader :species
 
@@ -23,6 +27,44 @@ class Creature
     @heading = 1
     @speed = SPEEDS.sample
     @size = [1, 1, 1, 2].sample
+    @bolting = 0
+  end
+
+  # Frightened off, away from a diver at this segment-local x. Called by the game
+  # (Game#update_shyness), which is the only thing that knows where he is; the
+  # fish just knows which way is away. Re-applied for as long as he keeps coming,
+  # so standing still is what lets it settle.
+  def bolt_from(local_x)
+    @bolting = BOLT_TICKS
+    @heading = local_x > @x ? -1 : 1
+  end
+
+  def bolting?
+    @bolting > 0
+  end
+
+  # The other half of it: a diver who has stopped is not a threat but a curiosity,
+  # and it comes to have a look. Without this, waiting only means *hoping* the
+  # patrol wanders back — and then the promise the whole mechanic makes ("stop and
+  # it will come to you") is a coin toss.
+  #
+  # It stops steering once it is right up close, so it drifts on past instead of
+  # sticking to him like a magnet.
+  CROWDING = 40
+  # Coming to look is its own pace, not whatever patrol speed it happened to roll.
+  # Otherwise the wait is a lottery: the slowest fish would take half a minute to
+  # cross the same water the quickest crosses in eight seconds, and patience you
+  # cannot estimate is just tedium.
+  CURIOUS_SPEED = 0.6
+
+  def drawn_to(local_x)
+    return if bolting?
+
+    gap = local_x - @x
+    return if gap.abs < CROWDING
+
+    @heading = gap > 0 ? 1 : -1
+    @curious = true
   end
 
   def x
@@ -39,7 +81,13 @@ class Creature
   def tick(current_args, sprite_index)
     @sprite_index = sprite_index
     @current_args = current_args
-    @x += @speed * @heading
+    if bolting?
+      @bolting -= 1
+      @x += BOLT_SPEED * @heading
+    else
+      @x += (@curious ? CURIOUS_SPEED : @speed) * @heading
+    end
+    @curious = false # re-asked every frame by Game#update_shyness
     if @x >= @to_x
       @x = @to_x
       @heading = -1

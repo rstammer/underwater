@@ -525,6 +525,24 @@ Screen-Positionen und werden nicht direkt gesetzt.
     Insel heißt es, dass Auftauchen etwas anderes ist als nur Luftholen.
   - **Qualität** (`photo_quality`) aus der Entfernung: `perfekt`/`gut`/`unscharf`,
     und **Sprinten kostet eine Stufe** — man nähert sich also leise statt zu pflügen.
+  - **Scheue Arten (`Species#shy`, `Game#update_shyness`) — Fotografieren ist
+    Geduld, nicht Schwimmen.** `shy` ist der Abstand in px, ab dem eine Art
+    flieht, und er liegt **absichtlich über `PHOTO_CLOSE`**: näher als sie sich
+    anschwimmen lässt, muss man für ein perfektes Bild kommen — also **wartet**
+    man, statt hinterherzujagen.
+    - **Es ist die Bewegung, die scheucht** (`moving?`), nicht die Anwesenheit.
+      Stillhalten beruhigt.
+    - **Und stillhalten holt sie her** (`Creature#drawn_to`, `CURIOUS_REACH`=3×`shy`):
+      ein Taucher, der aufhört, ist keine Gefahr mehr, sondern eine Neugier. Ohne
+      das wäre „warte, dann kommt er" reines Glück — die Patrouille müsste zufällig
+      zurückwandern. Der Anflug hat **eigenes Tempo** (`CURIOUS_SPEED`), sonst wäre
+      die Wartezeit eine Lotterie aus der gewürfelten Patrouillengeschwindigkeit.
+    - **Nicht für alle:** der Hai *sucht* einen (shy 0), Krebse huschen ohnehin.
+      Scheuheit hängt an der Art, nicht am System.
+    - Lose an die Seltenheit gekoppelt → fertige Schwierigkeitskurve. Gemessen,
+      aus doppeltem Fluchtabstand herangeschwommen: häufige Arten **3,6–4,7 s**,
+      uncommon **5,8–7,0 s**, der seltene Laternenträger **8,6 s**. Das kostet
+      spürbar Luft, ohne zäh zu werden.
   - **Film ist knapp:** `FILM_MAX` Aufnahmen pro Tauchgang. Ein Foto ist **belichteter
     Film, kein Eintrag** — erst `develop_film` **am Boot** macht Buchseiten daraus und
     legt einen frischen Film ein. **Ertrinken kostet die Rolle**, nie das Buch

@@ -84,6 +84,16 @@ class Crustacean
     @y = ground_y
   end
 
+  # A crab can be frightened too — none is, today (every crustacean's shy is 0),
+  # but Game#update_shyness asks every creature it can see, and a shy species
+  # added later shouldn't find the method missing. It scuttles off rather than
+  # bolting: it has legs, not fins.
+  def bolt_from(local_x)
+    @heading = local_x > @x ? -1 : 1
+    @rest = 0
+    @dash = DASH.max
+  end
+
   def turn_at_the_ends
     if @x >= @to_x
       @x = @to_x
