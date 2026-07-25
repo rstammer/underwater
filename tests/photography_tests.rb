@@ -190,6 +190,74 @@ class PhotographyTests
     assert.equal! args.state.album.length, 1
   end
 
+  # --- the Artenbuch, page by page ------------------------------------------
+  #
+  # The roster outgrew the screen: fourteen species already ran the last rows
+  # down through the footer and over each other. It turns pages now.
+
+  def at_the_boat_with_everything_sighted(args)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.spawn_at_surface
+    args.state.game_scene = "area1"
+    args.state.sighted = Species::ALL.each_with_object({}) { |s, h| h[s.key] = true }
+    game.toggle_home_menu(true)
+    args.state.boat_page = :book
+    game
+  end
+
+  def test_the_book_turns_pages_when_the_roster_outgrows_one(args, assert)
+    game = at_the_boat_with_everything_sighted(args)
+
+    assert.true! game.artenbuch_rows.length > Game::BOOK_PER_PAGE,
+                 "there is more here than fits (#{game.artenbuch_rows.length})"
+    assert.true! game.artenbuch_pages > 1, "so there is more than one page"
+    assert.true! game.artenbuch_page_rows.length <= Game::BOOK_PER_PAGE,
+                 "and a page holds no more than it can show"
+  end
+
+  # Turning through must show every species exactly once — a book that drops one
+  # is worse than a book that scrolls badly.
+  def test_every_species_is_on_exactly_one_page(args, assert)
+    game = at_the_boat_with_everything_sighted(args)
+
+    seen = []
+    game.artenbuch_pages.times do |i|
+      args.state.artenbuch_page = i
+      seen.concat(game.artenbuch_page_rows.map { |row| row[:species].key })
+    end
+
+    assert.equal! seen.length, game.artenbuch_rows.length, "nothing is shown twice or lost"
+    assert.equal! seen.uniq.length, seen.length, "and nothing repeats"
+  end
+
+  def test_paging_wraps_and_is_a_plain_state_change(args, assert)
+    game = at_the_boat_with_everything_sighted(args)
+    last = game.artenbuch_pages - 1
+
+    game.turn_artenbuch_page(1)
+    assert.equal! args.state.artenbuch_page, 1, "forward a page"
+
+    args.state.artenbuch_page = last
+    game.turn_artenbuch_page(1)
+    assert.equal! args.state.artenbuch_page, 0, "and round to the front from the back"
+
+    game.turn_artenbuch_page(-1)
+    assert.equal! args.state.artenbuch_page, last, "and back again"
+  end
+
+  # The bug you could see: rows ran down through the footer and printed over it.
+  def test_no_row_of_the_book_falls_through_the_footer(args, assert)
+    game = at_the_boat_with_everything_sighted(args)
+
+    game.home_menu_tick
+
+    footer = (args.grid.h - Game::MENU_H) / 2 + Game::MENU_PAD
+    below = args.outputs.labels.select { |l| l[:y] < footer - 2 }
+    assert.equal! below.length, 0,
+                  "nothing is drawn under the footer (#{below.map { |l| l[:text] }.inspect})"
+  end
+
   # The Artenbuch lists only what you've seen — sighted or documented — so it
   # fills in as you explore instead of spoiling the sea from the first dive.
   def test_the_book_lists_only_what_you_have_seen(args, assert)

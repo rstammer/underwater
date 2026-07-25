@@ -81,8 +81,14 @@ class Game
       render_hold_column(left + MENU_PAD + 584, head_y, row_y)
     end
 
-    hint = book_page? ? "[ Tab ] Logbuch & Lager   ·   L / ESC schließen"
-                      : "Pfeiltasten wählen   ·   [ E ] verschieben   ·   [ Tab ] Artenbuch   ·   L / ESC schließen"
+    hint =
+      if book_page? && artenbuch_pages > 1
+        "← → blättern   ·   [ Tab ] Logbuch & Lager   ·   L / ESC schließen"
+      elsif book_page?
+        "[ Tab ] Logbuch & Lager   ·   L / ESC schließen"
+      else
+        "Pfeiltasten wählen   ·   [ E ] verschieben   ·   [ Tab ] Artenbuch   ·   L / ESC schließen"
+      end
     outputs.labels << { x: (left + right) / 2, y: bottom + MENU_PAD, text: hint,
                         size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
@@ -90,6 +96,11 @@ class Game
 
   BOOK_COL_W = 390
   BOOK_ROW_H = 50
+  # Two columns of this many. Set by what actually fits between the headings and
+  # the footer — the roster outgrew the screen and the last rows were printing
+  # down through the hint line and over each other.
+  BOOK_ROWS = 5
+  BOOK_PER_PAGE = BOOK_ROWS * 2
 
   # One row per species in the sea, in the order they live from the shallows
   # down: what you have, and — just as importantly — what you haven't. A plain
@@ -110,34 +121,69 @@ class Game
     (state.sighted && state.sighted[key]) || !state.album[key].nil?
   end
 
+  # --- turning the pages ----------------------------------------------------
+
+  def artenbuch_pages
+    pages = (artenbuch_rows.length + BOOK_PER_PAGE - 1).idiv(BOOK_PER_PAGE)
+    pages < 1 ? 1 : pages
+  end
+
+  # The slice on show. Clamped rather than trusted: the roster grows as you
+  # explore, and a page number left over from a fuller book would show nothing.
+  def artenbuch_page_rows
+    page = (state.artenbuch_page || 0)
+    page = artenbuch_pages - 1 if page >= artenbuch_pages
+    page = 0 if page < 0
+    state.artenbuch_page = page
+    artenbuch_rows[page * BOOK_PER_PAGE, BOOK_PER_PAGE] || []
+  end
+
+  # Wraps, because a two-page book is quicker to flick round than to back out of.
+  # A plain state change, so paging is testable without simulated keys.
+  def turn_artenbuch_page(by)
+    state.artenbuch_page = ((state.artenbuch_page || 0) + by) % artenbuch_pages
+  end
+
+  def update_artenbuch_paging
+    return unless state.game_scene == "home_menu" && book_page?
+
+    turn_artenbuch_page(-1) if inputs.keyboard.key_down.left
+    turn_artenbuch_page(1) if inputs.keyboard.key_down.right
+  end
+
   def render_artenbuch(x, head_y, row_y)
-    rows = artenbuch_rows
+    all = artenbuch_rows
+    rows = artenbuch_page_rows
     cx = x + BOOK_COL_W + 28 # centre of the two-column spread
     # The denominator is what you've *seen*, not the whole roster — so the count
     # grows as you discover, and never gives away how much is still out there.
-    column_heading(x, head_y, "Artenbuch  #{album_found} / #{rows.length}", BOOK_COL_W)
+    heading = "Artenbuch  #{album_found} / #{all.length}"
+    heading += "    Seite #{state.artenbuch_page + 1} / #{artenbuch_pages}" if artenbuch_pages > 1
+    column_heading(x, head_y, heading, BOOK_COL_W)
     column_heading(x + BOOK_COL_W + 56, head_y, "Punkte  #{album_score}", BOOK_COL_W)
 
-    if rows.empty?
+    if all.empty?
       outputs.labels << { x: cx, y: row_y - 40, text: "Noch nichts gesichtet — tauch und sieh dich um.",
                           size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
                           r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
       return
     end
 
-    per_column = (rows.length + 1).idiv(2)
+    # Down the left column first, then down the right — a page of a book, read
+    # the way a page is read.
     rows.each_with_index do |row, i|
-      col_x = x + (i < per_column ? 0 : BOOK_COL_W + 56)
-      render_book_row(col_x, row_y - (i % per_column) * BOOK_ROW_H, row)
+      col_x = x + (i < BOOK_ROWS ? 0 : BOOK_COL_W + 56)
+      render_book_row(col_x, row_y - (i % BOOK_ROWS) * BOOK_ROW_H, row)
     end
 
-    # A quiet reminder the sea still holds more, without a number that would spoil it.
-    if rows.length < Species::ALL.length
-      outputs.labels << { x: cx, y: row_y - per_column * BOOK_ROW_H - 4,
-                          text: "… und weitere Arten, noch ungesichtet", size_enum: 0,
-                          alignment_enum: 1, vertical_alignment_enum: 2,
-                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2], a: 150 }
-    end
+    # A quiet reminder the sea still holds more, without a number that would
+    # spoil it — on the last page, where "more" means more than the whole book.
+    return unless all.length < Species::ALL.length && state.artenbuch_page == artenbuch_pages - 1
+
+    outputs.labels << { x: cx, y: row_y - BOOK_ROWS * BOOK_ROW_H - 4,
+                        text: "… und weitere Arten, noch ungesichtet", size_enum: 0,
+                        alignment_enum: 1, vertical_alignment_enum: 2,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2], a: 150 }
   end
 
   # A documented species stands in its own colours with the grade of the photo;

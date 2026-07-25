@@ -130,6 +130,7 @@ class Game
     state.exchange_side = PACK_SIDE
     state.exchange_index = 0
     state.boat_page = :hold # every visit opens on what you just brought up
+    state.artenbuch_page = 0 # ... and the book at its first page
   end
 
   # dx picks the side (-1 pack, +1 hold), drow walks the rows (+1 = one further

@@ -90,6 +90,7 @@ class Game
     update_home_menu # L at the boat opens the boat screen and closes it again
     update_exchange  # and while it's open, the arrows and E sort pack against hold
     update_boat_page # ... and Tab turns to the Artenbuch and back
+    update_artenbuch_paging # ... and the arrows turn its pages
     update_escape    # ESC: out of the boat screen, or out of the dive to the title
     quit_game if at_the_boat? && inputs.keyboard.key_down.q # Q at the boat quits
     update_sprint
