@@ -56,14 +56,13 @@ class Game
     return unless named?
 
     save_book # the new diver takes over the file here, and not before
-    start_round
+    state.game_scene = "intro" # who he is, and what he is out here for
   end
 
-  # Into the water, beside the boat, with the story still to be told — and the
-  # camera's rules waiting for the moment he first goes under. Unless he has been
-  # here before (told:), in which case neither needs saying again.
+  # Into the water beside the boat, with the camera's rules waiting for the
+  # moment he first goes under — unless he has been here before (told:), in which
+  # case he needs neither them nor the opening screen.
   def start_round(told: false)
-    state.story_told = told
     state.dive_hint_pending = !told
     state.dive_hint_at = nil
     spawn_at_surface

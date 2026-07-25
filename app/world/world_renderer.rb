@@ -329,11 +329,7 @@ class Game
   # same card, same place, so the opening is something the boat says rather than
   # a screen to click past.
   def render_boat_hint
-    if story_pending?
-      render_boat_card(boat_story_lines, STORY_W)
-    else
-      render_boat_card(boat_action_lines, BOAT_HINT_W)
-    end
+    render_boat_card(boat_action_lines, BOAT_HINT_W)
   end
 
   def boat_action_lines

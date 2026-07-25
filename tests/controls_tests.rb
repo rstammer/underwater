@@ -169,9 +169,8 @@ class ControlsTests
 
     game.tick
 
-    assert.equal! args.state.game_scene, "area1", "tapping start dives in"
+    assert.equal! args.state.game_scene, "intro", "tapping start takes you to the opening"
     assert.equal! game.diver_name, Game::DIVER_NAME, "under the default name"
-    assert.true! game.breathing?, "floating at the surface, ready"
   end
 
   def test_a_typed_name_still_wins_over_the_default(args, assert)
@@ -181,7 +180,7 @@ class ControlsTests
     game.type_name(["P", "i", "a"])
     game.touch_start_name
 
-    assert.equal! args.state.game_scene, "area1"
+    assert.equal! args.state.game_scene, "intro"
     assert.equal! game.diver_name, "Pia", "the name he typed, not the default"
   end
 

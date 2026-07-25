@@ -57,8 +57,13 @@ class IntroTests
     args.inputs.keyboard.key_down.char = nil
     args.inputs.keyboard.key_down.enter = true
     game.tick
+    assert.equal! args.state.game_scene, "intro", "Enter takes him to the opening"
 
-    assert.equal! args.state.game_scene, "area1", "and Enter puts him in the water"
+    args.inputs.keyboard.key_down.enter = false
+    args.inputs.keyboard.key_down.space = true
+    game.tick
+
+    assert.equal! args.state.game_scene, "area1", "and reading it puts him in the water"
     assert.equal! game.diver_name, "Pia", "under his own name"
   end
 
@@ -123,8 +128,9 @@ class IntroTests
 
     game.type_name(["P", "i", "a"])
     game.confirm_name
-    assert.equal! args.state.game_scene, "area1", "a name gets you in the water"
-    assert.true! game.breathing?, "floating beside the boat"
+    assert.equal! args.state.game_scene, "intro", "a name gets you to the opening"
+    game.intro_tick # nothing pressed, so it just draws
+    assert.equal! args.state.game_scene, "intro", "which waits for you"
   end
 
   def test_esc_backs_out_of_the_name_screen(args, assert)
@@ -138,40 +144,52 @@ class IntroTests
     assert.equal! args.state.game_scene, "title"
   end
 
-  # The story is on the boat's own card, in the world — not a screen in between.
-  def test_the_boat_tells_the_story_before_the_first_dive(args, assert)
+  # The opening is its own screen now. It lived on the boat's card for a while,
+  # which was a nice idea until the story got longer than a card beside a boat
+  # can hold and still be read.
+  def test_the_opening_is_a_screen_of_its_own(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     game.type_name(["P", "i", "a"])
     game.confirm_name
 
-    game.area1_tick
-    text = args.outputs.labels.map { |label| label[:text] }.join(" ")
+    game.intro_tick
+    text = args.outputs.labels.flatten.map { |label| label[:text] }.join(" ")
 
-    assert.true! game.story_pending?, "it hasn't been told yet"
-    assert.true! text.include?("Pia"), "the boat greets you by name"
-    assert.true! text.include?("Fotograf"), "and says what you're out here for"
+    assert.equal! args.state.game_scene, "intro"
+    assert.true! game.game_paused?, "nothing drains while you read"
+    assert.true! text.include?("Pia"), "it greets you by name"
+    assert.true! text.include?("Fotograf"), "and says what you are out here for"
   end
 
-  # Diving is the acknowledgement — after that the card is the boat's actions again.
-  def test_the_story_retires_once_you_dive(args, assert)
+  def test_a_key_gets_you_out_of_the_opening_and_into_the_water(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     game.type_name(["P", "i", "a"])
     game.confirm_name
 
-    args.state.depth_y = -400 # under you go
-    game.update_story
-    assert.false! game.story_pending?, "told, once and for all"
+    args.inputs.keyboard.key_down.space = true
+    game.intro_tick
 
-    game.spawn_at_surface # and back up at the boat again
-    game.update_story
-    args.outputs.labels.clear
+    assert.equal! args.state.game_scene, "area1", "in you go"
+    assert.true! game.breathing?, "floating beside the boat"
+    assert.true! args.state.dive_hint_pending, "and the camera's rules still to come"
+  end
+
+  # And the boat's card is the boat's actions, always — it never carries the
+  # story any more, so it never has to be got rid of.
+  def test_the_boat_card_is_the_boats_actions(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.type_name(["P", "i", "a"])
+    game.confirm_name
+    game.start_round
+
     game.area1_tick
-    text = args.outputs.labels.map { |label| label[:text] }.join(" ")
+    text = args.outputs.labels.flatten.map { |label| label[:text] }.join(" ")
 
-    assert.false! text.include?("Neugier"), "the story doesn't come back"
-    assert.true! text.include?("Logbuch"), "the card is the boat's actions now"
+    assert.false! text.include?("Neugier"), "no story on the card"
+    assert.true! text.include?("Logbuch"), "just what the boat can do for you"
   end
 
   # A retry after drowning drops you straight back in — no name screen, no story.
@@ -184,7 +202,7 @@ class IntroTests
     game.tick
 
     assert.equal! args.state.game_scene, "area1", "back in the water"
-    assert.false! game.story_pending?, "and the boat doesn't start over"
+    assert.false! args.state.dive_hint_pending, "and nothing is explained twice"
   end
 
   # The boat says what the camera is for before you ever go under.
@@ -195,7 +213,8 @@ class IntroTests
 
     assert.true! text.include?("Kamera"), "it names the camera"
     assert.true! text.include?("Artenbuch"), "and what it fills"
-    assert.true! text.include?("heimbringst"), "and that undeveloped film doesn't count"
+    assert.true! text.include?("Entwickelt"), "that film has to be developed"
+    assert.true! text.include?("Geld"), "and that this is what pays"
   end
 
   # The rules of the camera arrive when they start to mean something: with water
@@ -204,7 +223,8 @@ class IntroTests
     game = build_game(args)
     game.initialize_game(0)
     game.type_name(["P", "i", "a"])
-    game.confirm_name # start_round: floating at the surface beside the boat
+    game.confirm_name
+    game.start_round # past the opening: floating at the surface beside the boat
 
     game.update_dive_hint
     assert.false! game.dive_hint_visible?, "not while his head is still out"
@@ -321,22 +341,25 @@ class IntroTests
 
   # The card doesn't wrap: it draws the lines as written. So measure them — this
   # is the test that complains when the prose gets rewritten a little too long.
-  def test_the_story_fits_the_card(args, assert)
+  # The intro screen does not wrap: a line that is too long simply runs off the
+  # column, and one that sits too low prints over the prompt. Both are measured
+  # rather than eyeballed — the prompt printing across the last paragraph is
+  # exactly what happened the first time.
+  def test_the_opening_fits_its_screen(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    usable = Game::STORY_W - 32
 
-    game.story_lines.each do |line|
-      width = args.gtk.calcstringbox(line, 0)[0]
-      assert.true! width <= usable, "\"#{line}\" runs #{width.to_i} px, the card holds #{usable}"
+    (game.story_lines + [game.story_closing]).each do |line|
+      next if line.empty?
+
+      width = args.gtk.calcstringbox(line, 2)[0]
+      assert.true! width <= Game::INTRO_W,
+                   "\"#{line}\" runs #{width.to_i} px, the column holds #{Game::INTRO_W}"
     end
-    assert.true! args.gtk.calcstringbox(game.story_closing, 0)[0] <= usable, "so does the closing line"
-    hint_room = Game::HINT_W - 40
-    game.dive_hint_lines.each do |line|
-      width = args.gtk.calcstringbox(line, 0)[0]
-      assert.true! width <= hint_room, "\"#{line}\" runs #{width.to_i} px, the card holds #{hint_room}"
-    end
-    assert.true! args.gtk.calcstringbox("W" * Game::NAME_MAX, 2)[0] <= usable, "and the longest name"
+
+    assert.true! game.intro_prompt_y > 40, "the prompt is still on the screen (#{game.intro_prompt_y})"
+    assert.true! game.intro_body_bottom > game.intro_prompt_y,
+                 "and the story stops above it, not across it"
   end
 
   def test_spawn_at_surface_floats_at_the_waterline(args, assert)

@@ -1,14 +1,16 @@
-# Who you are and what you're out here for. It isn't a screen you click past —
-# it's the boat talking, on the card that already hangs over it while you float
-# alongside. You read it bobbing at the surface with the sea under you, and it's
-# gone for good the moment you first dive.
+# Who you are and what you're out here for, and the rules of the camera.
+#
+# The story used to be the card hanging over the boat, read while floating
+# alongside — but a card beside a boat is a narrow column of small type, and the
+# story got longer as the game got a point. It has its own screen now
+# (app/scenes/intro.rb); this file is the words.
 #
 # The text is meant to be rewritten: the prose is in story_lines, and the name
 # comes from whatever the player typed on the way in (see app/scenes/name.rb).
-# The card doesn't wrap — keep the lines inside STORY_W (tests measure them).
+# Nothing wraps — one entry is one line, "" is a paragraph break, and a test
+# measures every line against the intro screen's column.
 class Game
   DIVER_NAME = "Taucher" # only used if somehow nobody typed a name
-  STORY_W = 620
 
   def diver_name
     named? ? state.player_name.strip : DIVER_NAME
@@ -21,20 +23,22 @@ class Game
   # One entry per line, "" for a paragraph break.
   def story_lines
     [
-      "Freier Fotograf. Spezialgebiet: alles, was unter Wasser",
-      "lebt. Festanstellung war noch nie deins.",
+      "Freier Wildlife-Fotograf. Spezialisiert auf alles, was unter",
+      "Wasser lebt. Festanstellung war noch nie deins.",
       "",
-      "Die Magazine zahlen für Bilder, die sonst keiner hat —",
-      "und von dem, was hier unten schwimmt, hat keiner welche.",
+      "Du arbeitest für eine Reihe von Magazinen und Online-Plattformen",
+      "sowie einige maritime Forschungsprojekte. Du wirst bezahlt für",
+      "Bilder, die sonst keiner hat — Kuriositäten unter Wasser und",
+      "neue Arten, die bisher niemand vor die Linse bekommen hat.",
       "",
-      "Dafür die Kamera an deinem Gurt: jede Art einmal scharf",
-      "im Bild, und sie steht in deinem Artenbuch. Entwickelt",
-      "wird hier an Bord, und dort wird auch abgerechnet —",
-      "was du nicht heimbringst, bezahlt dir niemand.",
+      "Dafür die Kamera an deinem Gurt: Jede Art einmal scharf im Bild,",
+      "und sie steht in deinem Artenbuch. Entwickelt wird an Bord deines",
+      "Schiffs, und dort wird auch abgerechnet. Ein entwickeltes Foto",
+      "bringt dir Geld. Was du sonst noch vom Grund holst, kannst du",
+      "vom Boot aus online verkaufen.",
       "",
-      "Was du sonst noch vom Grund holst, geht vom Boot aus weg.",
-      "Der Anzug hält hundert Meter aus, die Luft ein paar",
-      "Minuten. Alles andere ist Neugier.",
+      "Achtung: Dein Tauchanzug hält hundert Meter aus, die Luft ein",
+      "paar Minuten. Alles andere ist Neugier.",
     ]
   end
 
@@ -98,25 +102,4 @@ class Game
     state.dive_hint_at = nil
   end
 
-  # Still to be told? Only until the first time you go under — after that the
-  # card goes back to being the boat's list of actions.
-  def story_pending?
-    !state.story_told
-  end
-
-  # Diving is the acknowledgement; there's no key to press. Called from the tick
-  # while the world is running, so it can't trigger behind a menu.
-  def update_story
-    state.story_told = true unless at_open_surface?
-  end
-
-  # The story in the shape the boat card draws: the name as its heading, the
-  # prose under it, and a quiet closing line.
-  def boat_story_lines
-    lines = [{ text: diver_name, size: 2, color: [232, 244, 252] }]
-    story_lines.each { |line| lines << { text: line, size: 0, color: [186, 214, 236] } }
-    lines << { text: "", size: 0, color: [186, 214, 236] }
-    lines << { text: story_closing, size: 0, color: [150, 198, 224] }
-    lines
-  end
 end

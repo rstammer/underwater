@@ -223,8 +223,7 @@ class SaveTests
     assert.equal! args.state.game_scene, "area1", "straight into the water"
     assert.equal! args.state.player_name, "Kins Klausky", "as the diver it belongs to"
     assert.equal! args.state.album["burgunder"], :perfekt, "with his book"
-    assert.true! args.state.story_told, "and no opening story — he has been here"
-    assert.false! args.state.dive_hint_pending, "nor the camera's rules"
+    assert.false! args.state.dive_hint_pending, "and nothing explained — he has been here"
   end
 
   def test_starting_over_asks_for_a_name_and_empties_the_book(args, assert)

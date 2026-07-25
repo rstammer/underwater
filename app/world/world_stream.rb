@@ -313,10 +313,15 @@ class Game
       step += World::COLUMN_WIDTH
     end
     probes << x + fish_w
-    # ... and the height it really occupies: high is where its *belly* may get to,
-    # so the ceiling that matters is high + fish_h. Probing the anchor band alone
-    # let a column with a lower roof pass while the fish's back was in it.
-    levels = [low, (low + high).idiv(2), high, high + fish_h]
-    probes.all? { |probe| levels.none? { |level| world.solid_at?(probe, level) } }
+    # ... and the height it really occupies, asked *exactly* rather than sampled.
+    # Sampling a few levels across a band that can be 420 px tall leaves gaps
+    # wider than a slab is thick, and a slab sitting in one of them let the fish
+    # straight through — rarely enough that the test only failed one run in three.
+    # A slab [ceiling, crown] is in the way iff it overlaps the fish's [low, top].
+    top = high + fish_h
+    probes.all? do |probe|
+      world.floor_y_at(probe) <= low &&
+        world.slabs_at(probe).none? { |slab| slab[:ceiling] <= top && slab[:crown] >= low }
+    end
   end
 end

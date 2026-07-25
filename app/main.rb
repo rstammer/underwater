@@ -5,6 +5,7 @@ require "app/ux/story.rb"
 
 require "app/scenes/title.rb"
 require "app/scenes/name.rb"
+require "app/scenes/intro.rb"
 require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
 require "app/scenes/area2.rb"
@@ -104,7 +105,6 @@ class Game
       update_boat_stash # I at the boat empties the pack into the hold
       update_oxygen
       update_suit
-      update_story # the boat's opening card retires the moment you first dive
       update_dive_hint # ... and the camera's rules come up, once the water closes
       update_kraken # deep down, the legend hangs at the edge of the dark
       update_sightings # note which species you've now laid eyes on
@@ -136,7 +136,6 @@ class Game
     state.sprinting = false
     state.speed = Diver::SPEED
     state.player_name = ""  # typed in on the way past the title
-    state.story_told = true # the boat only tells it on a round started from the title
     state.dive_hint_pending = false # ... and so are the camera's rules, on the first dive
     state.dive_hint_at = nil
     state.touch_seen = false        # on-screen controls appear once a finger touches
@@ -764,7 +763,7 @@ class Game
   end
 
   def game_paused?
-    ["title", "name", "game_over", "home_menu", "pause"].include?(state.game_scene)
+    ["title", "name", "intro", "game_over", "home_menu", "pause"].include?(state.game_scene)
   end
 
   # The boat screen: press L at the boat to open it, L to close it again. The
