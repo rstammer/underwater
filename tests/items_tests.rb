@@ -134,7 +134,7 @@ class ItemsTests
     args.state.depth_y = item[:y]
 
     game.render_inventory
-    game.render_pickup_prompt
+    game.render_messages
 
     assert.true! args.outputs.sprites.length > 0, "slots and the prompt draw without error"
   end

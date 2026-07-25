@@ -276,9 +276,30 @@ class PhotographyTests
     game.take_photo
 
     game.render_film_gauge
-    game.render_photo_prompt
-    game.render_shutter
+    game.render_flash
+    game.render_messages
 
+    text = args.outputs.labels.map { |label| label[:text] }.join(" ")
     assert.true! args.outputs.labels.length > 0, "film counter and prompt draw"
+    assert.true! text.include?("Blauer Burgunder"), "and it names what he just caught"
+  end
+
+  # They used to be strewn across the middle of the screen — over the diver, and
+  # over the water you are actually looking at. Everything the game says to you
+  # in passing lives along the bottom edge now.
+  def test_the_running_messages_sit_along_the_bottom_edge(args, assert)
+    game = diving_with_a_fish(args, away: 40)
+    game.take_photo # so the shot note is up as well as the lens prompt
+
+    game.render_messages
+
+    ys = args.outputs.labels.map { |label| label[:y] }
+    assert.true! ys.length >= 2, "there is more than one thing being said at once"
+    assert.true! ys.max < grid_height(args) / 3,
+                 "and none of it is up in the picture (highest #{ys.max})"
+  end
+
+  def grid_height(args)
+    args.grid.h
   end
 end

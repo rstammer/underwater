@@ -10,11 +10,50 @@ class Game
     render_film_gauge
     render_locator
     render_inventory
-    render_pickup_prompt
-    render_photo_prompt
     render_dive_hint
-    render_shutter # the flash and the line naming what he just caught, on top
+    render_flash    # the shutter going off, over the whole picture
+    render_messages # ... and everything the game says to you in passing, down at the foot
     render_touch_controls # the joystick and buttons, once a finger has touched
+  end
+
+  # Everything the game tells you while you are swimming: what is in the lens,
+  # what is within reach, what you just caught. It used to be strewn across the
+  # middle of the screen — which is exactly where the diver is and where you are
+  # looking — so it all sits along the bottom edge now.
+  #
+  # Each kind keeps its own slot rather than the lines closing up: a prompt that
+  # jumps a row because something else appeared is harder to read than a gap.
+  # Slots count upward from the bottom, so the steadiest line is nearest the eye.
+  MESSAGE_Y = 46      # baseline of the lowest slot, up from the bottom edge
+  MESSAGE_ROW = 42    # ... and the step between slots
+  MESSAGE_PAD = 20    # air either side of the text inside its box
+  SLOT_PHOTO = 0
+  SLOT_PICKUP = 1
+  SLOT_NOTE = 2
+  SLOT_NEW = 3
+
+  def render_messages
+    running_messages.each { |line| render_message(line) }
+  end
+
+  def running_messages
+    [photo_message, pickup_message, shot_message, fresh_message].compact
+  end
+
+  # A snug box measured around its own text rather than one fixed width — the
+  # lines run from three words to a whole sentence.
+  def render_message(line)
+    size = line[:size] || 2
+    w, h = args.gtk.calcstringbox(line[:text], size)
+    y = MESSAGE_Y + line[:slot] * MESSAGE_ROW
+    cx = grid.w / 2
+
+    outputs.sprites << { x: cx - (w / 2 + MESSAGE_PAD), y: y - (h / 2 + 8),
+                         w: w + MESSAGE_PAD * 2, h: h + 16,
+                         r: 12, g: 30, b: 48, a: 180, path: :solid }
+    outputs.labels << { x: cx, y: y, text: line[:text], size_enum: size,
+                        alignment_enum: 1, vertical_alignment_enum: 1,
+                        r: line[:color][0], g: line[:color][1], b: line[:color][2] }
   end
 
   HINT_W = 660
@@ -64,9 +103,9 @@ class Game
 
   # With a creature in the lens, a line naming it and how the shot would come
   # out — so getting closer is visibly worth it before you spend the frame.
-  def render_photo_prompt
+  def photo_message
     subject = photo_subject
-    return unless subject
+    return nil unless subject
 
     species = subject[:species]
     quality = photo_quality(subject[:distance])
@@ -79,35 +118,45 @@ class Game
         "[ F ]  #{species.name}  (#{quality})"
       end
 
-    cx = grid.w / 2
-    outputs.sprites << { x: cx - 280, y: 186, w: 560, h: 44, r: 12, g: 30, b: 48, a: 180, path: :solid }
-    outputs.labels << { x: cx, y: 208, text: text, size_enum: 2,
-                        alignment_enum: 1, vertical_alignment_enum: 1,
-                        r: 232, g: 244, b: 252 }
+    { text: text, slot: SLOT_PHOTO, color: [232, 244, 252] }
   end
 
-  # The flash, and afterwards a line naming what he caught — with NEU! for a
-  # species that isn't in the book yet, which is the moment worth having.
-  def render_shutter
+  # The flash of the shutter, over the whole picture. Not a message — it is the
+  # camera going off, so it stays where it always was.
+  def render_flash
     return unless state.shot_at
 
     since = Kernel.tick_count - state.shot_at
-    if since < SHUTTER_TICKS
-      fade = 255 - (255 * since / SHUTTER_TICKS)
-      outputs.sprites << { x: 0, y: 0, w: grid.w, h: grid.h, r: 255, g: 255, b: 255,
-                           a: fade, path: :solid }
-    end
-    return if since > NOTE_TICKS || !state.shot_note
+    return unless since < SHUTTER_TICKS
 
-    note = state.shot_note
-    text = note[:quality] ? "#{note[:name]}  —  #{note[:quality]}" : note[:name] # the kraken leaves no grade
-    cx = grid.w / 2
-    outputs.labels << { x: cx, y: grid.h - 190, text: text, size_enum: 3,
-                        alignment_enum: 1, r: 236, g: 246, b: 255 }
-    return unless note[:fresh]
+    fade = 255 - (255 * since / SHUTTER_TICKS)
+    outputs.sprites << { x: 0, y: 0, w: grid.w, h: grid.h, r: 255, g: 255, b: 255,
+                         a: fade, path: :solid }
+  end
 
-    outputs.labels << { x: cx, y: grid.h - 150, text: "NEU für das Artenbuch", size_enum: 2,
-                        alignment_enum: 1, r: 255, g: 226, b: 140 }
+  # Afterwards, a line naming what he caught — and NEU for a species that isn't
+  # in the book yet, which is the moment worth having.
+  def shot_message
+    note = fresh_note
+    return nil unless note
+
+    # The kraken leaves no grade behind: there is nothing to grade.
+    text = note[:quality] ? "#{note[:name]}  —  #{note[:quality]}" : note[:name]
+    { text: text, slot: SLOT_NOTE, size: 3, color: [236, 246, 255] }
+  end
+
+  def fresh_message
+    note = fresh_note
+    return nil unless note && note[:fresh]
+
+    { text: "NEU für das Artenbuch", slot: SLOT_NEW, color: [255, 226, 140] }
+  end
+
+  def fresh_note
+    return nil unless state.shot_at && state.shot_note
+    return nil if Kernel.tick_count - state.shot_at > NOTE_TICKS
+
+    state.shot_note
   end
 
   INV_X = 20
@@ -138,16 +187,14 @@ class Game
 
   # When an item is within reach, a line telling you what it is and how to take it
   # — or, if the pack is full, that you need to stow something at the boat first.
-  def render_pickup_prompt
+  def pickup_message
     item = item_in_reach
-    return unless item
+    return nil unless item
 
     full = inventory_full?
     text = full ? "Inventar voll — am Boot einlagern" : "[ E ]  #{ITEM_NAMES[item[:kind]]} aufheben"
-    cx = grid.w / 2
-    outputs.sprites << { x: cx - 260, y: 128, w: 520, h: 44, r: 12, g: 30, b: 48, a: 180, path: :solid }
-    outputs.labels << { x: cx, y: 150, text: text, size_enum: 2, alignment_enum: 1, vertical_alignment_enum: 1,
-                        r: full ? 240 : 232, g: full ? 200 : 244, b: full ? 150 : 252 }
+    { text: text, slot: SLOT_PICKUP,
+      color: full ? [240, 200, 150] : [232, 244, 252] }
   end
 
   # Only with DEBUG on: the diver's world and screen x, for chasing coordinate bugs.
