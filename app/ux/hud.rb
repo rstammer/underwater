@@ -93,11 +93,14 @@ class Game
 
   FILM_INK = [214, 226, 240]
 
-  # How many frames are left on the roll, under the two gauges. It only matters
-  # under water, but it is quiet enough to leave up.
+  # How many frames are left on the roll, under whatever gauges there are. It
+  # only matters under water, but it is quiet enough to leave up.
+  #
+  # Under *whatever there are*: this sat on a hard-coded third slot and the
+  # energy gauge moved in on top of it the day there was a third gauge.
   def render_film_gauge
     outputs.labels << {
-      x: GAUGE_X, y: GAUGE_Y - GAUGE_GAP * 2 + 12,
+      x: GAUGE_X, y: gauges_bottom + 12,
       text: "Film  #{state.film_left} / #{FILM_MAX}", size_enum: 1,
       r: state.film_left.zero? ? 235 : FILM_INK[0],
       g: state.film_left.zero? ? 150 : FILM_INK[1],
@@ -248,9 +251,9 @@ class Game
     return unless locator?
 
     outputs.labels << {
-      x: grid.w - 20, y: grid.h - 16,
+      x: grid.w - HUD_RIGHT, y: grid.h - 20,
       text: locator_text,
-      size_enum: 1, alignment_enum: 2,
+      size_enum: 1, alignment_enum: 2, vertical_alignment_enum: 1,
       r: 210, g: 228, b: 245, a: 175,
     }
   end
@@ -263,6 +266,9 @@ class Game
     "Sektor #{world_index}    Tiefe #{current_depth} m"
   end
 
+  # One right edge for the whole top-right stack — locator, balance, day.
+  HUD_RIGHT = 20
+
   DAYTIME_SHEET = "sprites/decor/daytime.png"
   DAYTIME_FRAME = 24
   DAY_NAMES = {
@@ -270,21 +276,31 @@ class Game
     nachmittag: "Nachmittag", abend: "Abend", nacht: "Nacht",
   }
 
-  # Which day it is and roughly where in it — under the locator, with the sun (or
-  # the moon) that goes with it. Roughly is the point: a diver knows it is
-  # getting on towards evening, not that it is 17:42.
+  # Which day it is and roughly where in it, on one line under the balance, with
+  # the sun (or the moon) that goes with it to its left. Roughly is the point: a
+  # diver knows it is getting on towards evening, not that it is 17:42.
+  #
+  # The icon is placed off the *measured* width of the text, because the text
+  # is right-aligned and the day number changes width — guessing an offset put
+  # the sun straight through "Tag 1".
+  DAYTIME_Y = 84
+  DAYTIME_ICON = 24
+  DAYTIME_GAP = 10
+
   def render_daytime
-    x = grid.w - 20
-    outputs.labels << { x: x, y: grid.h - 80, text: "Tag #{state.day}",
-                        size_enum: 2, alignment_enum: 2,
-                        r: 226, g: 238, b: 250 }
-    outputs.labels << { x: x - 40, y: grid.h - 110, text: DAY_NAMES[time_of_day],
-                        size_enum: 1, alignment_enum: 2,
-                        r: 190, g: 212, b: 234 }
-    outputs.sprites << { x: x - 30, y: grid.h - 118, w: 28, h: 28,
-                         path: DAYTIME_SHEET,
+    right = grid.w - HUD_RIGHT
+    y = grid.h - DAYTIME_Y
+    text = "Tag #{state.day}   ·   #{DAY_NAMES[time_of_day]}"
+    width = args.gtk.calcstringbox(text, 1)[0]
+
+    outputs.labels << { x: right, y: y, text: text, size_enum: 1,
+                        alignment_enum: 2, vertical_alignment_enum: 1,
+                        r: 214, g: 232, b: 248 }
+    outputs.sprites << { x: right - width - DAYTIME_GAP, y: y,
+                         w: DAYTIME_ICON, h: DAYTIME_ICON, path: DAYTIME_SHEET,
                          source_x: day_phase_index * DAYTIME_FRAME, source_y: 0,
-                         source_w: DAYTIME_FRAME, source_h: DAYTIME_FRAME }
+                         source_w: DAYTIME_FRAME, source_h: DAYTIME_FRAME,
+                         anchor_x: 1, anchor_y: 0.5 }
   end
 
   CREDIT_INK = [236, 226, 150]
@@ -293,9 +309,9 @@ class Game
   # money, and a freelance's balance is the one number he never stops knowing.
   def render_credits
     outputs.labels << {
-      x: grid.w - 20, y: grid.h - 44,
+      x: grid.w - HUD_RIGHT, y: grid.h - 48,
       text: "#{state.credits} Cr",
-      size_enum: 2, alignment_enum: 2,
+      size_enum: 2, alignment_enum: 2, vertical_alignment_enum: 1,
       r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2],
     }
   end
@@ -315,12 +331,23 @@ class Game
   SUIT_COLOR = [190, 160, 90]
   ENERGY_COLOR = [130, 190, 130]
 
-  # The three things that can run out on you, stacked: how long you can stay
-  # down, how deep you can go, and how much day is left.
+  # The things that can run out on you, stacked in this order: how long you can
+  # stay down, how deep you can go, and how much day is left. Anything that has
+  # to sit under them asks gauges_bottom rather than counting them itself.
+  def gauge_rows
+    [["Sauerstoff", state.oxygen / OXYGEN_MAX, OXYGEN_COLOR],
+     [suit_label, state.suit / SUIT_MAX, SUIT_COLOR],
+     [energy_label, state.energy / ENERGY_MAX.to_f, ENERGY_COLOR]]
+  end
+
+  def gauges_bottom
+    GAUGE_Y - GAUGE_GAP * gauge_rows.length
+  end
+
   def render_gauges
-    render_gauge(GAUGE_Y, "Sauerstoff", state.oxygen / OXYGEN_MAX, OXYGEN_COLOR)
-    render_gauge(GAUGE_Y - GAUGE_GAP, suit_label, state.suit / SUIT_MAX, SUIT_COLOR)
-    render_gauge(GAUGE_Y - GAUGE_GAP * 2, energy_label, state.energy / ENERGY_MAX.to_f, ENERGY_COLOR)
+    gauge_rows.each_with_index do |(label, ratio, color), i|
+      render_gauge(GAUGE_Y - GAUGE_GAP * i, label, ratio, color)
+    end
   end
 
   def energy_label

@@ -188,4 +188,21 @@ class EnergyTests
     assert.equal! args.state.day, 7, "he picks the day up where he left it"
     assert.equal! args.state.energy, 42, "half worn out, as he was"
   end
+
+  # The film readout used to sit on a hard-coded third slot, and the day the
+  # third gauge arrived it printed straight through the bar. Nothing in the HUD
+  # should know how many gauges there are except the gauges.
+  def test_nothing_is_printed_over_a_gauge(args, assert)
+    game = diving(args)
+
+    game.render_panel
+    bars = args.outputs.sprites.flatten.select { |s| s[:w] == Game::GAUGE_W && s[:path] == :solid }
+    labels = args.outputs.labels.flatten.select { |l| l[:x] == Game::GAUGE_X }
+
+    assert.equal! bars.length, game.gauge_rows.length * 2, "a track and a fill for each gauge"
+    labels.each do |label|
+      clash = bars.find { |bar| label[:y] > bar[:y] - 4 && label[:y] < bar[:y] + bar[:h] + 4 }
+      assert.true! clash.nil?, "\"#{label[:text]}\" is clear of the bars (y #{label[:y]})"
+    end
+  end
 end
