@@ -82,24 +82,27 @@ STAND_LOWER = [
   "................................",
 ]
 
-# Mid-stride. What reads as walking at this size is a flipper *lifted off the
+# Mid-stride. What reads as walking at this size is a flipper *lifted clear of the
 # ground* while the other stays planted — legs splayed from the hip in a wide V
-# just read as the splits. So the two stride poses differ in which flipper is up,
-# and the legs barely move. The near leg keeps its colour in both: swapping which
-# leg was lit made the pair flicker rather than walk.
+# just read as the splits. The first go at this lifted it a single row, which is
+# two pixels on screen and might as well not have happened: it is three rows now,
+# and the swinging leg bends visibly on its way through.
+#
+# The near leg keeps its colour in both poses — swapping which leg was lit made
+# the pair flicker rather than walk.
 STRIDE_NEAR_UP = [
   "...............AAF..............",
   "...............AAF..............",
+  "..............AA.F..............",
   "..............A..F..............",
-  "..............A..F..............",
+  ".............AA..F..............",
   ".............A...F..............",
-  ".............A...F..............",
-  "............A....F..............",
-  "............A.....F.............",
-  "............A.....F.............",
-  "...........GGGGG..F.............",
-  "...........HHHHH..GGGGG.........",
-  "..................HHHHH.........",
+  "............AA...F..............",
+  "...........GGGGG.F..............",
+  "...........HHHHH.F..............",
+  ".................F..............",
+  ".................GGGGG..........",
+  ".................HHHHH..........",
   "................................",
   "................................",
   "................................",
@@ -109,16 +112,16 @@ STRIDE_NEAR_UP = [
 STRIDE_FAR_UP = [
   "...............AAF..............",
   "...............AAF..............",
-  "..............A..F..............",
-  "..............A..F..............",
+  "..............A..FF.............",
   "..............A...F.............",
-  ".............A....F.............",
-  ".............A.....F............",
-  ".............A.....F............",
-  ".............A.....F............",
-  ".............A....GGGGG.........",
-  "...........GGGGG..HHHHH.........",
-  "...........HHHHH................",
+  "..............A...FF............",
+  "..............A....F............",
+  "..............A....FF...........",
+  "..............A....GGGGG........",
+  "..............A....HHHHH........",
+  "..............A.................",
+  "............GGGGG...............",
+  "............HHHHH...............",
   "................................",
   "................................",
   "................................",
@@ -136,13 +139,12 @@ def stand_pose
   pose(STAND_LOWER)
 end
 
-# The walk: near flipper up, both down, far flipper up, both down. Each pose held
-# for two frames, because the engine runs this sheet at eight frames to a cycle.
+# The walk: near flipper up, both down, far flipper up, both down. Four poses, and
+# four divides into the twelve columns of a row — which matters, because the game
+# steps this cycle by distance travelled and wraps on the row length. An
+# eight-frame cycle in a twelve-frame row would stutter at every wrap.
 def walk_frames
-  [pose(STRIDE_NEAR_UP), pose(STRIDE_NEAR_UP),
-   pose(STAND_LOWER), pose(STAND_LOWER),
-   pose(STRIDE_FAR_UP), pose(STRIDE_FAR_UP),
-   pose(STAND_LOWER), pose(STAND_LOWER)]
+  [pose(STRIDE_NEAR_UP), pose(STAND_LOWER), pose(STRIDE_FAR_UP), pose(STAND_LOWER)]
 end
 
 def png(pixels, w, h)

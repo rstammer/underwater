@@ -324,6 +324,47 @@ class AshoreTests
     assert.true! biggest < high - low, "never covering the whole drop in one frame (#{biggest})"
   end
 
+  # Feet that cycle on a timer slide along the ground at every speed but one, and
+  # that is exactly what "he shoves himself along" looks like. On land the walk is
+  # driven by how far he has actually gone.
+  def test_the_walk_is_driven_by_the_ground_not_by_the_clock(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    standing_on(args, game, WATERLINE_Y + 80)
+    args.state.swim_pose = true # he is walking
+
+    frames = []
+    12.times do
+      args.state.diver_global_x += Diver::LAND_STRIDE
+      frames << args.state.diver.to_h[:source_x]
+    end
+
+    assert.true! frames.uniq.length >= 4, "the legs really move (#{frames.uniq.length} poses)"
+    assert.true! frames.uniq.length <= Diver::SPRITES_PER_ROW, "and it is a cycle, not a drift"
+  end
+
+  def test_standing_still_the_legs_stand_still(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    standing_on(args, game, WATERLINE_Y + 80)
+    args.state.swim_pose = true
+
+    frames = 30.times.map { args.state.diver.to_h[:source_x] } # never moved
+
+    assert.equal! frames.uniq.length, 1, "no marching on the spot"
+  end
+
+  def test_walking_is_brisk(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    standing_on(args, game, WATERLINE_Y + 80)
+
+    game.update_sprint
+
+    assert.true! args.state.speed >= Diver::SPEED * 0.8,
+                 "he gets along at a decent clip (#{args.state.speed} of #{Diver::SPEED})"
+  end
+
   # --- hopping ---------------------------------------------------------------
 
   def test_the_space_bar_is_a_hop_on_land(args, assert)

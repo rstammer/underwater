@@ -4,6 +4,10 @@ class Diver
   # forward. Derived from the sheet above rather than drawn fresh — see
   # tools/make_diver_land_sprites.rb. Same layout, so only the path changes.
   LAND_PATH = "sprites/diver_land.png"
+  # px of ground covered per frame of the walk. Two of the four poses are steps,
+  # so a stride is twice this — about half his own height, which is what a stride
+  # looks like.
+  LAND_STRIDE = 16
   WIDTH = 32
   HEIGHT = 32
   SPRITES_PER_ROW = 12
@@ -42,6 +46,16 @@ class Diver
     !!@current_args.state.on_land
   end
 
+  # Which frame of the sheet to draw. Swimming runs on the clock, like everything
+  # else in the water. Walking runs on the *ground*: the frame comes from how far
+  # he has actually gone, so his feet keep step with the terrain instead of
+  # cycling on a timer while he slides along underneath them.
+  def frame
+    return @sprite_index unless on_land? && movement?
+
+    (@current_args.state.diver_global_x.idiv(LAND_STRIDE)) % SPRITES_PER_ROW
+  end
+
   def to_h
     {
       x: @current_args.state.player_x, # already the on-screen x (camera-projected)
@@ -53,8 +67,8 @@ class Diver
       anchor_x: 0.5,
       anchor_y: 0.5,
       path: on_land? ? LAND_PATH : PATH,
-      source_x: WIDTH * @sprite_index,
-      source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor + (movement? ? 0 : HEIGHT),
+      source_x: WIDTH * frame,
+      source_y: HEIGHT * (frame / SPRITES_PER_ROW).floor + (movement? ? 0 : HEIGHT),
       source_w: WIDTH,
       source_h: HEIGHT
     }

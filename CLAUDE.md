@@ -612,8 +612,14 @@ Screen-Positionen und werden nicht direkt gesetzt.
   fotografierbar**).
 - **Land-Physik** (`state.on_land`, gesetzt in `clamp_depth`): keine Vertikal­eingabe
   (kein Hochschwimmen am Berg), **Schwerkraft statt Auftrieb** (`fall_toward`, von
-  der Kante fällt er statt zu springen), Laufen mit `LAND_SPEED`=0.6, kein Sprint,
+  der Kante fällt er statt zu springen), Laufen mit `LAND_SPEED`=0.9, kein Sprint,
   keine Sprite-Neigung, und **eigenes Sprite** (`Diver::LAND_PATH`).
+  - **Der Laufzyklus läuft auf der Strecke, nicht auf der Uhr** (`Diver#frame`):
+    der Frame kommt aus `diver_global_x / LAND_STRIDE`, nicht aus dem globalen
+    `frame_index`. Füße, die im Takt zappeln, passen bei genau einer
+    Geschwindigkeit zum Boden und schieben sich bei allen anderen — genau das war
+    zu sehen. Deshalb hat die Laufzeile **4 Posen** (4 teilt 12, die Zeilenlänge;
+    ein 8er-Zyklus in 12 Spalten stottert beim Umlauf).
   - **Springen (Leertaste, `update_jump`)**: nur an Land und nur vom Boden
     (`state.airborne`). Technisch ist es dieselbe Kurve wie das Fallen, rückwärts
     gelesen — `state.fall` startet negativ. Gemessen: **33 px hoch, 0,33 s**.
