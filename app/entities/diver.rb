@@ -8,6 +8,8 @@ class Diver
   # this *is* the stride — a bit over a third of his height, which is about right
   # for someone in flippers.
   LAND_STRIDE = 24
+  LAND_WALK_FRAMES = 6 # columns 0..5 of the land sheet are the walk cycle ...
+  LAND_STAND_FRAME = 6 # ... and from column 6 he is standing still
   # What of him can actually be bitten. Measured off the sheet: the drawing fills
   # 12 of its 32 columns and 22 of its 32 rows, so colliding with the sprite
   # square meant 20 px of empty air either side of him counted as diver. Kept a
@@ -63,10 +65,21 @@ class Diver
   # else in the water. Walking runs on the *ground*: the frame comes from how far
   # he has actually gone, so his feet keep step with the terrain instead of
   # cycling on a timer while he slides along underneath them.
+  #
+  # On land the sheet is a single row and the frame is a column, so which pose
+  # gets drawn is spelled out here rather than left to what source_y: 0 means.
   def frame
-    return @sprite_index unless on_land? && movement?
+    return @sprite_index unless on_land?
+    return LAND_STAND_FRAME unless movement?
 
-    (@current_args.state.diver_global_x.idiv(LAND_STRIDE)) % SPRITES_PER_ROW
+    @current_args.state.diver_global_x.idiv(LAND_STRIDE) % LAND_WALK_FRAMES
+  end
+
+  # The land sheet has one row, so there is only one thing source_y can be.
+  def sheet_row_y
+    return 0 if on_land?
+
+    HEIGHT * (frame / SPRITES_PER_ROW).floor + (movement? ? 0 : HEIGHT)
   end
 
   def to_h
@@ -81,7 +94,7 @@ class Diver
       anchor_y: 0.5,
       path: on_land? ? LAND_PATH : PATH,
       source_x: WIDTH * frame,
-      source_y: HEIGHT * (frame / SPRITES_PER_ROW).floor + (movement? ? 0 : HEIGHT),
+      source_y: sheet_row_y,
       source_w: WIDTH,
       source_h: HEIGHT
     }

@@ -631,6 +631,15 @@ Screen-Positionen und werden nicht direkt gesetzt.
   (kein Hochschwimmen am Berg), **Schwerkraft statt Auftrieb** (`fall_toward`, von
   der Kante fällt er statt zu springen), Laufen mit `LAND_SPEED`=0.9, kein Sprint,
   keine Sprite-Neigung, und **eigenes Sprite** (`Diver::LAND_PATH`).
+  - **Das Land-Sheet hat bewusst nur EINE Zeile.** Ob `source_y: 0` die obere oder
+    die untere Zeile eines Sprite-Sheets meint, ist eine Engine-Konvention — und
+    falschherum ist sie **lautlos**: Tastendruck zeigte die Stand-Pose, Loslassen
+    den Laufzyklus. Alle Tests waren dabei grün, weil sie die Frame-*Nummer*
+    prüften und die stimmte; falsch war die Zeile. Bei einer Zeile gibt es die
+    Frage nicht: die Pose ist eine **Spalte** (`LAND_WALK_FRAMES`/`LAND_STAND_FRAME`).
+    Ein Test liest die echten Pixel (`args.gtk.get_pixels`) und vergleicht die
+    Lauf-Frames gegen den Stand-Frame — das ist die Ebene, auf der so etwas
+    auffällt.
   - **Der Laufzyklus läuft auf der Strecke, nicht auf der Uhr** (`Diver#frame`):
     der Frame kommt aus `diver_global_x / LAND_STRIDE`, nicht aus dem globalen
     `frame_index`. Füße, die im Takt zappeln, passen bei genau einer

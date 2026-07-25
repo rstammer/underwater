@@ -13,14 +13,20 @@
 # which is what a diver in flippers actually looks like — he waddles, and that is
 # the joke the sprite is allowed to tell.
 #
-# Layout matches sprites/diver_v2.png so Diver#to_h can swap sheets and nothing
-# else: FRAMES frames per row, row 0 the walk cycle (used while he is moving),
-# row 1 standing still.
+# Deliberately a SINGLE ROW, unlike sprites/diver_v2.png. Whether source_y: 0
+# means the top row of an image or the bottom is an engine convention, and
+# getting it backwards is silent: pressing a key showed the standing pose and
+# letting go showed the walk. One row has no such question — the frame is picked
+# by column, and Diver#frame says which.
+#
+#   columns 0..LAND_WALK_FRAMES-1   the walk cycle
+#   columns LAND_WALK_FRAMES..      him standing still
 require "zlib"
 
 FRAME_W = 32
 FRAME_H = 32
-FRAMES = 12 # Diver::SPRITES_PER_ROW
+FRAMES = 12      # Diver::SPRITES_PER_ROW
+WALK_FRAMES = 6  # Diver::LAND_WALK_FRAMES — columns before the standing ones
 # The art below is authored with the figure high in the frame, the way the
 # swimming sheet has it; on land his feet have to sit on the very bottom row or
 # he stands on a cushion of air. Everything is dropped by this before it is
@@ -182,26 +188,22 @@ if __FILE__ == $0
   check!(stand, "stand")
   walk.each_with_index { |f, i| check!(f, "walk #{i}") }
 
-  # Row 0 is the walk (Diver#to_h reads it while he is moving), row 1 standing.
-  rows_of_frames = [
-    FRAMES.times.map { |i| walk[i % walk.length] },
-    FRAMES.times.map { stand },
-  ]
+  frames = FRAMES.times.map do |i|
+    i < WALK_FRAMES ? walk[i % walk.length] : stand
+  end
 
   w = FRAME_W * FRAMES
-  h = FRAME_H * rows_of_frames.length
   pixels = []
-  rows_of_frames.each do |frames|
-    FRAME_H.times do |y|
-      frames.each do |frame|
-        FRAME_W.times do |x|
-          color = PALETTE[frame[y][x]]
-          pixels << (color ? color + [255] : [0, 0, 0, 0])
-        end
+  FRAME_H.times do |y|
+    frames.each do |frame|
+      FRAME_W.times do |x|
+        color = PALETTE[frame[y][x]]
+        pixels << (color ? color + [255] : [0, 0, 0, 0])
       end
     end
   end
 
-  File.binwrite(File.join(out, "diver_land.png"), png(pixels, w, h))
-  puts "diver_land.png  #{w}x#{h}  (#{FRAMES} frames x #{rows_of_frames.length} rows of #{FRAME_W}x#{FRAME_H})"
+  File.binwrite(File.join(out, "diver_land.png"), png(pixels, w, FRAME_H))
+  puts "diver_land.png  #{w}x#{FRAME_H}  (one row: #{WALK_FRAMES} walk frames, " \
+       "then standing from column #{WALK_FRAMES})"
 end

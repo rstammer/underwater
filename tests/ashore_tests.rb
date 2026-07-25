@@ -410,6 +410,42 @@ class AshoreTests
                  "the legs go over 40 ticks of walking (#{frames.uniq.length} poses)"
   end
 
+  # The pixels the game actually draws, not the frame number it picked. Every
+  # test here was green while pressing a key showed the standing pose and letting
+  # go showed the walk: the frame number was right and the *row* of the sheet it
+  # came from was not, which no amount of checking source_x could see.
+  def land_frame_pixels(args, frame)
+    sheet = args.gtk.get_pixels(Diver::LAND_PATH)
+    Diver::HEIGHT.times.flat_map do |row|
+      Diver::WIDTH.times.map do |col|
+        sheet.pixels[row * sheet.w + frame * Diver::WIDTH + col]
+      end
+    end
+  end
+
+  def test_the_pose_he_walks_in_is_not_the_pose_he_stands_in(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    standing_on(args, game, WATERLINE_Y + 120)
+
+    args.state.swim_pose = false
+    still = args.state.diver.to_h
+    args.state.swim_pose = true
+    walking = Diver::LAND_WALK_FRAMES.times.map do |i|
+      args.state.diver_global_x = i * Diver::LAND_STRIDE
+      args.state.diver.to_h
+    end
+
+    assert.equal! still[:source_y], 0, "one row, so there is nothing to get backwards"
+    still_px = land_frame_pixels(args, still[:source_x] / Diver::WIDTH)
+    poses = walking.map { |s| land_frame_pixels(args, s[:source_x] / Diver::WIDTH) }
+
+    poses.each_with_index do |px, i|
+      assert.false! px == still_px, "walk frame #{i} is not him standing there"
+    end
+    assert.true! poses.uniq.length >= 2, "and the walk frames differ from each other"
+  end
+
   def test_standing_still_the_legs_stand_still(args, assert)
     game = build_game(args)
     game.initialize_game(0)
