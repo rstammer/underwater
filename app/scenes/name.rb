@@ -55,14 +55,16 @@ class Game
   def confirm_name
     return unless named?
 
+    save_book # the new diver takes over the file here, and not before
     start_round
   end
 
   # Into the water, beside the boat, with the story still to be told — and the
-  # camera's rules waiting for the moment he first goes under.
-  def start_round
-    state.story_told = false
-    state.dive_hint_pending = true
+  # camera's rules waiting for the moment he first goes under. Unless he has been
+  # here before (told:), in which case neither needs saying again.
+  def start_round(told: false)
+    state.story_told = told
+    state.dive_hint_pending = !told
     state.dive_hint_at = nil
     spawn_at_surface
     state.game_scene = "area1"

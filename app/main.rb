@@ -31,6 +31,7 @@ require "app/world/world_renderer.rb"
 require "app/world/items.rb"
 require "app/world/photography.rb"
 require "app/world/kraken.rb"
+require "app/world/save_file.rb"
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
@@ -151,6 +152,9 @@ class Game
 
     state.album = {} # species documented for good — the one thing dying can't take
     state.sighted = {} # species laid eyes on — the Artenbuch only lists what you've seen
+    # What is on disk from last time. Loaded, not applied: the title asks first,
+    # because carrying a book on is a choice and so is putting it down.
+    state.saved_book = SaveFile.decode(read_book_file)
     state.kraken = nil # the legend only shows up when you go too deep
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)
@@ -785,6 +789,55 @@ class Game
     state.log_sectors[world_index] = true
     state.log_islands[world_index] = true if state.island_sectors.include?(world_index)
     state.log_caves[world_index] = true if breathing? && !at_open_surface?
+  end
+
+  # --- the book on disk -----------------------------------------------------
+  #
+  # Written exactly when what it holds changes — a species developed into the
+  # book, a species laid eyes on for the first time, a name typed in. That is a
+  # handful of writes a session, and it means the file is never behind: quitting
+  # by any means, including closing the window, loses nothing that mattered.
+
+  # Where the book lives. Under the test runner, somewhere disposable — saving
+  # happens the moment a species is first sighted, so any test that swims near a
+  # fish would otherwise write over the real thing.
+  def book_path
+    $gtk.argv.to_s.include?("--test") ? SaveFile::TEST_PATH : SaveFile::PATH
+  end
+
+  # The path is an argument on top of that, so a test can do a real round trip
+  # through the engine on a file of its own.
+  def read_book_file(path = book_path)
+    $gtk.read_file(path)
+  end
+
+  def save_book(path = book_path)
+    $gtk.write_file(path, SaveFile.encode(name: state.player_name,
+                                          album: state.album, sighted: state.sighted))
+  end
+
+  # Carry the saved book on: same diver, same pages, straight into the water.
+  # No opening story and no camera card — he has been here before.
+  def continue_round
+    book = state.saved_book || SaveFile.blank
+    state.player_name = book[:name]
+    state.album = book[:album]
+    state.sighted = book[:sighted]
+    start_round(told: true)
+  end
+
+  # Put it down and start over. The file itself isn't touched until the new diver
+  # has a name — change your mind on the name screen and the old book is still
+  # there.
+  def fresh_round
+    state.album = {}
+    state.sighted = {}
+    state.player_name = ""
+    state.game_scene = "name"
+  end
+
+  def saved_book?
+    !SaveFile.empty?(state.saved_book)
   end
 
   def render_diver

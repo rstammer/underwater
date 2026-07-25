@@ -37,3 +37,6 @@ DEPLOY.md
 # HTML5 export staging (see DEPLOY.md)
 _pkg/
 _webtest/
+
+# the player's Artenbuch, written by the game
+artenbuch.txt

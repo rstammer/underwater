@@ -242,8 +242,14 @@ class Game
     end
   end
 
+  # Only the *first* sighting of a species writes anything: after that this is a
+  # comparison and nothing else, which is what makes saving on sight affordable.
   def mark_sighted(key, world_x, world_y)
-    state.sighted[key] = true if photo_distance(world_x, world_y) <= SIGHT_RANGE
+    return if state.sighted[key]
+    return if photo_distance(world_x, world_y) > SIGHT_RANGE
+
+    state.sighted[key] = true
+    save_book
   end
 
   # How deep a world y is, in the metres the roster and the HUD talk in.

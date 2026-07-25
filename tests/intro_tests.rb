@@ -38,6 +38,10 @@ class IntroTests
   def test_a_whole_round_can_be_started_from_the_keyboard(args, assert)
     game = build_game(args)
     game.initialize_game(0)
+    # This is the *first* round anyone plays: no book on disk, so the title is a
+    # doorway rather than a choice. Said out loud because initialize_game really
+    # does read the file, and another test in the run may have left one there.
+    args.state.saved_book = SaveFile.blank
 
     args.inputs.keyboard.key_down.space = true # "Leertaste drücken zum Starten"
     game.tick

@@ -163,6 +163,7 @@ class Game
     developed = state.film_roll.length
     state.film_roll = []
     state.film_left = FILM_MAX
+    save_book # the book has changed, so the book on disk changes with it
     developed
   end
 

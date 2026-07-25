@@ -11,10 +11,7 @@ class Game
   ]
 
   def title_tick
-    if fire_input? || touch_began? # a key, or a tap on a phone
-      state.game_scene = "name" # who's going down there, first
-      return
-    end
+    read_title_input
 
     outputs.sprites << title_background
     outputs.sprites << title_light_rays
@@ -23,6 +20,46 @@ class Game
     outputs.sprites << title_diver
     outputs.sprites << title_bubbles
     outputs.labels << title_labels
+    render_title_buttons if state.touch_seen && saved_book?
+  end
+
+  # On a phone the choice has to be tappable. Same layout the hit-test reads, so
+  # a button you can see is a button you can press.
+  def render_title_buttons
+    title_layout.each do |button|
+      pressed = (state.touch_pressed || []).include?(button[:id])
+      outputs.sprites << { x: button[:x], y: button[:y], w: button[:w], h: button[:h],
+                           r: 16, g: 40, b: 62, a: pressed ? 255 : 210, path: :solid }
+      outputs.sprites << { x: button[:x], y: button[:y] + button[:h] - 4, w: button[:w], h: 4,
+                           r: 120, g: 190, b: 220, a: 220, path: :solid }
+      outputs.labels << { x: button[:x] + button[:w] / 2, y: button[:y] + button[:h] / 2,
+                          text: button[:label], size_enum: 3, alignment_enum: 1,
+                          vertical_alignment_enum: 1, r: 236, g: 246, b: 255 }
+    end
+  end
+
+  # With a book on disk the title is a choice rather than a doorway: carry it on,
+  # or put it down and start over. Without one there is nothing to choose, so a
+  # key — or a tap anywhere, on a phone — just goes.
+  def read_title_input
+    return title_choice if saved_book?
+    return unless fire_input? || touch_began?
+
+    state.game_scene = "name"
+  end
+
+  def title_choice
+    return continue_round if fire_input? || tapped?(:carry_on)
+
+    fresh_round if inputs.keyboard.key_down.n || tapped?(:start_over)
+  end
+
+  # How much there is to carry on with, said in the terms the book itself uses.
+  def saved_book_summary
+    book = state.saved_book
+    documented = book[:album].length
+    seen = book[:sighted].length
+    "#{documented} von #{seen} gesichteten Arten im Buch"
   end
 
   # Vertical depth gradient: dark and deep at the bottom, bright near the top.
@@ -136,11 +173,33 @@ class Game
       labels << { x: cx, y: 118, text: "Pfeile / WASD  bewegen      Leertaste  sprinten      ESC  Pause",
                   size_enum: 1, alignment_enum: 1, r: 188, g: 214, b: 236, a: 210 }
     end
-    if Kernel.tick_count.idiv(30).even?
-      start = state.touch_seen ? "Tippen zum Starten" : "Leertaste drücken zum Starten"
-      labels << { x: cx, y: 72, text: start,
-                  size_enum: 4, alignment_enum: 1, r: 255, g: 244, b: 205 }
-    end
+    saved_book? ? title_choice_labels(labels, cx) : title_start_label(labels, cx)
     labels
+  end
+
+  def title_start_label(labels, cx)
+    return unless Kernel.tick_count.idiv(30).even?
+
+    start = state.touch_seen ? "Tippen zum Starten" : "Leertaste drücken zum Starten"
+    labels << { x: cx, y: 72, text: start,
+                size_enum: 4, alignment_enum: 1, r: 255, g: 244, b: 205 }
+  end
+
+  # The name it was kept under goes first: what you are being offered is *that
+  # diver's* book, not a save slot.
+  def title_choice_labels(labels, cx)
+    name = state.saved_book[:name]
+    name = DIVER_NAME if name.nil? || name.empty?
+    labels << { x: cx, y: 208, text: name, size_enum: 4, alignment_enum: 1,
+                r: 255, g: 244, b: 205 }
+    labels << { x: cx, y: 166, text: saved_book_summary, size_enum: 1, alignment_enum: 1,
+                r: 205, g: 228, b: 246 }
+    return if state.touch_seen # on a phone the buttons say it (see control_layout)
+
+    labels << { x: cx, y: 104, text: "[ Leertaste ]  weitertauchen", size_enum: 3,
+                alignment_enum: 1, r: 255, g: 244, b: 205,
+                a: Kernel.tick_count.idiv(30).even? ? 255 : 150 }
+    labels << { x: cx, y: 58, text: "[ N ]  neu anfangen  —  das Buch bleibt bis du einen Namen eingibst",
+                size_enum: 1, alignment_enum: 1, r: 188, g: 214, b: 236, a: 210 }
   end
 end

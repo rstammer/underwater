@@ -32,9 +32,20 @@ class Game
       [{ id: :start, label: name_start_label, x: (SCREEN_WIDTH - 360) / 2, y: 208, w: 360, h: 64 }]
     when :pause
       [{ id: :quit, label: "Beenden", x: (SCREEN_WIDTH - 300) / 2, y: 300, w: 300, h: 68 }]
+    when :title
+      title_layout
     else
       []
     end
+  end
+
+  # The title only has buttons when there is a choice to make. Without a book to
+  # carry on it takes a tap anywhere, so a button would only be in the way.
+  def title_layout
+    return [] unless saved_book?
+
+    [{ id: :carry_on, label: "Weitertauchen", x: (SCREEN_WIDTH - 360) / 2, y: 96, w: 360, h: 64 },
+     { id: :start_over, label: "Neu anfangen", x: (SCREEN_WIDTH - 260) / 2, y: 22, w: 260, h: 60 }]
   end
 
   # The joystick steers only while diving; the paused screens get taps (anywhere,
