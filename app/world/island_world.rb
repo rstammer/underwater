@@ -62,7 +62,8 @@ class IslandWorld
   GALLERY_GAP = 240    # air kept between a gallery and a chamber, or another one
   CROWN_STEP = 16      # the island's own terrace grid — chunkier than the sea floor
   PLANT_SPACING = 90   # px of level ground each plant wants for itself
-  SHORE_HEIGHT = 110   # crown height above the water that still counts as beach
+  SHORE_HEIGHT = 110   # highest a beach ever reaches above the water ...
+  SHORE_BAND_MIN = 26  # ... and lowest, so the water's edge is always sand
   SKERRY_LIP_MIN = 20  # lowest a skerry pokes out of the water ...
   SKERRY_LIP_MAX = 76  # ... and highest — low rugged rock, never a summit
   SKERRY_DEPTH = 160   # how far a skerry's base reaches below the waterline
@@ -82,6 +83,7 @@ class IslandWorld
   SCALES = {
     "palm" => 6, "palm_small" => 4, "bush" => 3, "grass" => 3,
     "driftwood" => 3, "crab" => 2, "flag" => 3, "gull" => 3,
+    "rock" => 3, "fern" => 3,
   }
 
   def self.build(world, sector)
@@ -678,22 +680,35 @@ class IslandWorld
     slabs.empty? ? nil : slabs.map { |slab| slab[:crown] }.max
   end
 
+  # Where the beach stops is a fact about *this* island, not a number of pixels.
+  # It was a flat 110 px, and the island next to the boat is crossable, which
+  # means it is low — its whole crown, summit included, came in under that line.
+  # So every plateau on the one island the player sees every single day counted
+  # as beach, and the only things that ever grew on it were grass and driftwood.
+  # A beach is the strip before the ground starts climbing: the bottom third of
+  # the island's own height, and never less than one terrace.
+  def shore_line
+    band = (crown_y_at(summit_x) - WATERLINE_Y).idiv(3)
+    band = SHORE_BAND_MIN if band < SHORE_BAND_MIN
+    band > SHORE_HEIGHT ? SHORE_HEIGHT : band
+  end
+
   # What belongs where: driftwood and crabs down on the beach, and further up
   # whatever actually fits in the space — a palm needs room to stand, a tuft of
   # grass doesn't.
   def plant_for(flat, room, seed)
     kinds =
-      if flat[:y] - WATERLINE_Y < SHORE_HEIGHT
+      if flat[:y] - WATERLINE_Y < shore_line
         # No crab here any more: the beach carries real ones now (spawn_shore_life),
         # which walk about and photograph. A decor crab beside a living one would
         # only be the same animal drawn twice, one of them a fake.
-        ["grass", "driftwood", "grass", "grass", "driftwood", "bush"]
+        ["grass", "driftwood", "grass", "rock", "driftwood", "bush"]
       elsif room >= base_width("palm") + MARGIN
-        ["palm", "bush", "palm", "palm_small", "bush", "palm"]
+        ["palm", "fern", "palm", "palm_small", "rock", "palm"]
       elsif room >= base_width("palm_small") + MARGIN
-        ["palm_small", "bush", "grass", "bush", "palm_small", "grass"]
+        ["palm_small", "fern", "grass", "bush", "palm_small", "rock"]
       else
-        ["grass", "bush", "grass", "bush", "grass", "bush"]
+        ["grass", "bush", "fern", "bush", "grass", "rock"]
       end
     kind = kinds[(Noise.jitter(seed + 7, DECOR_SEED + 1) * kinds.length).to_i]
     room >= base_width(kind) + MARGIN ? kind : nil

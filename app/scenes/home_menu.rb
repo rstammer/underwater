@@ -268,9 +268,21 @@ class Game
     end
   end
 
-  BOOK_COL_W = 556 # each of the book's two columns
   BOOK_GAP = 56
   BOOK_ROW_H = 50
+  BOOK_INSET = 18 # air between the box's edge and the roster inside it
+
+  # The width of one of the book's two columns. Derived from the box, not written
+  # down — it *was* written down, the box grew under it, and the right-hand
+  # column's grade and fee printed ten pixels past the panel onto the bare
+  # screen. Nothing in here should know the window's width twice.
+  def book_inner_w
+    menu_width - MENU_PAD * 2 - BOOK_INSET * 2
+  end
+
+  def book_col_w
+    (book_inner_w - BOOK_GAP).idiv(2)
+  end
   # Two columns of this many. Set by what actually fits between the headings and
   # the footer — the roster outgrew the screen and the last rows were printing
   # down through the hint line and over each other. Two more fit since the screen
@@ -336,13 +348,13 @@ class Game
     heading += "    ·    Seite #{state.artenbuch_page + 1} / #{artenbuch_pages}" if artenbuch_pages > 1
     render_box(menu_left + MENU_PAD, body_bottom + 10,
                menu_width - MENU_PAD * 2, body_top - body_bottom - 10, heading)
-    render_artenbuch(menu_left + MENU_PAD + 18, body_top - 76)
+    render_artenbuch(menu_left + MENU_PAD + BOOK_INSET, body_top - 76)
   end
 
   def render_artenbuch(x, row_y)
     all = artenbuch_rows
     rows = artenbuch_page_rows
-    cx = x + BOOK_COL_W + BOOK_GAP / 2 # centre of the two-column spread
+    cx = x + book_col_w + BOOK_GAP / 2 # centre of the two-column spread
 
     if all.empty?
       outputs.labels << { x: cx, y: row_y - 60, text: "Noch nichts gesichtet — tauch und sieh dich um.",
@@ -354,7 +366,7 @@ class Game
     # Down the left column first, then down the right — a page of a book, read
     # the way a page is read.
     rows.each_with_index do |row, i|
-      col_x = x + (i < BOOK_ROWS ? 0 : BOOK_COL_W + BOOK_GAP)
+      col_x = x + (i < BOOK_ROWS ? 0 : book_col_w + BOOK_GAP)
       render_book_row(col_x, row_y - (i % BOOK_ROWS) * BOOK_ROW_H, row)
     end
 
@@ -388,7 +400,7 @@ class Game
                         r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2], a: 150 }
 
     right = found ? "#{row[:quality]}   #{row[:fee]}" : "—"
-    outputs.labels << { x: x + BOOK_COL_W, y: y, text: right, size_enum: 1,
+    outputs.labels << { x: x + book_col_w, y: y, text: right, size_enum: 1,
                         alignment_enum: 2, vertical_alignment_enum: 1,
                         r: ink[0], g: ink[1], b: ink[2] }
   end

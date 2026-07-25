@@ -338,6 +338,34 @@ class PhotographyTests
     assert.true! text.include?("ungesichtet"), "just a hint that more is out there"
   end
 
+  # The right-hand column's grade and fee are right-aligned on a column width
+  # that used to be a constant. The panel grew; the constant didn't; the fees
+  # printed past the edge of the box onto the bare screen. Nothing on this page
+  # may leave the box it is drawn in.
+  def test_the_book_stays_inside_its_box(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.spawn_at_surface
+    args.state.game_scene = "area1"
+    args.state.album = {}
+    args.state.sighted = {}
+    Species::ALL.each { |species| args.state.sighted[species.key] = true }
+    args.state.album[Species::ALL.first.key] = :perfekt
+    game.toggle_home_menu(true)
+    args.state.boat_page = :book
+
+    game.home_menu_tick
+
+    left = game.menu_left + Game::MENU_PAD
+    right = left + game.menu_width - Game::MENU_PAD * 2
+    args.outputs.labels.flatten.each do |label|
+      next if label[:x].nil?
+
+      assert.true! label[:x] >= left && label[:x] <= right,
+                   "\"#{label[:text]}\" is inside the box (x #{label[:x]}, box #{left}..#{right})"
+    end
+  end
+
   def test_the_hud_draws_the_camera_without_error(args, assert)
     game = diving_with_a_fish(args, away: 40)
     game.take_photo

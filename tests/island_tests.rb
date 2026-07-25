@@ -374,6 +374,33 @@ class IslandTests
     end
   end
 
+  # The one island every player sees on their very first morning, and every
+  # morning after — and it was the barest one in the game. It is crossable,
+  # which means it is low, and the beach used to be a flat 110 px above the
+  # water: the home island's whole crown, summit included, came in under that
+  # line, so every plateau on it counted as beach and nothing but grass and
+  # driftwood was ever allowed to grow there.
+  def test_the_island_by_the_boat_is_not_a_sandbank(args, assert)
+    isle = island_for(IslandWorld::HOME_SECTOR)
+    kinds = []
+    slices_of(isle).each_value { |world| world.decorations.each { |d| kinds << d[:kind] } }
+
+    trees = kinds.count { |kind| kind == "palm" || kind == "palm_small" }
+    assert.true! trees >= 3, "there are trees on it (#{kinds.uniq.inspect})"
+    assert.true! kinds.uniq.length >= 5, "and more than one kind of thing besides"
+  end
+
+  # The band scales with the island, so a tall rock island keeps a proper beach
+  # rather than being planted right down to the waterline.
+  def test_a_tall_island_still_has_a_beach(args, assert)
+    isle = island_for(sector_with_shore(:rock))
+
+    assert.true! isle.send(:shore_line) > IslandWorld::SHORE_BAND_MIN,
+                 "a big island's beach is wider than the smallest one going"
+    assert.true! isle.send(:shore_line) <= IslandWorld::SHORE_HEIGHT,
+                 "but never runs away up the mountain"
+  end
+
   # Where the islands land is rolled per round: never on the home sector, never
   # twice on the same one, and always one of them close enough to stumble into.
   def test_the_islands_land_near_home_but_not_on_it(args, assert)

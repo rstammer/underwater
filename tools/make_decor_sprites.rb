@@ -38,6 +38,9 @@ PALETTE = {
   "m" => [46, 50, 60],    # motor, shaded
   "L" => [208, 214, 222], # ladder
   "A" => [92, 98, 110],   # antenna
+  "Z" => [128, 134, 144], # boulder, lit
+  "z" => [96, 102, 112],  # boulder, body
+  "x" => [66, 70, 80],    # boulder, shadow
 }
 
 SPRITES = {
@@ -67,6 +70,33 @@ SPRITES = {
     "BBBBbBBBBBBB",
     "bBBBbbBBBBbb",
     ".bbb..bbbb..",
+  ],
+  # A boulder. The islands were all sand and greenery; a bit of loose rock on
+  # the crown is what makes the greenery look like it grew somewhere.
+  "rock" => [
+    "....ZZZZZ.....",
+    "..ZZZZZZZZZ...",
+    ".ZZZZZZZzzzz..",
+    ".ZZZZZzzzzzzz.",
+    "ZZZZzzzzzzzzzz",
+    "ZZzzzzzzzzzzzz",
+    "zzzzzzzzzzzzzz",
+    "zzzzzzzzzzzzzz",
+    "xxzzzzzzzzzzxx",
+    "..xxxxxxxxxx..",
+  ],
+  # A low fern: arching fronds off one base, no trunk — the thing that fills
+  # the ground between the palms without pretending to be a small palm.
+  "fern" => [
+    "l...l....l...l",
+    ".lg.lg..gl.gl.",
+    "..lgglg.gllg..",
+    "...gGgggGgg...",
+    "....GGgGG.....",
+    ".....GGG......",
+    ".....GGG......",
+    "......G.......",
+    ".....bGb......",
   ],
   "grass" => [
     "..Y...Y.....",

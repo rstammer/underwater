@@ -38,6 +38,8 @@ class Game
     "driftwood"  => { path: "sprites/decor/driftwood.png",  w: 14, h: 5 },
     "crab"       => { path: "sprites/decor/crab.png",       w: 12, h: 6 },
     "flag"       => { path: "sprites/decor/flag.png",       w: 12, h: 10 },
+    "rock"       => { path: "sprites/decor/rock.png",       w: 14, h: 10 },
+    "fern"       => { path: "sprites/decor/fern.png",       w: 14, h: 9 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up
