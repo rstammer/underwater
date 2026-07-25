@@ -126,6 +126,7 @@ class Game
     state.direction = :right
     state.world_cache = {}
     state.active_world_index = nil # nothing loaded yet: the first tick builds and stocks it
+    state.world_seed = new_world_seed # replaced by the book's own, if one is carried on
     state.island_sectors = roll_island_sectors
     state.dark_shark = { x: -300, y: 300 }
     state.game_scene = "title"
@@ -172,14 +173,32 @@ class Game
   # screen's swim to the left — so a round never opens with a hunt for somewhere
   # to come ashore. The rest are rolled and scattered, for exploring.
   def roll_island_sectors
+    rng = world_rng(1)
     sectors = [IslandWorld::HOME_SECTOR]
-    sectors << roll_island_sector until sectors.uniq.length == ISLAND_COUNT
+    sectors << roll_island_sector(rng) until sectors.uniq.length == ISLAND_COUNT
     sectors.uniq
   end
 
-  def roll_island_sector(nearest = ISLAND_MIN_SECTOR, furthest = ISLAND_MAX_SECTOR)
-    sector = nearest + rand(furthest - nearest + 1)
-    rand(2).zero? ? -sector : sector
+  def roll_island_sector(rng, nearest = ISLAND_MIN_SECTOR, furthest = ISLAND_MAX_SECTOR)
+    sector = nearest + rng.int(furthest - nearest + 1)
+    rng.int(2).zero? ? -sector : sector
+  end
+
+  # The number that makes a stretch of sea *yours*. The terrain never needed one
+  # — it is a pure function of the world position, so the sand is the same shape
+  # for everybody — but where the islands lie and where the treasures are buried
+  # were rolled fresh every round, so the sea rearranged itself behind your back
+  # every time you drowned. Salted per use, so the islands and the items are not
+  # two readings of the same sequence.
+  def world_rng(salt)
+    Rng.new((state.world_seed || 1) * 7919 + salt)
+  end
+
+  # A sea nobody has had before. tick_count is in there because it is the moment
+  # the player chose to start, which is the one thing that genuinely differs
+  # between two runs of the same binary.
+  def new_world_seed
+    1 + Kernel.tick_count.abs + rand(1_000_000_000)
   end
 
   def fire_input?
@@ -822,26 +841,33 @@ class Game
 
   def save_book(path = book_path)
     $gtk.write_file(path, SaveFile.encode(name: state.player_name,
-                                          album: state.album, sighted: state.sighted))
+                                          album: state.album, sighted: state.sighted,
+                                          seed: state.world_seed))
   end
 
-  # Carry the saved book on: same diver, same pages, straight into the water.
-  # No opening story and no camera card — he has been here before.
+  # Carry the saved book on: same diver, same pages, same sea, straight into the
+  # water. No opening story and no camera card — he has been here before.
   def continue_round
     book = state.saved_book || SaveFile.blank
     state.player_name = book[:name]
     state.album = book[:album]
     state.sighted = book[:sighted]
+    # A book written before seas had seeds hasn't got one; that diver gets a
+    # fresh sea rather than an error.
+    state.world_seed = book[:seed] || new_world_seed
+    reset_game # rebuild the world from that seed before he is put in it
     start_round(told: true)
   end
 
-  # Put it down and start over. The file itself isn't touched until the new diver
-  # has a name — change your mind on the name screen and the old book is still
-  # there.
+  # Put it down and start over: a new diver, an empty book, and a sea nobody has
+  # had before. The file itself isn't touched until the new diver has a name —
+  # change your mind on the name screen and the old book is still there.
   def fresh_round
     state.album = {}
     state.sighted = {}
     state.player_name = ""
+    state.world_seed = new_world_seed
+    reset_game
     state.game_scene = "name"
   end
 

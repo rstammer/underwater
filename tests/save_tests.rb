@@ -114,6 +114,85 @@ class SaveTests
     assert.true! SaveFile.empty?(SaveFile.decode(raw))
   end
 
+  # --- the sea itself -------------------------------------------------------
+  #
+  # The terrain never needed a seed: it is a pure function of the world position,
+  # so the sand is the same shape for everybody, always. What *was* rolled fresh
+  # every round is where the islands lie and where the treasures are buried —
+  # which is what makes one sea yours rather than another.
+
+  # The islands have to be settled *before* the treasures are rolled: a treasure
+  # refuses to be buried in an island's flank, so where they end up depends on
+  # where the islands are. (reset_game does them in that order for the same
+  # reason.)
+  def sea_of(args, seed)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.world_seed = seed
+    args.state.island_sectors = game.roll_island_sectors
+    args.state.world_cache = {}
+    { islands: args.state.island_sectors.sort,
+      items: game.roll_world_items.map { |item| [item[:kind], item[:x]] } }
+  end
+
+  def test_the_same_seed_is_the_same_sea(args, assert)
+    first = sea_of(args, 4711)
+    again = sea_of(args, 4711)
+
+    assert.equal! again[:islands], first[:islands], "the islands lie where they lay"
+    assert.equal! again[:items], first[:items], "and the treasures are where you left them"
+    assert.true! first[:items].length > 0, "there are treasures at all"
+  end
+
+  def test_a_different_seed_is_a_different_sea(args, assert)
+    seas = [1, 2, 3, 4, 5].map { |seed| sea_of(args, seed) }
+
+    assert.true! seas.map { |s| s[:islands] }.uniq.length > 1, "the islands move"
+    assert.true! seas.map { |s| s[:items] }.uniq.length > 1, "and so do the treasures"
+  end
+
+  # Whatever else changes, the island next door stays next door.
+  def test_every_sea_still_has_the_island_next_door(args, assert)
+    [1, 99, 4711].each do |seed|
+      assert.true! sea_of(args, seed)[:islands].include?(IslandWorld::HOME_SECTOR),
+                   "seed #{seed} keeps the one off home"
+    end
+  end
+
+  def test_the_seed_travels_with_the_book(args, assert)
+    text = SaveFile.encode(**a_book.merge(seed: 4711))
+
+    assert.equal! SaveFile.decode(text)[:seed], 4711, "the sea comes back with the book"
+  end
+
+  def test_a_book_from_before_seeds_still_opens(args, assert)
+    book = SaveFile.decode("name Alt\nalbum burgunder gut\n")
+
+    assert.equal! book[:seed], nil, "no seed in it, and that is not an error"
+    assert.false! SaveFile.empty?(book), "it is still a book worth carrying on"
+  end
+
+  def test_carrying_the_book_on_carries_the_sea_with_it(args, assert)
+    game = with_saved_book(args, a_book.merge(seed: 4711))
+
+    args.inputs.keyboard.key_down.space = true
+    game.title_tick
+
+    assert.equal! args.state.world_seed, 4711, "the same sea he left"
+    assert.equal! args.state.island_sectors.sort, sea_of(args, 4711)[:islands],
+                  "with its islands back where they were"
+  end
+
+  def test_starting_over_gets_a_sea_of_its_own(args, assert)
+    game = with_saved_book(args, a_book.merge(seed: 4711))
+
+    args.inputs.keyboard.key_down.n = true
+    game.title_tick
+
+    assert.false! args.state.world_seed == 4711, "a new diver gets a new sea"
+    assert.true! args.state.world_seed > 0, "and it is a real one"
+  end
+
   # --- what the title does with it ------------------------------------------
 
   def with_saved_book(args, book)

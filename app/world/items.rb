@@ -39,27 +39,28 @@ class Game
   # home sector, never on an island sector (they'd be buried in rock), and not
   # stacked on top of each other. Rolled once; positions then live in state.
   def roll_world_items
+    rng = world_rng(2)
     items = []
     attempts = 0
     while items.length < ITEM_COUNT && attempts < 400
       attempts += 1
-      sector = item_sector
+      sector = item_sector(rng)
       next if sector.zero? || island_sector?(sector)
 
-      wx = sector * SCREEN_WIDTH + 240 + rand(SCREEN_WIDTH - 480) # clear of the segment edges
+      wx = sector * SCREEN_WIDTH + 240 + rng.int(SCREEN_WIDTH - 480) # clear of the segment edges
       # Real distance, not a grid bucket: two slots either side of a boundary can
       # be a pixel apart, and then one find hands you two.
       next if items.any? { |item| (item[:x] - wx).abs < ITEM_SPACING }
 
-      items << { kind: ITEM_KINDS[rand(ITEM_KINDS.length)],
+      items << { kind: ITEM_KINDS[rng.int(ITEM_KINDS.length)],
                  x: wx, y: WorldGenerator.floor_y_at(wx) + ITEM_LIFT, collected: false }
     end
     items
   end
 
-  def item_sector
-    s = ITEM_MIN_SECTOR + rand(ITEM_MAX_SECTOR - ITEM_MIN_SECTOR + 1)
-    rand(2).zero? ? -s : s
+  def item_sector(rng)
+    s = ITEM_MIN_SECTOR + rng.int(ITEM_MAX_SECTOR - ITEM_MIN_SECTOR + 1)
+    rng.int(2).zero? ? -s : s
   end
 
   # An island is wider than a segment, so "not on an island" means not on any

@@ -149,6 +149,10 @@ class ControlsTests
   def test_a_tap_gets_past_the_title(args, assert)
     game = build_game(args)
     game.initialize_game(0) # scene: title
+    # With no book on disk the title takes a tap anywhere; with one it offers a
+    # choice and puts buttons up instead. Said out loud because initialize_game
+    # really does read the file, and another test in the run may have left one.
+    args.state.saved_book = SaveFile.blank
     touch(args, [{ id: 1, x: 640, y: 360 }])
 
     game.tick
