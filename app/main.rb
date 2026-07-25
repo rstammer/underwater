@@ -227,9 +227,14 @@ class Game
       # Collide in world space: on-screen x/y are camera-relative, so compare the
       # diver at his world position against the shark at its world position (the
       # shark's local x lives in the current chunk).
-      diver_rect = state.diver.to_h.merge(x: state.diver_global_x, y: state.depth_y)
-      shark_rect = state.shark.to_h.merge(x: world_index * SCREEN_WIDTH + state.dark_shark.x,
-                                          y: state.dark_shark.y)
+      #
+      # Each asks for its *body*, not its sprite square. Colliding the squares —
+      # which is what this used to do — meant a third of the shark's frame and
+      # most of the width of the diver's were empty water that still counted, and
+      # it ate you across a visible gap.
+      diver_rect = state.diver.hitbox(state.diver_global_x, state.depth_y)
+      shark_rect = state.shark.hitbox(world_index * SCREEN_WIDTH + state.dark_shark.x,
+                                      state.dark_shark.y)
       if diver_rect.intersect_rect?(shark_rect)
         state.game_scene = "game_over"
         state.death_cause = :eaten

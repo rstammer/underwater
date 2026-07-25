@@ -5,6 +5,14 @@ class DarkShark
   SPRITES_PER_ROW = 8
   SCALE_FACTOR = 2
   SPEED = 3.5
+  # The animal inside its frame. Measured off the sheet: it fills the full width
+  # but only 19 of the 32 rows, sitting 8 rows up from the bottom — so a third of
+  # the sprite square is water, and colliding with the square made it bite from
+  # there. In drawn pixels (SCALE_FACTOR applied), kept a shade inside the art.
+  HITBOX_W = 60
+  HITBOX_H = 34
+  HITBOX_Y = 18 # up from the sprite's bottom edge
+  HITBOX_X = 2
 
   def initialize(current_args, sprite_index)
     @sprite_index = sprite_index
@@ -14,6 +22,12 @@ class DarkShark
   def tick(current_args, sprite_index)
     @sprite_index = sprite_index
     @current_args = current_args
+  end
+
+  # Its body as a rect in world coordinates. Its position is the bottom-left of
+  # its sprite, the way it is drawn — not its middle, unlike the diver's.
+  def hitbox(world_x, world_y)
+    { x: world_x + HITBOX_X, y: world_y + HITBOX_Y, w: HITBOX_W, h: HITBOX_H }
   end
 
   def to_h

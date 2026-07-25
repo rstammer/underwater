@@ -139,12 +139,17 @@ def stand_pose
   pose(STAND_LOWER)
 end
 
-# The walk: near flipper up, both down, far flipper up, both down. Four poses, and
-# four divides into the twelve columns of a row — which matters, because the game
-# steps this cycle by distance travelled and wraps on the row length. An
-# eight-frame cycle in a twelve-frame row would stutter at every wrap.
+# The walk: the two strides, and nothing between them. The feet-together pose
+# belongs to standing still, and putting it in the cycle meant half of every walk
+# was legs at rest — which read as him not moving his legs at all, while the one
+# visible change was the snap to standing when you let go. Now every frame swaps
+# which flipper is up, so pressing a key is unmistakably legs going.
+#
+# Two divides into the twelve columns of a row, which matters: the game steps
+# this cycle by distance travelled and wraps on the row length, and a cycle that
+# doesn't divide would stutter at every wrap.
 def walk_frames
-  [pose(STRIDE_NEAR_UP), pose(STAND_LOWER), pose(STRIDE_FAR_UP), pose(STAND_LOWER)]
+  [pose(STRIDE_NEAR_UP), pose(STRIDE_FAR_UP)]
 end
 
 def png(pixels, w, h)

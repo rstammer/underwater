@@ -4,10 +4,17 @@ class Diver
   # forward. Derived from the sheet above rather than drawn fresh — see
   # tools/make_diver_land_sprites.rb. Same layout, so only the path changes.
   LAND_PATH = "sprites/diver_land.png"
-  # px of ground covered per frame of the walk. Two of the four poses are steps,
-  # so a stride is twice this — about half his own height, which is what a stride
-  # looks like.
-  LAND_STRIDE = 16
+  # px of ground covered per frame of the walk. Every frame is a step now, so
+  # this *is* the stride — a bit over a third of his height, which is about right
+  # for someone in flippers.
+  LAND_STRIDE = 24
+  # What of him can actually be bitten. Measured off the sheet: the drawing fills
+  # 12 of its 32 columns and 22 of its 32 rows, so colliding with the sprite
+  # square meant 20 px of empty air either side of him counted as diver. Kept a
+  # shade inside the drawing on top of that — being caught by something that
+  # visibly missed you is the one that stings.
+  HITBOX_W = 22
+  HITBOX_H = 40
   WIDTH = 32
   HEIGHT = 32
   SPRITES_PER_ROW = 12
@@ -23,6 +30,12 @@ class Diver
   # args.state, so reset_game can restore it without touching this object.
   def global_position_x
     @current_args.state.diver_global_x
+  end
+
+  # His body as a rect in world coordinates, centred on where he is — his
+  # position is his middle, not a corner.
+  def hitbox(world_x, world_y)
+    { x: world_x - HITBOX_W / 2, y: world_y - HITBOX_H / 2, w: HITBOX_W, h: HITBOX_H }
   end
 
   # Horizontal movement (both player_x and diver_global_x) is driven together in

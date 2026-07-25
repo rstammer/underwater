@@ -343,6 +343,27 @@ class AshoreTests
     assert.true! frames.uniq.length <= Diver::SPRITES_PER_ROW, "and it is a cycle, not a drift"
   end
 
+  # Through the keyboard and whole ticks, at the speed he really walks. The test
+  # above steps the position by a whole stride at a time, so it can never see the
+  # thing that was actually wrong: the cycle advancing so slowly, over poses half
+  # of which were feet-together, that holding a key looked like standing still
+  # and the only visible movement was the snap to standing when you let go.
+  def test_the_legs_visibly_move_while_he_walks(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    standing_on(args, game, WATERLINE_Y + 120)
+    args.state.game_scene = "area1"
+
+    args.inputs.keyboard.key_held.right = true
+    frames = 40.times.map do
+      game.tick
+      args.state.diver.to_h[:source_x]
+    end
+
+    assert.true! frames.uniq.length >= 3,
+                 "the legs go over 40 ticks of walking (#{frames.uniq.length} poses)"
+  end
+
   def test_standing_still_the_legs_stand_still(args, assert)
     game = build_game(args)
     game.initialize_game(0)
