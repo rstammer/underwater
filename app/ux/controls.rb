@@ -77,7 +77,9 @@ class Game
     buttons = buttons_under(points)
     state.touch_tapped = buttons - (state.touch_pressed || []) # rising edge only
     state.touch_pressed = buttons
-    state.swim_pose = will_left? || will_right? || will_down?
+    # What counts as "moving" for the animation. On land only the walk does:
+    # holding down there gets him nowhere, so it must not set him marching.
+    state.swim_pose = will_left? || will_right? || (will_down? && !on_land?)
   end
 
   # Did a fresh finger land this tick? Used where any tap means "go on".

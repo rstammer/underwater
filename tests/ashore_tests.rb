@@ -49,20 +49,20 @@ class AshoreTests
                  "and that puts his head out of the water"
   end
 
-  def test_he_cannot_swim_up_off_the_ground_he_stands_on(args, assert)
+  # Lifted off his footing somehow, gravity settles him back onto it. (That he
+  # cannot lift himself in the first place is
+  # test_there_is_no_swimming_up_a_mountain, which goes through the movement.)
+  def test_gravity_settles_him_back_onto_his_footing(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    crown = WADEABLE - 12
+    crown = WATERLINE_Y + 120
     game.define_singleton_method(:slabs_at) { |_x| [{ ceiling: -800, crown: crown }] }
     afloat_at(args, game, 640)
-    game.clamp_depth
+    args.state.depth_y = crown + Diver::HEIGHT + 200 # up in the air over it
 
-    20.times do
-      args.state.depth_y += 4 # as if holding "up"
-      game.clamp_depth
-    end
+    60.times { game.clamp_depth }
 
-    assert.equal! args.state.depth_y, crown + Diver::HEIGHT, "there is no flying"
+    assert.equal! args.state.depth_y, crown + Diver::HEIGHT, "he comes back down to the ground"
   end
 
   # Wading is a staircase, not one big step: each terrace has to be within a
@@ -211,6 +211,111 @@ class AshoreTests
     walk = walk_in(game, args, sector, !IslandWorld.shape_for(sector)[:beach_left])
 
     assert.false! walk[:ashore], "the other shore is still a rock face"
+  end
+
+  # --- how he moves and looks up there --------------------------------------
+
+  # Put him on a slab of dry rock, standing.
+  def standing_on(args, game, crown)
+    game.define_singleton_method(:slabs_at) { |_x| [{ ceiling: -800, crown: crown }] }
+    afloat_at(args, game, 640)
+    args.state.depth_y = crown + Diver::HEIGHT
+    game.clamp_depth
+    game
+  end
+
+  def test_on_land_he_is_drawn_from_the_land_sheet_and_not_tilted(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    standing_on(args, game, WATERLINE_Y + 80)
+    args.state.angle = 30 # left over from swimming in
+
+    sprite = args.state.diver.to_h
+
+    assert.equal! sprite[:path], Diver::LAND_PATH, "he walks in the on-land sheet"
+    assert.equal! sprite[:angle], 0, "and stands upright rather than leaning"
+  end
+
+  def test_in_the_water_he_is_still_the_swimmer(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.island_sectors = []
+    args.state.world_cache = {}
+    afloat_at(args, game, 640)
+    args.state.depth_y = -400
+    game.clamp_depth
+    args.state.angle = 30
+
+    sprite = args.state.diver.to_h
+
+    assert.equal! sprite[:path], Diver::PATH, "under water nothing has changed"
+    assert.equal! sprite[:angle], 30, "including the lean"
+  end
+
+  def test_walking_is_slower_than_swimming(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.island_sectors = []
+    args.state.world_cache = {}
+    afloat_at(args, game, 640)
+    args.state.depth_y = -400
+    game.clamp_depth
+    game.update_sprint
+    swimming = args.state.speed
+
+    standing_on(args, game, WATERLINE_Y + 80)
+    game.update_sprint
+
+    assert.true! args.state.speed < swimming,
+                 "flippers on rock are a waddle (#{args.state.speed} against #{swimming})"
+    assert.true! args.state.speed > 0, "but he does get about"
+  end
+
+  def test_there_is_no_swimming_up_a_mountain(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    crown = WATERLINE_Y + 80
+    standing_on(args, game, crown)
+    game.define_singleton_method(:will_up?) { true }
+
+    60.times do
+      game.basic_movements_per_tick
+      game.clamp_depth
+    end
+
+    assert.equal! args.state.depth_y, crown + Diver::HEIGHT, "holding up does nothing on land"
+  end
+
+  # Stepping off a terrace used to snap him to the ground below in a single
+  # frame. On land he is heavy, not buoyant: he drops, gathering speed.
+  def test_stepping_off_a_ledge_is_a_fall_rather_than_a_snap(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    high = WATERLINE_Y + 300
+    low = WATERLINE_Y + 40
+    game.define_singleton_method(:slabs_at) do |x|
+      [{ ceiling: -800, crown: x < 640 ? high : low }]
+    end
+    afloat_at(args, game, 600)
+    args.state.depth_y = high + Diver::HEIGHT
+    game.clamp_depth
+
+    args.state.diver_global_x = 700 # off the edge
+    ticks = 0
+    biggest = 0
+    120.times do
+      before = args.state.depth_y
+      game.basic_movements_per_tick
+      game.clamp_depth
+      drop = before - args.state.depth_y
+      biggest = drop if drop > biggest
+      ticks += 1
+      break if args.state.depth_y == low + Diver::HEIGHT
+    end
+
+    assert.equal! args.state.depth_y, low + Diver::HEIGHT, "he lands on the lower terrace"
+    assert.true! ticks > 5, "and took a moment getting there (#{ticks} ticks)"
+    assert.true! biggest < high - low, "never covering the whole drop in one frame (#{biggest})"
   end
 
   # The island must never be a trap. Walking up a beach costs no air, but the

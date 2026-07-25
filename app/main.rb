@@ -56,6 +56,9 @@ SPRINT_MULTIPLIER = 2 # sprinting: this much faster, and this much thirstier for
 SHARK_PATROL_SPREAD = 200 # how far above/below the diver's depth the shark comes back in
 DIVER_FOOTPRINT = 20 # how far to each side the diver's footing feels for sand to rest on
 SOLID_STEP_UP = 48 # ledge he still slips over sideways; anything higher is a wall
+LAND_SPEED = 0.6   # walking in flippers: a waddle, not a swim
+LAND_GRAVITY = 0.6 # px per tick² he gathers stepping off a terrace ...
+LAND_FALL_MAX = 14 # ... and the fastest he ever falls
 ISLAND_MIN_SECTOR = 2 # no island lands on the home sector ...
 ISLAND_MAX_SECTOR = 10 # ... nor further out than this
 ISLAND_NEAR_SECTOR = 3 # ... except the first one, which always lands this close
@@ -136,6 +139,8 @@ class Game
     state.touch_ids = []
     state.touch_began = false
     state.swim_pose = false
+    state.on_land = false # set every tick from the rock under him (clamp_depth)
+    state.fall = 0        # how fast he is dropping, when he is dropping
     state.initialized = true
 
     state.album = {} # species documented for good — the one thing dying can't take
@@ -314,17 +319,25 @@ class Game
 
     # Vertical movement is in world space now (depth_y): up = shallower, down =
     # deeper. The camera turns this into an on-screen position later.
-    if will_up?
-      state.depth_y += state.speed
-    elsif will_down?
-      state.depth_y -= state.speed
+    #
+    # None of it on land: there is no swimming up a mountain, and what brings him
+    # down there is gravity rather than buoyancy (see clamp_depth). To get off an
+    # island you walk back down the beach the way you came up it.
+    unless on_land?
+      if will_up?
+        state.depth_y += state.speed
+      elsif will_down?
+        state.depth_y -= state.speed
+      end
+
+      # Negatively buoyant: the diver slowly sinks unless he's swimming up. The one
+      # exception is resting at the surface with his head out of the water
+      # (breathing?) — a pause mode where he floats in place. Below the waterline he
+      # always sinks. (sea floor / waterline clamps in update_depth_and_camera)
+      state.depth_y -= 0.15 unless will_up? || breathing?
     end
 
-    # Negatively buoyant: the diver slowly sinks unless he's swimming up. The one
-    # exception is resting at the surface with his head out of the water
-    # (breathing?) — a pause mode where he floats in place. Below the waterline he
-    # always sinks. (sea floor / waterline clamps in update_depth_and_camera)
-    state.depth_y -= 0.15 unless will_up? || breathing?
+    return state.angle = 0 if on_land? # the lean is a swimmer's; on sand it tips him over
 
     if state.direction == :right
       if will_up? && (will_left? || will_right?)
@@ -388,9 +401,37 @@ class Game
     floor, ceiling = rock_span_at(state.diver_global_x, state.depth_y, SOLID_STEP_UP)
     bottom = floor + Diver::HEIGHT
     top = depth_ceiling(ceiling, state.diver_global_x, floor)
+    # Everything that behaves differently up on an island hangs off this: the
+    # rock under him holds him higher than he would ever float.
+    state.on_land = bottom > WATERLINE_Y - SURFACE_FLOAT_DEPTH
 
-    state.depth_y = bottom if state.depth_y < bottom
-    state.depth_y = top if state.depth_y > top
+    if state.depth_y < bottom
+      state.depth_y = bottom
+      state.fall = 0
+    elsif state.depth_y > top
+      # Above where he belongs. Between one terrace and the next that is a fall;
+      # anywhere the ground below him is sea it stays the snap it has always
+      # been, because water is the thing that catches you.
+      on_land? ? fall_toward(top) : state.depth_y = top
+    else
+      state.fall = 0
+    end
+  end
+
+  def on_land?
+    !!state.on_land
+  end
+
+  # Step off a terrace and he drops, gathering speed, until the ground catches
+  # him. Snapping him to the rock below in a single frame read as a teleport.
+  def fall_toward(top)
+    state.fall = (state.fall || 0) + LAND_GRAVITY
+    state.fall = LAND_FALL_MAX if state.fall > LAND_FALL_MAX
+    state.depth_y -= state.fall
+    return if state.depth_y > top
+
+    state.depth_y = top
+    state.fall = 0
   end
 
   # As high as he can rise here. He floats at whatever water surface is above
@@ -558,7 +599,8 @@ class Game
   end
 
   def current_speed
-    state.sprinting ? Diver::SPEED * SPRINT_MULTIPLIER : Diver::SPEED
+    speed = state.sprinting ? Diver::SPEED * SPRINT_MULTIPLIER : Diver::SPEED
+    on_land? ? speed * LAND_SPEED : speed
   end
 
   # Oxygen tops up only while the head is actually above the waterline,

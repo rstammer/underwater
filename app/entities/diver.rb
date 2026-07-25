@@ -1,5 +1,9 @@
 class Diver
   PATH = "sprites/diver_v2.png"
+  # The same person out of the water: arms down, flippers folded flat and
+  # forward. Derived from the sheet above rather than drawn fresh — see
+  # tools/make_diver_land_sprites.rb. Same layout, so only the path changes.
+  LAND_PATH = "sprites/diver_land.png"
   WIDTH = 32
   HEIGHT = 32
   SPRITES_PER_ROW = 12
@@ -32,6 +36,12 @@ class Diver
     @current_args.state.swim_pose
   end
 
+  # Out of the water he walks in the land sheet, and he doesn't lean: the tilt is
+  # a swimmer angling through water, and on a beach it just tips him over.
+  def on_land?
+    !!@current_args.state.on_land
+  end
+
   def to_h
     {
       x: @current_args.state.player_x, # already the on-screen x (camera-projected)
@@ -39,10 +49,10 @@ class Diver
       w: WIDTH * 2,
       h: HEIGHT * 2,
       flip_horizontally: @current_args.state.direction == :left,
-      angle: @current_args.state.angle,
+      angle: on_land? ? 0 : @current_args.state.angle,
       anchor_x: 0.5,
       anchor_y: 0.5,
-      path: PATH,
+      path: on_land? ? LAND_PATH : PATH,
       source_x: WIDTH * @sprite_index,
       source_y: HEIGHT * (@sprite_index / SPRITES_PER_ROW).floor + (movement? ? 0 : HEIGHT),
       source_w: WIDTH,
