@@ -1,6 +1,16 @@
 # The roster of things that live out there, and how the sea picks which of them
 # turns up where.
 class SpeciesTests
+  # A stretch of open sea to look at. Which segments are islands is rolled from
+  # the world seed, and the seed is different every run — so "segment 3 has fish
+  # in it" was true most days and false the day segment 3 came up an island. The
+  # tests that want fish say so instead of hoping.
+  def open_sea(args, game, index)
+    args.state.island_sectors = [IslandWorld::HOME_SECTOR]
+    args.state.world_cache = {}
+    game.world_for(index)
+  end
+
   def build_game(args)
     game = Game.new
     game.args = args
@@ -88,7 +98,7 @@ class SpeciesTests
   def test_spawned_fish_carry_a_species(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    world = game.world_for(3)
+    world = open_sea(args, game, 3)
 
     game.spawn_fauna(world)
 
@@ -103,7 +113,7 @@ class SpeciesTests
   def test_a_fish_draws_from_its_species_sheet(args, assert)
     game = build_game(args)
     game.initialize_game(0)
-    game.spawn_fauna(game.world_for(3))
+    game.spawn_fauna(open_sea(args, game, 3))
     fish = args.state.fish.first
 
     sprite = fish.to_h

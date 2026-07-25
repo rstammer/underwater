@@ -32,10 +32,12 @@ class Game
   ITEM_MIN_SECTOR = 1 # spread across the sectors near home ...
   ITEM_MAX_SECTOR = 9 # ... but not too far out to ever find
 
-  # A fresh scatter of treasures for the round, plus an empty pack and stash.
+  # A fresh scatter of treasures for the round, plus an empty pack. The hold is
+  # deliberately left alone: it sits on the boat, and drowning half a mile out
+  # has never emptied anybody's shed. Only a new career clears it.
   def reset_items
     state.inventory = []
-    state.stash = []
+    state.stash ||= []
     state.world_items = roll_world_items
     reset_exchange
   end
@@ -175,7 +177,9 @@ class Game
     value = ITEM_VALUES[stack[:kind]]
     state.credits += value
     state.log_earned += value
+    state.day_earned += value
     state.log_sold += 1
+    state.day_sold += 1
     # The balance in the head band just changed; this is what changed it.
     state.sale_note = { text: "#{ITEM_NAMES[stack[:kind]]} für #{value} Cr verkauft.",
                         at: Kernel.tick_count }

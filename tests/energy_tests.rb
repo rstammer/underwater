@@ -92,17 +92,32 @@ class EnergyTests
     game
   end
 
-  def test_sleeping_ends_the_day_and_starts_the_next(args, assert)
+  # Turning in shows you the night first; the day turns over when you press on.
+  def test_sleeping_opens_the_night(args, assert)
+    game = at_the_boat(args)
+    args.state.energy = 12
+
+    game.sleep_at_boat
+
+    assert.equal! args.state.game_scene, "night", "the evening, before the morning"
+    assert.equal! args.state.day, 1, "the day is not over until it has been read"
+    assert.equal! args.state.energy, 12, "and nothing is put back yet"
+  end
+
+  def test_sleeping_through_the_night_starts_the_next_day(args, assert)
     game = at_the_boat(args)
     args.state.energy = 12
     args.state.suit = 40
 
     game.sleep_at_boat
+    args.inputs.keyboard.key_down.space = true
+    game.night_tick
 
     assert.equal! args.state.day, 2, "a new day"
     assert.equal! args.state.energy, ENERGY_MAX, "rested"
     assert.equal! game.time_of_day, :morgen, "and it is morning again"
     assert.equal! args.state.suit, SUIT_MAX, "the suit got seen to overnight"
+    assert.equal! args.state.game_scene, "area1", "and he is back on the boat"
   end
 
   def test_you_can_only_sleep_at_the_boat(args, assert)
@@ -111,7 +126,8 @@ class EnergyTests
 
     game.sleep_at_boat
 
-    assert.equal! args.state.day, 1, "no bed out here"
+    assert.equal! args.state.game_scene, "area1", "no bed out here"
+    assert.equal! args.state.day, 1
     assert.equal! args.state.energy, 12
   end
 
@@ -122,7 +138,7 @@ class EnergyTests
 
     game.update_sleep
 
-    assert.equal! args.state.day, 2
+    assert.equal! args.state.game_scene, "night"
   end
 
   # --- what you can see -----------------------------------------------------

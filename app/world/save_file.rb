@@ -10,6 +10,7 @@
 #   name Kins Klausky
 #   album burgunder perfekt
 #   sighted laternentraeger
+#   stash bottle 3
 #
 # Pure: encoding and decoding never touch the filesystem, so they are testable
 # without writing over anybody's real book (Game#save_book does the I/O).
@@ -22,15 +23,24 @@ class SaveFile
   TEST_PATH = "tmp/artenbuch_under_test.txt"
   QUALITIES = { "unscharf" => :unscharf, "gut" => :gut, "perfekt" => :perfekt }
 
-  def self.encode(name:, album:, sighted:, seed: nil, credits: 0,
-                  dives: 0, best: 0, sold: 0, earned: 0, day: 1, energy: nil)
+  # Counters that are simply written as "key n" and read back the same way, all
+  # of them optional. Listed once so adding another is a word in a list rather
+  # than three edits that have to agree.
+  COUNTERS = ["credits", "dives", "best", "sold", "earned", "day", "energy",
+              "day_earned", "day_species", "day_deepest", "day_sold"]
+
+  def self.encode(name:, album:, sighted:, seed: nil, stash: [], **counters)
     lines = []
     lines << "name #{name.strip}" if name && !name.strip.empty?
     lines << "seed #{seed}" if seed
-    lines << "credits #{credits}" if credits && credits > 0
-    { "dives" => dives, "best" => best, "sold" => sold, "earned" => earned,
-      "day" => day, "energy" => energy }.each do |key, value|
+    COUNTERS.each do |key|
+      value = counters[key.to_sym]
       lines << "#{key} #{value}" if value && value > 0
+    end
+    # The boat's hold, as one line per kind. Written as counts rather than one
+    # line per tin can, because a hold can hold rather a lot of tin cans.
+    (stash || []).uniq.each do |kind|
+      lines << "stash #{kind} #{stash.count { |stored| stored == kind }}"
     end
     (album || {}).each { |key, quality| lines << "album #{key} #{quality}" }
     # Documented implies seen, so those keys don't need saying twice.
@@ -41,8 +51,7 @@ class SaveFile
   end
 
   def self.decode(text)
-    book = { name: "", album: {}, sighted: {}, seed: nil, credits: 0,
-             dives: 0, best: 0, sold: 0, earned: 0, day: 1, energy: nil }
+    book = blank
     return book if text.nil?
 
     text.split("\n").each { |line| read_line(book, line.strip.split(" ")) }
@@ -53,8 +62,11 @@ class SaveFile
     case parts[0]
     when "name"
       book[:name] = parts[1..-1].join(" ")
-    when "credits", "dives", "best", "sold", "earned", "day", "energy"
+    when *COUNTERS
       book[parts[0].to_sym] = parts[1].to_i if parts[1].to_i > 0
+    when "stash"
+      # A kind that no longer exists is dropped, the same as a retired species.
+      book[:stash].concat([parts[1]] * parts[2].to_i) if Game::ITEM_KINDS.include?(parts[1])
     when "seed"
       # A book written before seas had seeds simply hasn't got this line, and
       # that is not an error — it gets a fresh sea.
@@ -79,7 +91,12 @@ class SaveFile
   end
 
   def self.blank
-    { name: "", album: {}, sighted: {}, seed: nil, credits: 0,
-      dives: 0, best: 0, sold: 0, earned: 0, day: 1, energy: nil }
+    book = { name: "", album: {}, sighted: {}, seed: nil, stash: [] }
+    COUNTERS.each { |key| book[key.to_sym] = 0 }
+    # A day starts at one, and "no energy written" has to stay tellable from
+    # "worn out": nil means a fresh morning, 0 means he has nothing left.
+    book[:day] = 1
+    book[:energy] = nil
+    book
   end
 end

@@ -166,10 +166,12 @@ class Game
 
       species = Species[shot[:key]]
       earned += photo_fee(species, shot[:quality]) - (known ? photo_fee(species, known) : 0)
+      state.day_species += 1 unless known # a page nobody had before today
       state.album[shot[:key]] = shot[:quality]
     end
     state.credits += earned
     state.log_earned += earned
+    state.day_earned += earned
     developed = state.film_roll.length
     state.film_roll = []
     state.film_left = FILM_MAX

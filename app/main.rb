@@ -6,6 +6,7 @@ require "app/ux/story.rb"
 require "app/scenes/title.rb"
 require "app/scenes/name.rb"
 require "app/scenes/intro.rb"
+require "app/scenes/night.rb"
 require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
 require "app/scenes/area2.rb"
@@ -142,6 +143,7 @@ class Game
     state.suit = SUIT_MAX
     state.energy = ENERGY_MAX # the day ahead of him
     state.day = 1
+    reset_day_tally
     state.death_cause = nil
     state.sprinting = false
     state.speed = Diver::SPEED
@@ -181,6 +183,7 @@ class Game
     state.fish = []       # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
     state.crawlers = []   # ... what walks about on that segment's sea floor
     state.shore_life = [] # ... and what walks about on its beach, if it has one
+    state.stash = [] # the boat's hold; survives dying, not a new career
     reset_log       # the dive log starts empty each round
     reset_items     # scatter fresh treasures, empty the pack
     reset_film      # a fresh roll, nothing exposed
@@ -766,6 +769,15 @@ class Game
     state.energy = [state.energy - ENERGY_DRAIN, 0].max
   end
 
+  # What this *day* has come to — not this round. A day survives drowning and
+  # trying again, so the round's own log can't answer for it.
+  def reset_day_tally
+    state.day_earned = 0
+    state.day_species = 0
+    state.day_deepest = 0
+    state.day_sold = 0
+  end
+
   def exhausted?
     state.energy <= 0
   end
@@ -784,19 +796,30 @@ class Game
   end
 
   def update_sleep
-    sleep_at_boat if inputs.keyboard.key_down.s
+    sleep_at_boat if inputs.keyboard.key_down.s && !game_paused?
   end
 
   # Turn in for the night. The only way to get a day back — and the boat sees to
   # the suit while you are asleep, which is the other reason to come home.
+  #
+  # It doesn't just tick the day over: it stops and shows you what the day came
+  # to, and reading that is what ends it (night_tick -> wake_up). So a day is
+  # never closed behind your back.
   def sleep_at_boat
     return unless at_the_boat?
 
+    state.game_scene = "night"
+  end
+
+  # Morning. Called by the night scene once it has been read.
+  def wake_up
     state.day += 1
     state.energy = ENERGY_MAX
     state.suit = SUIT_MAX
     state.oxygen = OXYGEN_MAX
+    reset_day_tally
     save_book # a day ended is worth remembering
+    resume_scene
   end
 
   def too_deep?
@@ -828,7 +851,7 @@ class Game
   end
 
   def game_paused?
-    ["title", "name", "intro", "game_over", "home_menu", "pause"].include?(state.game_scene)
+    ["title", "name", "intro", "night", "game_over", "home_menu", "pause"].include?(state.game_scene)
   end
 
   # The boat screen: press L at the boat to open it, L to close it again. The
@@ -901,6 +924,7 @@ class Game
   def track_log
     state.log_deepest = current_depth if current_depth > state.log_deepest
     state.log_best = current_depth if current_depth > state.log_best
+    state.day_deepest = current_depth if current_depth > state.day_deepest
     state.log_sectors[world_index] = true
     state.log_islands[world_index] = true if state.island_sectors.include?(world_index)
     state.log_caves[world_index] = true if breathing? && !at_open_surface?
@@ -938,10 +962,15 @@ class Game
   def save_book(path = book_path)
     $gtk.write_file(path, SaveFile.encode(name: state.player_name,
                                           album: state.album, sighted: state.sighted,
-                                          seed: state.world_seed, credits: state.credits,
+                                          seed: state.world_seed, stash: state.stash,
+                                          credits: state.credits,
                                           dives: state.log_dives, best: state.log_best,
                                           sold: state.log_sold, earned: state.log_earned,
-                                          day: state.day, energy: state.energy.round))
+                                          day: state.day, energy: state.energy.round,
+                                          day_earned: state.day_earned,
+                                          day_species: state.day_species,
+                                          day_deepest: state.day_deepest,
+                                          day_sold: state.day_sold))
   end
 
   # Carry the saved book on: same diver, same pages, same sea, straight into the
@@ -962,8 +991,15 @@ class Game
     state.log_earned = book[:earned] || 0
     state.day = book[:day] || 1
     state.energy = book[:energy] || ENERGY_MAX
+    # The day he was in the middle of, not a fresh one: closing the game at
+    # lunchtime and coming back must not hand him a morning he hasn't earned.
+    state.day_earned = book[:day_earned] || 0
+    state.day_species = book[:day_species] || 0
+    state.day_deepest = book[:day_deepest] || 0
+    state.day_sold = book[:day_sold] || 0
     state.world_seed = book[:seed] || new_world_seed
     reset_game # rebuild the world from that seed before he is put in it
+    state.stash = book[:stash] || [] # ... and the hold as he left it, after reset_items
     start_round(told: true)
   end
 
@@ -981,6 +1017,8 @@ class Game
     state.log_earned = 0
     state.day = 1
     state.energy = ENERGY_MAX
+    reset_day_tally
+    state.stash = [] # a new career comes with an empty hold
     state.world_seed = new_world_seed
     reset_game
     state.game_scene = "name"

@@ -140,15 +140,51 @@ class StashTests
     assert.equal! args.state.exchange_index, 0, "at the top row"
   end
 
-  def test_a_new_round_empties_the_hold_and_resets_the_cursor(args, assert)
+  # The hold is on the boat, not on the diver. Drowning costs you the pack and
+  # the film; it does not empty the shed you have been filling for a week.
+  def test_a_new_round_keeps_the_hold_but_empties_the_pack(args, assert)
     game = at_the_boat(args)
     args.state.stash = ["key", "can"]
+    args.state.inventory = ["bottle"]
     game.move_exchange(1, 0)
 
     game.reset_game
 
-    assert.equal! args.state.stash.length, 0, "a fresh round, a fresh hold"
+    assert.equal! args.state.stash.length, 2, "what was stowed is still stowed"
+    assert.equal! args.state.inventory.length, 0, "what he was carrying went down with him"
     assert.equal! args.state.exchange_side, "pack", "and the cursor back where it starts"
+  end
+
+  def test_a_new_career_starts_with_an_empty_hold(args, assert)
+    game = at_the_boat(args)
+    args.state.stash = ["key", "can"]
+
+    game.fresh_round
+
+    assert.equal! args.state.stash.length, 0, "somebody else's shed, not yours"
+  end
+
+  # Everything else about the hold survives the session, so this has to as well.
+  def test_the_hold_travels_with_the_book(args, assert)
+    text = SaveFile.encode(name: "Kins", album: {}, sighted: {},
+                           stash: ["can", "can", "key"])
+    back = SaveFile.decode(text)
+
+    assert.equal! back[:stash].sort, ["can", "can", "key"], "counts, not one line each"
+  end
+
+  def test_carrying_a_book_on_carries_the_hold(args, assert)
+    game = at_the_boat(args)
+    args.state.game_scene = "title"
+    args.state.saved_book = SaveFile.blank.merge(
+      name: "Kins", album: { "burgunder" => :gut }, sighted: { "burgunder" => true },
+      stash: ["jewel", "can"]
+    )
+
+    args.inputs.keyboard.key_down.space = true
+    game.title_tick
+
+    assert.equal! args.state.stash.sort, ["can", "jewel"], "he comes back to what he stowed"
   end
 
   def test_the_boat_menu_renders_the_exchange(args, assert)
