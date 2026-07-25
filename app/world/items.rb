@@ -137,6 +137,7 @@ class Game
     state.exchange_index = 0
     state.boat_page = :hold # every visit opens on what you just brought up
     state.artenbuch_page = 0 # ... and the book at its first page
+    state.sale_note = nil    # ... and nobody wants last visit's news
   end
 
   # dx picks the side (-1 pack, +1 hold), drow walks the rows (+1 = one further
@@ -171,10 +172,13 @@ class Game
     return unless stack
 
     state.stash.delete_at(state.stash.index(stack[:kind]))
-    state.credits += ITEM_VALUES[stack[:kind]]
-    state.log_earned += ITEM_VALUES[stack[:kind]]
+    value = ITEM_VALUES[stack[:kind]]
+    state.credits += value
+    state.log_earned += value
     state.log_sold += 1
-    state.last_payment = ITEM_VALUES[stack[:kind]]
+    # The balance in the head band just changed; this is what changed it.
+    state.sale_note = { text: "#{ITEM_NAMES[stack[:kind]]} für #{value} Cr verkauft.",
+                        at: Kernel.tick_count }
     clamp_exchange # selling the last of a kind takes its row away
   end
 

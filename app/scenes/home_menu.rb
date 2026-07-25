@@ -129,9 +129,26 @@ class Game
     outputs.labels << { x: menu_right - MENU_PAD, y: top - 22, text: "#{state.credits} Cr",
                         size_enum: 8, alignment_enum: 2, vertical_alignment_enum: 2,
                         r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
-    outputs.labels << { x: menu_right - MENU_PAD, y: top - 58, text: "Guthaben",
-                        size_enum: 0, alignment_enum: 2, vertical_alignment_enum: 2,
-                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+    render_sale_note(top) ||
+      outputs.labels << { x: menu_right - MENU_PAD, y: top - 58, text: "Guthaben",
+                          size_enum: 0, alignment_enum: 2, vertical_alignment_enum: 2,
+                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+  end
+
+  SALE_NOTE_TICKS = 210 # three and a half seconds of being news
+
+  # What the last sale was, in the place where the money it made is — a balance
+  # that moves without saying why is a balance you have to go and check. It takes
+  # the "Guthaben" caption's place rather than finding room of its own, because
+  # while it is up it *is* the caption.
+  def render_sale_note(top)
+    note = state.sale_note
+    return nil unless note && Kernel.tick_count - note[:at] < SALE_NOTE_TICKS
+
+    outputs.labels << { x: menu_right - MENU_PAD, y: top - 58, text: note[:text],
+                        size_enum: 1, alignment_enum: 2, vertical_alignment_enum: 2,
+                        r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
+    true
   end
 
   MENU_TAB_W = 240

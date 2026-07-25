@@ -206,4 +206,50 @@ class MoneyTests
 
     assert.equal! args.state.credits, 0, "a new diver has not been paid yet"
   end
+
+  # Selling changes the number in the head band, and a number that changes
+  # without saying why is a number you have to go and check.
+  def test_selling_says_what_it_sold_and_for_how_much(args, assert)
+    game = at_the_boat(args)
+    args.state.stash = ["bottle"]
+    game.toggle_home_menu(true)
+    args.state.exchange_side = Game::HOLD_SIDE
+    args.state.exchange_index = 0
+
+    game.sell_selected
+    game.home_menu_tick
+    text = args.outputs.labels.flatten.map { |l| l[:text] }.join("  ")
+
+    assert.true! text.include?("Flaschenpost"), "it names what went: #{text}"
+    assert.true! text.include?("#{Game::ITEM_VALUES['bottle']} Cr"), "and what it fetched"
+    assert.true! text.include?("verkauft"), "and that it was a sale"
+  end
+
+  def test_the_sale_note_does_not_hang_about(args, assert)
+    game = at_the_boat(args)
+    args.state.stash = ["bottle"]
+    args.state.exchange_side = Game::HOLD_SIDE
+    args.state.exchange_index = 0
+    game.sell_selected
+
+    args.state.sale_note[:at] = Kernel.tick_count - Game::SALE_NOTE_TICKS - 1
+    game.toggle_home_menu(true)
+    game.home_menu_tick
+    text = args.outputs.labels.flatten.map { |l| l[:text] }.join("  ")
+
+    assert.false! text.include?("verkauft"), "an old sale has stopped being news"
+  end
+
+  # A fresh visit is not the place to be told about last visit's sale.
+  def test_opening_the_boat_screen_clears_it(args, assert)
+    game = at_the_boat(args)
+    args.state.stash = ["bottle"]
+    args.state.exchange_side = Game::HOLD_SIDE
+    args.state.exchange_index = 0
+    game.sell_selected
+
+    game.reset_exchange
+
+    assert.equal! args.state.sale_note, nil
+  end
 end

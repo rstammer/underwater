@@ -153,7 +153,7 @@ class Game
     # The balance. Like the book, it is the work of many dives and dying can't
     # take it — only the undeveloped film goes down with you.
     state.credits = 0
-    state.last_payment = nil
+    state.sale_note = nil
     # What the logbook remembers past this one dive. Carried in the save file
     # with everything else, because a career you cannot look back on is a tally.
     state.log_dives = 0

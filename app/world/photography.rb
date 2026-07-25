@@ -170,7 +170,6 @@ class Game
     end
     state.credits += earned
     state.log_earned += earned
-    state.last_payment = earned # so the boat can say what the magazine paid
     developed = state.film_roll.length
     state.film_roll = []
     state.film_left = FILM_MAX
