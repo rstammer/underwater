@@ -576,12 +576,49 @@ Screen-Positionen und werden nicht direkt gesetzt.
   vorm Gesicht oder ein zu schmaler Spalt halten ihn auf. Kanten bis
   `SOLID_STEP_UP` (48 px) gleitet er hoch — natürliches Gelände hat p99 = 32 px,
   also bremst nur echter Fels. **Eine Wand ist nie eine Falle:** hochschwimmen
-  geht immer.
+  geht immer, und von einer Insel kommt man immer wieder ins Wasser zurück.
+  - **Die Kantentoleranz gilt auch für Fels** (`pocket_at(.., reach)`): früher nur
+    für Sand, dadurch waren Inselterrassen eine Treppe, die man sieht und nie
+    hochkommt. Sicher gegen Durchsteigen ist das, weil **jede Slab dicker ist als
+    die Toleranz** (`ROCK_SPAN`=64 gegen 48; Insel und Skerry weit mehr) — Füße
+    innerhalb einer Schrittlänge unter der Oberkante sind zwangsläufig über der
+    Unterkante. `clamp_depth` liest mit **derselben** Toleranz: ohne das würde es
+    entscheiden, er stünde *unter* der gerade erklommenen Terrasse, und ihn durch
+    die Insel fallen lassen.
+- **An Land stehen** (`depth_ceiling`): die Wasseroberfläche ist keine absolute
+  Decke mehr. Hebt ihn der Fels unter ihm darüber hinaus, **steht er drauf** — und
+  dieser Boden ist zugleich seine Decke, also kein Fliegen. Waten und über eine
+  Insel laufen ist dasselbe wie auf dem Sand aufliegen, nur auf der anderen Seite
+  des Wassers. Oben gilt automatisch alles Übrige: `breathing?` wahr (O2 füllt
+  auf), `at_open_surface?` wahr (kein Fog, Fische unsichtbar, **Strandkrebse
+  fotografierbar**).
 - **Inseln & Höhlen:** `ISLAND_COUNT` bewachsene Inseln ragen aus dem Wasser, jede
   mit eigener Form und Größe — eine davon in Sichtweite (1–3 Sektoren), der Rest
-  weiter draußen. Drüber kommt man nicht — der Weg führt **unten durch den Tunnel**,
-  mit einer **Luftkammer** auf halber Strecke, in der man auftaucht und den
-  Sauerstoff auffüllt.
+  weiter draußen. Durch jede führt **unten ein Tunnel**, mit einer **Luftkammer**
+  auf halber Strecke, in der man auftaucht und den Sauerstoff auffüllt.
+- **Drei Arten von Küste (`shape_for[:shore]`) — ob man an Land kann:**
+  - `:rock` — Felsenküste wie bisher: man schwimmt ran und nicht weiter.
+  - `:through` — Sand an **beiden** Enden, komplett **überquerbar**.
+  - `:blocked` — Sand an **einem** Ende; landeinwärts steht eine **Felswand**, dort
+    endet der Spaziergang. Die andere Küste bleibt Fels.
+- **Warum eine Felsenküste eine Wand ist** (gemessen, und der Schlüssel zum Ganzen):
+  die Silhouette einer Insel steigt ohnehin nur in 16-px-Terrassen und springt nie
+  mehr als 32 px — deutlich unter den 48 px (`SOLID_STEP_UP`), die der Taucher
+  übersteigt. **Begehbar war sie also immer schon.** Was ihn aufhielt, war einzig
+  der *erste* Schritt: treibend hängen seine Füße 52 px unter der Wasserlinie
+  (`SURFACE_FLOAT_DEPTH` + `Diver::HEIGHT`), der unterste Fels einer Felsenküste
+  steht `SHORE_LIP`=24 px darüber. Genau diese Lücke **ist** die Felsenküste. Ein
+  **Strand** fängt stattdessen `BEACH_TOE`=96 px **unter** Wasser an — damit liegt
+  seine erste Terrasse in Reichweite und man watet hoch.
+- **Der Schelf der blockierten Insel wird gebaut, nicht gewürfelt** (`shelf_ceiling`):
+  er läuft auf feste `SHELF_TOP`=64 px über Wasser aus und bleibt immer `CLIFF_MIN`=96
+  unter dem Fels an der Wand — die Stufe dort ist also *garantiert* zu hoch. Als
+  *Anteil* der Inselhöhe definiert (erster Versuch) blieb der Schelf flacher Inseln
+  unter Wasser, also gar kein Strand.
+- **Vor Sand stehen keine Skerries** (`skerry_clusters`): sie sagen „hier greift der
+  Fels ins Wasser" — das Gegenteil dessen, was ein Strand sagt. Und gemessen: eine
+  Skerry ist an der Oberfläche eine Wand, also **genau auf der Höhe, auf der man
+  watet** — sie riegelten den Strand komplett ab.
 - **Anzug & Druck (die zweite Uhr):** Der Anzug ist für `SUIT_DEPTH_LIMIT` (100 m)
   ausgelegt. Tiefer nimmt er Schaden, **linear mit den Metern darunter**
   (`update_suit`) — 120 m kostet fast nichts, 190 m die Hälfte, ab ~230 m stirbt
@@ -644,7 +681,8 @@ Screen-Positionen und werden nicht direkt gesetzt.
 ### Tuning-Konstanten
 
 `app/world/island_world.rb` (Inseln): `SPAN_MIN`=1800/`SPAN_MAX`=2800, `REACH`, `PEAK_MIN/MAX`, `CROWN_MAX`,
-`SHORE_LIP`, `SHORE_HEIGHT`, `TUNNEL_HEIGHT`, `DOME_SPAN`, `DOME_RISE`,
+`SHORE_LIP`, `SHORE_HEIGHT`, `TUNNEL_HEIGHT`, `DOME_SPAN`, `DOME_RISE`;
+Küsten: `SHORES`, `BEACH_TOE`=96, `SHELF_TOP`=64, `CLIFF_MIN`=96;
 `AIR_DEPTH`, `CROWN_STEP`, `PLANT_SPACING`, `MARGIN`, `GULL_HEIGHT`, `SCALES`;
 Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
 `DOME_RISE`; Galerien: `GALLERY_MIN/MAX`, `GALLERY_HEIGHT`, `GALLERY_RISE`,
@@ -731,6 +769,16 @@ das läuft in MRI, nicht in DRs mruby-Runtime). Tests sind Klassen mit Methoden
   `smooth_floor_y_at`: derselbe Boden, nur ohne Terrassen und Jitter. Und: ein
   Kamera-Test sollte den **Ruck** messen (2. Ableitung), nicht die Geschwindigkeit
   — gleichmäßiges Mitschwenken über einen Hang ist erwünscht.
+- **„Nach oben schwimmen" nicht mit `depth_y = 99_999` simulieren.** Seit man auf
+  Fels stehen kann, der aus dem Wasser ragt, heißt eine Position oberhalb der Insel
+  schlicht „er steht auf dem Gipfel" — der Clamp lässt ihn dann zu Recht dort. Wer
+  prüfen will, dass eine Decke ihn aufhält, muss ihn **tickweise aufsteigen lassen**
+  (so wie es im Spiel passiert). Drei Tests hingen an diesem Teleport.
+- **Eine Decke stoppt einen Aufstieg — sie darf nie von oben ziehen.**
+  `air_line_at` kennt eine Luftkammer nur an ihrer `x`, und eine Kammer tief im Berg
+  teilt sich ihre `x` mit dem Gipfel darüber. Sobald man oben laufen konnte, griff
+  diese Wasseroberfläche durch hundert Meter Fels und zog den Taucher in die Höhle
+  (gemessen: Sturz um 1645 px). Deshalb gilt sie nur, wenn sie **über** ihm liegt.
 - **`world_cache` ist schon voll, bevor der Test `island_sectors` setzt.**
   `initialize_game` ruft `center_camera` → `clamp_depth` → und damit ist Segment 0
   bereits **mit den zufällig gewürfelten** Insel-Sektoren gebaut und gecacht. Wer
