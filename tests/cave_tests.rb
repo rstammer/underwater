@@ -69,14 +69,22 @@ class CaveTests
     assert.true! world.solid_at?(x, 550), "and the roof over the whole thing"
   end
 
+  # Swim up, tick by tick, the way he actually would. Not by setting depth_y to
+  # some enormous number: rock that stands out of the water is ground you can be
+  # on top of now (that is what walking on an island is), so a diver teleported
+  # above the slab is legitimately standing on it. Rising into it is the thing
+  # that has to be stopped, and rising is what this does.
   def test_the_diver_cannot_swim_up_through_the_cave_roof(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     with_tunnel(game, args)
     args.state.diver_global_x = x_under_roof
-    args.state.depth_y = 99_999 # try to float up to the surface
+    args.state.depth_y = Diver::HEIGHT
 
-    game.update_depth_and_camera
+    200.times do
+      args.state.depth_y += 8 # holding "up"
+      game.update_depth_and_camera
+    end
 
     assert.equal! args.state.depth_y, CEILING - Diver::HEIGHT, "his head stops at the rock"
     assert.false! game.breathing?, "and he is not breathing under a cave roof"

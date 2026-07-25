@@ -17,7 +17,18 @@ class IslandWorld
   PEAK_MAX = 300
   CROWN_MAX = 330      # ... and never higher than this, or the summit is cut off
                        # by the top of the screen when you look from the surface
-  SHORE_LIP = 24       # how far the rock still stands out of the water at the shore
+  SHORE_LIP = 24       # how far the rock still stands out of the water at the shore.
+                       # From floating, that is a step of SHORE_LIP +
+                       # SURFACE_FLOAT_DEPTH + the diver's height — far past his
+                       # stride, which is exactly what makes a rock coast a wall
+  BEACH_TOE = 96       # ... a beach instead starts this far *under* the water and
+                       # climbs out of it, so its first terrace is within a stride
+                       # of a floating diver and he wades ashore
+  SHELF_TOP = 64       # how far out of the water a blocked island's beach shelf
+                       # levels off — low ground you walk in onto
+  CLIFF_MIN = 96       # ... and how far under the rock at the cliff it must stay,
+                       # so the step up there is never one he could take
+  SHORES = [:rock, :through, :blocked]
   TUNNEL_MIN = 130     # tightest the corridor ever squeezes ...
   TUNNEL_MAX = 300     # ... and the widest it opens out
   TUNNEL_WAVE = 260    # px over which its height changes
@@ -85,6 +96,15 @@ class IslandWorld
           span: GALLERY_MIN + rng.int(GALLERY_MAX - GALLERY_MIN),
           dead_end: rng.int(3).zero? }
       end,
+      # How this island meets the water. Appended *after* everything above on
+      # purpose: the order of the rolls is the shape's identity, so new ones go
+      # on the end or every island in the sea changes.
+      #   :rock    a face standing out of the water — you swim up to it, no further
+      #   :through sand at both ends and walkable all the way over
+      #   :blocked sand at one end, and inland a wall where the walk stops
+      shore: SHORES[rng.int(SHORES.length)],
+      beach_left: rng.int(2).zero?,        # which end the blocked island's sand is on
+      cliff_at: 0.30 + rng.int(16) / 100.0, # ... and how far in the wall stands
     }
   end
 
@@ -118,6 +138,43 @@ class IslandWorld
     @spot_shift = shape[:spot_shift]
     @gallery_count = shape[:gallery_count]
     @gallery_rolls = shape[:gallery_rolls]
+    @shore = shape[:shore]
+    @beach_left = shape[:beach_left]
+    @cliff_at = shape[:cliff_at]
+  end
+
+  # --- How the island meets the water --------------------------------------
+
+  def beach?
+    @shore != :rock
+  end
+
+  def crossable?
+    @shore == :through
+  end
+
+  # The side you can walk in from: sand rather than a rock face. Both ends of a
+  # crossable island; on a blocked one, the single end with the beach, as far
+  # inland as the cliff.
+  def sand_side?(t)
+    return false unless beach?
+    return true if crossable?
+
+    @beach_left ? t < @cliff_at : t > 1.0 - @cliff_at
+  end
+
+  # World x of the wall on a blocked island.
+  def cliff_x
+    first_x + (span * (@beach_left ? @cliff_at : 1.0 - @cliff_at)).to_i
+  end
+
+  # How high the shelf levels off. Not a share of the island's height — that left
+  # flat islands with a shelf still under water, which is no beach at all — but a
+  # height of its own, held far enough below the rock standing at the cliff that
+  # the step up is always past a stride. The wall is the point of this island, so
+  # it is built to be one rather than left to what the dice rolled.
+  def shelf_ceiling
+    @shelf_ceiling ||= [WATERLINE_Y + SHELF_TOP, raw_crown_at(cliff_x) - CLIFF_MIN].min
   end
 
   # --- Where the island lies, in world x -----------------------------------
@@ -333,11 +390,20 @@ class IslandWorld
   # edge in the shallows — [first world x, width in columns], rolled from the home
   # sector so they scatter differently every round. In world x, so both segments
   # of a shore that falls on a border place the same rocks.
+  # Only off a rock shore. Stacks are what says "the rock reaches out here and
+  # you cannot swim straight in" — in front of a beach they would be saying the
+  # opposite of what the sand says, and (measured) they fence the wade off
+  # completely: a skerry is a wall at the surface, which is exactly the depth you
+  # walk ashore at.
   def skerry_clusters
-    [
-      [first_x - (6 + skerry_roll(1, 3)) * World::COLUMN_WIDTH, 3 + skerry_roll(2, 3)],
-      [last_x + (2 + skerry_roll(5, 3)) * World::COLUMN_WIDTH, 3 + skerry_roll(6, 3)],
-    ]
+    clusters = []
+    unless sand_side?(0.0)
+      clusters << [first_x - (6 + skerry_roll(1, 3)) * World::COLUMN_WIDTH, 3 + skerry_roll(2, 3)]
+    end
+    unless sand_side?(1.0)
+      clusters << [last_x + (2 + skerry_roll(5, 3)) * World::COLUMN_WIDTH, 3 + skerry_roll(6, 3)]
+    end
+    clusters
   end
 
   def skerry_roll(salt, span)
@@ -407,14 +473,30 @@ class IslandWorld
 
   def crown_y_at(world_x)
     x = WorldGenerator.terrace_start(world_x)
+    t = span_t_at(x)
+    y = raw_crown_at(x)
+    if sand_side?(t)
+      # A rock coast's lowest rock stands SHORE_LIP proud of the water, which
+      # from floating is a step far past a stride — that is what makes it a wall.
+      # Sand starts BEACH_TOE *under* the water instead, so its first terrace is
+      # within reach of a floating diver and he wades up it.
+      y -= SHORE_LIP + BEACH_TOE
+      y = shelf_ceiling if !crossable? && y > shelf_ceiling
+    end
+    y = (y / CROWN_STEP).floor * CROWN_STEP
+    y = WATERLINE_Y + CROWN_MAX if y > WATERLINE_Y + CROWN_MAX
+    y
+  end
+
+  # The island's silhouette before any of this: rock coast everywhere, the shape
+  # it has always had. The shelf is measured against it, so it has to be readable
+  # on its own.
+  def raw_crown_at(world_x)
+    x = WorldGenerator.terrace_start(world_x)
     shape = 0.45 +
             Noise.value(x, 320, SHAPE_SEED) * 0.45 +
             Noise.value(x, 110, SHAPE_SEED + 3) * 0.15
-    y = WATERLINE_Y + SHORE_LIP + peak * envelope(span_t_at(x)) * shape
-    y = (y / CROWN_STEP).floor * CROWN_STEP
-    y = WATERLINE_Y + SHORE_LIP if y < WATERLINE_Y + SHORE_LIP
-    y = WATERLINE_Y + CROWN_MAX if y > WATERLINE_Y + CROWN_MAX
-    y
+    WATERLINE_Y + SHORE_LIP + peak * envelope(span_t_at(x)) * shape
   end
 
   # Steep at the shore, broad up top.
@@ -503,6 +585,8 @@ class IslandWorld
   def plants(roof)
     items = []
     plateaus(roof).each do |flat|
+      next if flat[:y] <= WATERLINE_Y # a beach's approach is under water: nothing grows there
+
       ground = flat[:width] * World::COLUMN_WIDTH
       slots = ground.idiv(PLANT_SPACING)
       slots = 1 if slots < 1

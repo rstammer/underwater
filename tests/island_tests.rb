@@ -15,6 +15,32 @@ class IslandTests
     island_for(4)
   end
 
+  # Shores come in kinds now (rock face, beach through, beach with a wall), and
+  # several of these tests are about the rock coast in particular — the shore
+  # that stands out of the water and has stacks off it. Ask for the kind under
+  # test rather than trusting sector 4 to keep rolling one.
+  def sector_with_shore(kind)
+    (1..60).find { |s| IslandWorld.shape_for(s)[:shore] == kind }
+  end
+
+  def rock_island
+    island_for(sector_with_shore(:rock))
+  end
+
+  # Swim up from the tunnel floor, tick by tick, until the rock stops him. Not by
+  # setting depth_y to some enormous number: rock standing out of the water is
+  # ground you can be on top of now, so a diver teleported past the island is
+  # legitimately up on its summit — and the air trapped in a chamber, quite
+  # rightly, no longer reaches up through the mountain to pull him back down.
+  def rise_to_the_roof(game, args)
+    args.state.depth_y = -99_999
+    game.update_depth_and_camera
+    900.times do
+      args.state.depth_y += 8
+      game.update_depth_and_camera
+    end
+  end
+
   # Build every segment the island touches, so a test can ask about it in world
   # coordinates instead of chasing it across per-segment columns.
   def slices_of(isle)
@@ -61,12 +87,13 @@ class IslandTests
   end
 
   def test_the_island_breaks_the_surface(args, assert)
-    isle = island
+    isle = rock_island
     slices = slices_of(isle)
     crowns = island_xs(isle).map { |x| slabs_at(slices, x).map { |s| s[:crown] }.max }
 
     assert.true! crowns.max > WATERLINE_Y + 100, "the summit rises well out of the sea"
-    assert.true! crowns.min > WATERLINE_Y, "and even the shore stands clear of the water"
+    assert.true! crowns.min > WATERLINE_Y,
+                 "and on a rock coast even the shore stands clear of the water"
   end
 
   # The whole point of building it in world coordinates: two segments that each
@@ -94,10 +121,13 @@ class IslandTests
 
   # Off the shores, rugged rocks break the surface: their top stands clear of the
   # water, their base is rooted below it, and none of them sits on the island.
+  # Only a rock coast has them: stacks say "the rock reaches out here, you can't
+  # swim straight in", which is the opposite of what a beach says.
   def test_skerries_break_the_surface_off_the_shore(args, assert)
     found = 0
-    slices_of(island).each_value do |world|
-      isle = IslandWorld.new(world, island.sector)
+    rocky = rock_island
+    slices_of(rocky).each_value do |world|
+      isle = IslandWorld.new(world, rocky.sector)
       isle.skerry_columns.each do |col, rock|
         found += 1
         assert.false! isle.island_column?(col), "a skerry stands apart from the island (#{col})"
@@ -281,8 +311,7 @@ class IslandTests
     gallery = isle.galleries.find { |g| g[:dome] }
 
     args.state.diver_global_x = gallery[:to] - IslandWorld::DOME_SPAN.idiv(2)
-    args.state.depth_y = 99_999 # float up as far as the rock allows
-    game.update_depth_and_camera
+    rise_to_the_roof(game, args)
 
     assert.true! game.breathing?, "his head is in the trapped air up there"
     assert.false! game.at_open_surface?, "deep inside the island, nowhere near daylight"
@@ -448,8 +477,7 @@ class IslandTests
     args.state.island_sectors = [1]
     args.state.world_cache = {} # initialize_game already cached segments for the rolled sectors
     args.state.diver_global_x = chamber_x(1)
-    args.state.depth_y = 99_999 # float up as far as the rock allows
-    game.update_depth_and_camera
+    rise_to_the_roof(game, args)
 
     assert.true! game.breathing?, "his head is in the trapped air"
     assert.false! game.at_open_surface?, "but he is nowhere near daylight"

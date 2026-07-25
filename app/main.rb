@@ -379,10 +379,15 @@ class Game
   # waterline in open water, or the underside of a cave roof. The floor gives
   # way to the ceiling where they conflict, so a wall of rock leaves him
   # floating beside it rather than flying over it.
+  #
+  # It reads the pocket with his full stride (SOLID_STEP_UP), the same as the
+  # sideways move: once he has stepped onto a terrace, the clamp has to lift him
+  # onto it. Reading it without the stride would decide he was standing *under*
+  # the slab he just climbed and drop him through the island.
   def clamp_depth
-    floor, ceiling = rock_span_at(state.diver_global_x, state.depth_y)
+    floor, ceiling = rock_span_at(state.diver_global_x, state.depth_y, SOLID_STEP_UP)
     bottom = floor + Diver::HEIGHT
-    top = depth_ceiling(ceiling, state.diver_global_x)
+    top = depth_ceiling(ceiling, state.diver_global_x, floor)
 
     state.depth_y = bottom if state.depth_y < bottom
     state.depth_y = top if state.depth_y > top
@@ -391,11 +396,22 @@ class Game
   # As high as he can rise here. He floats at whatever water surface is above
   # him — the sea's, or the one inside an air chamber — and otherwise stops at
   # the rock of a cave roof. Whichever is lowest wins.
-  def depth_ceiling(ceiling, world_x)
-    limits = [WATERLINE_Y - SURFACE_FLOAT_DEPTH] # only head and shoulders show
+  #
+  # Except that ground beats the surface: where the rock he is standing on lifts
+  # him past the waterline he stands on it, in the air. Wading up a beach and
+  # walking over an island is the same thing as resting on the sand, only on the
+  # other side of the water. And standing is *all* he does up there — his own
+  # ground is his ceiling too, so there is no swimming up into the sky.
+  def depth_ceiling(ceiling, world_x, floor)
+    limits = [[WATERLINE_Y - SURFACE_FLOAT_DEPTH, floor + Diver::HEIGHT].max]
     limits << ceiling - Diver::HEIGHT if ceiling
+    # Only air that is actually over him. air_line_at knows a pocket by its x
+    # alone, and a chamber deep inside an island shares its x with the mountain
+    # above it — so once walking over the top became possible, that surface
+    # reached up through a hundred metres of rock and pulled him down into the
+    # cave. A ceiling stops a rise; it must never haul him down from above.
     air = air_line_at(world_x)
-    limits << air - SURFACE_FLOAT_DEPTH if air
+    limits << air - SURFACE_FLOAT_DEPTH if air && air >= state.depth_y
     limits.min
   end
 
@@ -442,7 +458,7 @@ class Game
   def blocked?(world_x)
     feet = state.depth_y - Diver::HEIGHT
     head = state.depth_y + Diver::HEIGHT
-    floor, ceiling = rock_span_at(world_x, state.depth_y)
+    floor, ceiling = rock_span_at(world_x, state.depth_y, SOLID_STEP_UP)
     return true if floor > feet + SOLID_STEP_UP
     return false unless ceiling
     return true if ceiling < head - SOLID_STEP_UP
@@ -467,11 +483,11 @@ class Game
   # or bottommost rock but the *pocket he is actually in*: what he rests on, and
   # what he'd bump his head on. Read across his whole footprint, so he only fits
   # where he fits on both sides of himself.
-  def rock_span_at(world_x, depth)
+  def rock_span_at(world_x, depth, reach = 0)
     floors = []
     ceilings = []
     footprint(world_x).each do |x|
-      floor, ceiling = pocket_at(x, depth)
+      floor, ceiling = pocket_at(x, depth, reach)
       floors << floor
       ceilings << ceiling
     end
@@ -479,13 +495,14 @@ class Game
   end
 
   # The pocket at a single world x: the sand, raised to the top of any slab he is
-  # swimming over, and the underside of the lowest slab above him (nil if the
-  # water is open to the sky).
-  def pocket_at(world_x, depth)
+  # standing on, and the underside of the lowest slab above him (nil if the water
+  # is open to the sky). `reach` is how far up he takes a step in his stride —
+  # rock within it is ground he climbs onto rather than a wall he swims into.
+  def pocket_at(world_x, depth, reach = 0)
     floor = floor_y_at(world_x)
     ceiling = nil
     slabs_at(world_x).each do |slab|
-      if over_slab?(slab, depth)
+      if over_slab?(slab, depth, reach)
         floor = slab[:crown] if slab[:crown] > floor
       elsif ceiling.nil? || slab[:ceiling] < ceiling
         ceiling = slab[:ceiling]
@@ -494,12 +511,18 @@ class Game
     [floor, ceiling]
   end
 
-  # He is over a slab only if he is above it *and* there is enough water left
-  # above it to fit him — a hand's breadth of rock under the surface is a wall,
-  # not a ledge to swim over.
-  def over_slab?(rock, depth)
-    depth - Diver::HEIGHT >= rock[:crown] &&
-      rock[:crown] + Diver::HEIGHT * 2 <= WATERLINE_Y
+  # He is over a slab if his feet are on top of it, or close enough under its top
+  # to step up — the same tolerance the sand has always had. Rock needed it too:
+  # without it an island's terraces are a staircase he can see and never climb.
+  #
+  # The stride is safe against stepping *through* rock because every slab in the
+  # world is thicker than it (ROCK_SPAN is 64 against a 48 px stride, and an
+  # island or a skerry is far thicker) — so feet within a stride of the top are
+  # necessarily above the bottom. The second test says so out loud rather than
+  # leaving it to that arithmetic.
+  def over_slab?(rock, depth, reach = 0)
+    feet = depth - Diver::HEIGHT
+    feet + reach >= rock[:crown] && feet >= rock[:ceiling]
   end
 
   def footprint(world_x)
