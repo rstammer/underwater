@@ -61,14 +61,32 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
   `Game`; zeichnet Wasser, Himmel, Boden, Fels, Luftblasen, Deko, Boot),
   `fog_of_war`
 - `app/ux/` — `hud` (reopenet `Game`: O2- und Anzug-Balken, Locator, Tiefenanzeige,
-  Debug-Readout) und `story` (der Eröffnungstext, den das Boot erzählt)
+  Debug-Readout, und **alle laufenden Meldungen** — s. u.) und `story` (der
+  Eröffnungstext, den das Boot erzählt)
+  - **Laufende Meldungen** (`render_messages`): was im Sucher ist, was in
+    Reichweite liegt, was gerade fotografiert wurde — alles **am unteren Rand**,
+    nicht mehr über den Bildschirm verstreut (dort steht der Taucher). **Jede Art
+    hat ihren festen Slot** (`SLOT_PHOTO`/`SLOT_PICKUP`/`SLOT_NOTE`/`SLOT_NEW`)
+    statt nachzurücken: eine Zeile, die springt, weil woanders etwas auftauchte,
+    liest sich schlechter als eine Lücke. Jede Box wird per `calcstringbox` um
+    ihren Text gemessen. Der **Blitz** (`render_flash`) ist keine Meldung und
+    bleibt vollflächig.
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
   Seetang, Fels, Boot; für die Inseln: Palme groß/klein, Busch, Gras, Treibholz,
-  Krabbe, Fahne, Möwe)
-- `tools/make_decor_sprites.rb` — erzeugt diese PNGs aus ASCII-Art + Palette,
-  nur mit Ruby-Stdlib (`ruby tools/make_decor_sprites.rb sprites/decor`).
-  Läuft in **MRI**, nicht in DragonRuby — reines Autoren-Werkzeug.
+  Fahne, Möwe)
+- `sprites/animals/crustaceans/` — die Krebse (`tools/make_species_sprites.rb`):
+  Form und Palette sind getrennt, eine neue Art ist eine Palette statt einer
+  neuen Zeichnung; der Laufzyklus wird **erzeugt** (Beinpixel um eine Spalte
+  verschoben) statt gezeichnet.
+- `sprites/diver_land.png` — der Taucher an Land (`tools/make_diver_land_sprites.rb`):
+  **abgeleitet** vom Schwimm-Sheet, nicht neu gezeichnet — Palette daraus gesampelt,
+  Kopf/Flasche/Rumpf aus dessen erstem aufrechten Frame getraced, nur die
+  Gliedmaßen neu (Arme unten, Flossen flach nach vorn). Gleiches Sheet-Layout,
+  deshalb tauscht `Diver#to_h` nur den Pfad.
+- **Alle Sprite-Werkzeuge** (`tools/make_*_sprites.rb`) erzeugen PNGs aus ASCII-Art
+  + Palette, nur mit Ruby-Stdlib, und laufen in **MRI**, nicht in DragonRuby —
+  reine Autoren-Werkzeuge. **Vor dem Einbau hochskaliert anschauen.**
 - `sounds/` — Audio
 
 ### Spiel-Loop (`Game#tick`)
@@ -592,6 +610,19 @@ Screen-Positionen und werden nicht direkt gesetzt.
   des Wassers. Oben gilt automatisch alles Übrige: `breathing?` wahr (O2 füllt
   auf), `at_open_surface?` wahr (kein Fog, Fische unsichtbar, **Strandkrebse
   fotografierbar**).
+- **Land-Physik** (`state.on_land`, gesetzt in `clamp_depth`): keine Vertikal­eingabe
+  (kein Hochschwimmen am Berg), **Schwerkraft statt Auftrieb** (`fall_toward`, von
+  der Kante fällt er statt zu springen), Laufen mit `LAND_SPEED`=0.6, kein Sprint,
+  keine Sprite-Neigung, und **eigenes Sprite** (`Diver::LAND_PATH`).
+  - **Springen (Leertaste, `update_jump`)**: nur an Land und nur vom Boden
+    (`state.airborne`). Technisch ist es dieselbe Kurve wie das Fallen, rückwärts
+    gelesen — `state.fall` startet negativ. Gemessen: **33 px hoch, 0,33 s**.
+  - **Der Sprung ist an die Felswand gekoppelt.** Er erhöht, wie hoch er greifen
+    kann (Schritt 48 + Sprung 33 = 81 px), also ist `IslandWorld::CLIFF_MIN`=128
+    **dagegen** bemessen (+16 px, die die Krone wegrastet → Wand ≥112). **Wer die
+    Sprunghöhe hochdreht, muss `CLIFF_MIN` mitziehen** — `room_for_a_wall?` passt
+    eine zu niedrige blockierte Insel dann auf `:through` herunter, statt eine
+    überspringbare Wand zu bauen.
 - **Inseln & Höhlen:** `ISLAND_COUNT` bewachsene Inseln ragen aus dem Wasser, jede
   mit eigener Form und Größe — eine davon in Sichtweite (1–3 Sektoren), der Rest
   weiter draußen. Durch jede führt **unten ein Tunnel**, mit einer **Luftkammer**
@@ -633,6 +664,7 @@ Screen-Positionen und werden nicht direkt gesetzt.
   `:drowned`. O2-Balken-HUD wird bei <30 % rot.
 - **Sprint:** Sprint-Taste (Leertaste) halten *während* man schwimmt →
   Geschwindigkeit ×`SPRINT_MULTIPLIER` und O2-Verbrauch ×`SPRINT_MULTIPLIER`.
+  **Nur im Wasser** — an Land ist dieselbe Taste der Hüpfer (`sprint_active?`).
   Reine Entscheidung in `sprint_active?` (nie in pausierten Szenen), Effekt über
   `state.speed` / `oxygen_drain`. Taste im Stehen kostet nichts. Kein Konflikt
   mit `fire_input?` (das nutzt `key_down`, nur in pausierten Szenen).
@@ -688,6 +720,8 @@ Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
 `DOME_RISE`; Galerien: `GALLERY_MIN/MAX`, `GALLERY_HEIGHT`, `GALLERY_RISE`,
 `ROCK_SPAN`, `SHAFT_W`, `GALLERY_GAP`; Skerries: `SKERRY_LIP_MIN/MAX`, `SKERRY_DEPTH`.
 
+`app/main.rb` (Land): `LAND_SPEED=0.6`, `LAND_GRAVITY=0.6`, `LAND_FALL_MAX=14`,
+`JUMP_SPEED=6.0` (**hängt mit `IslandWorld::CLIFF_MIN` zusammen**, s. o.).
 `app/main.rb`: `WATERLINE_Y=SCREEN_HEIGHT`, `CAMERA_ANCHOR=SCREEN_HEIGHT/2`,
 `CAMERA_ANCHOR_X=SCREEN_WIDTH/2`, `FLOOR_VIEW_MARGIN=240`, `CAMERA_FLOOR_SLACK=60`,
 `CAMERA_EASE=0.1`,
