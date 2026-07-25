@@ -60,9 +60,15 @@ class Game
     ]
   end
 
-  # Triggered by the water closing over him, not by a timer or a key.
+  # Brought up by the water closing over him, and retired once he has swum on
+  # down. Both are one-way: the card shows once per round and goes once.
   def update_dive_hint
-    return unless state.dive_hint_pending
+    return raise_dive_hint if state.dive_hint_pending
+
+    dismiss_dive_hint if state.dive_hint_at && done_reading?
+  end
+
+  def raise_dive_hint
     return if at_open_surface?
 
     state.dive_hint_pending = false
@@ -70,14 +76,21 @@ class Game
     state.dive_hint_depth = current_depth # where he was when he started reading
   end
 
-  # It goes when he has swum on down — you read it hanging just under the
-  # surface, and by the time you are properly on your way it is out of the way.
-  # The clock is only a backstop for someone who hovers there and reads twice.
-  def dive_hint_visible?
-    return false unless state.dive_hint_at
-    return false if Kernel.tick_count - state.dive_hint_at >= DIVE_HINT_TICKS
+  # You read it hanging just under the surface; by the time you are properly on
+  # your way down it is out of the way. The clock is only a backstop for someone
+  # who hovers there and reads it twice.
+  #
+  # It matters that this *retires* the card rather than being asked every frame.
+  # As a live condition on how deep he is now, it came back the moment he rose
+  # again — so surfacing for air put the camera's rules back on the screen beside
+  # the boat, the one place they mean nothing.
+  def done_reading?
+    Kernel.tick_count - state.dive_hint_at >= DIVE_HINT_TICKS ||
+      current_depth - state.dive_hint_depth >= DIVE_HINT_METRES
+  end
 
-    current_depth - state.dive_hint_depth < DIVE_HINT_METRES
+  def dive_hint_visible?
+    !!state.dive_hint_at
   end
 
   # Once he has actually taken a picture the card has done its job.

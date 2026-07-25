@@ -227,10 +227,33 @@ class IntroTests
     assert.true! game.dive_hint_visible?, "it's there while he reads"
 
     args.state.depth_y -= (Game::DIVE_HINT_METRES - 2) * PIXELS_PER_METRE
+    game.update_dive_hint # the tick asks every frame; so does this
     assert.true! game.dive_hint_visible?, "a metre or two doesn't count as leaving"
 
     args.state.depth_y -= 4 * PIXELS_PER_METRE
+    game.update_dive_hint
     assert.false! game.dive_hint_visible?, "but swimming on down puts it away"
+  end
+
+  # Putting it away has to be one-way. Written as a live condition on how deep he
+  # is *now*, the card came back the moment he rose again — and surfacing for air
+  # brought it up beside the boat, the one place its rules mean nothing.
+  def test_the_camera_rules_stay_gone_when_he_comes_back_up(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.dive_hint_pending = true
+    args.state.depth_y = WATERLINE_Y - 3 * PIXELS_PER_METRE
+    game.update_dive_hint
+    assert.true! game.dive_hint_visible?, "it's there while he reads"
+
+    args.state.depth_y -= (Game::DIVE_HINT_METRES + 4) * PIXELS_PER_METRE
+    game.update_dive_hint
+    assert.false! game.dive_hint_visible?, "swimming on down puts it away"
+
+    args.state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH # up for a breath
+    game.update_dive_hint
+
+    assert.false! game.dive_hint_visible?, "and coming back up does not bring it back"
   end
 
   # And a backstop for someone who hovers there rather than diving.
@@ -243,6 +266,7 @@ class IntroTests
     assert.true! game.dive_hint_visible?
 
     args.state.dive_hint_at = Kernel.tick_count - Game::DIVE_HINT_TICKS - 1
+    game.update_dive_hint
 
     assert.false! game.dive_hint_visible?, "it doesn't hang there for ever"
   end
