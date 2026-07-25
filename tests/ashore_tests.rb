@@ -130,8 +130,11 @@ class AshoreTests
   # can quietly stop being true about, and only a diver actually swimming at it
   # finds that out.
 
+  # Ask the island, not the roll: a blocked island too low to carry both a dry
+  # shelf and a wall over it is fitted down to a walkable one, so the roll and
+  # what is actually out there are not the same thing.
   def sector_with_shore(kind)
-    (1..60).find { |s| IslandWorld.shape_for(s)[:shore] == kind }
+    (1..60).find { |s| IslandWorld.new(WorldGenerator.generate(s), s).shore == kind }
   end
 
   # Swim in at the surface from one side and see where the island lets him get to.
@@ -159,8 +162,11 @@ class AshoreTests
     game
   end
 
+  # Counted on the islands themselves rather than on the rolls: the fitting takes
+  # blocked islands away when they are too low to carry a wall, so this is the
+  # test that would notice if it took nearly all of them.
   def test_the_sea_holds_all_three_kinds_of_shore(args, assert)
-    kinds = (1..60).map { |s| IslandWorld.shape_for(s)[:shore] }
+    kinds = (1..60).map { |s| IslandWorld.new(WorldGenerator.generate(s), s).shore }
     IslandWorld::SHORES.each do |kind|
       assert.true! kinds.count(kind) >= 8,
                    "#{kind} shores turn up (#{kinds.count(kind)} in 60 sectors)"
@@ -316,6 +322,104 @@ class AshoreTests
     assert.equal! args.state.depth_y, low + Diver::HEIGHT, "he lands on the lower terrace"
     assert.true! ticks > 5, "and took a moment getting there (#{ticks} ticks)"
     assert.true! biggest < high - low, "never covering the whole drop in one frame (#{biggest})"
+  end
+
+  # --- hopping ---------------------------------------------------------------
+
+  def test_the_space_bar_is_a_hop_on_land(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    crown = WATERLINE_Y + 120
+    standing_on(args, game, crown)
+    ground = args.state.depth_y
+    game.define_singleton_method(:wants_jump?) { true }
+
+    game.basic_movements_per_tick
+    game.clamp_depth
+    highest = args.state.depth_y
+    120.times do
+      game.clamp_depth
+      highest = args.state.depth_y if args.state.depth_y > highest
+    end
+
+    assert.true! highest > ground, "he leaves the ground (#{highest - ground} px)"
+    assert.true! highest - ground < Diver::HEIGHT * 2,
+                 "but it is a hop, not a leap (#{highest - ground} px)"
+    assert.equal! args.state.depth_y, ground, "and he comes back down to it"
+  end
+
+  def test_there_is_no_hopping_off_thin_air(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    crown = WATERLINE_Y + 120
+    standing_on(args, game, crown)
+    ground = args.state.depth_y
+    game.define_singleton_method(:wants_jump?) { true }
+
+    # Hold the key down the whole way up: it must not wind him higher and higher.
+    highest = ground
+    120.times do
+      game.basic_movements_per_tick
+      game.clamp_depth
+      highest = args.state.depth_y if args.state.depth_y > highest
+    end
+
+    assert.true! highest - ground < Diver::HEIGHT * 2,
+                 "one hop's worth of height, however long you hold it (#{highest - ground} px)"
+  end
+
+  def test_in_the_water_the_space_bar_is_still_the_sprint(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.island_sectors = []
+    args.state.world_cache = {}
+    afloat_at(args, game, 640)
+    args.state.depth_y = -400
+    game.clamp_depth
+    game.define_singleton_method(:will_sprint?) { true }
+    game.define_singleton_method(:moving?) { true }
+
+    game.update_sprint
+
+    assert.true! args.state.sprinting, "down here it still makes him go faster"
+  end
+
+  def test_on_land_the_space_bar_is_not_a_sprint(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    standing_on(args, game, WATERLINE_Y + 120)
+    game.define_singleton_method(:will_sprint?) { true }
+    game.define_singleton_method(:moving?) { true }
+
+    game.update_sprint
+
+    assert.false! args.state.sprinting, "up here the same key is a hop"
+  end
+
+  # The promise the blocked island makes. A hop raises how high he can reach, so
+  # the wall has to be built past stride *and* hop — this walks at it doing
+  # nothing but jumping, for as long as it takes.
+  def test_no_amount_of_hopping_gets_him_over_the_wall(args, assert)
+    game = diving(args)
+    sector = sector_with_shore(:blocked)
+    sand_left = IslandWorld.shape_for(sector)[:beach_left]
+    walk = walk_in(game, args, sector, sand_left)
+    assert.true! walk[:ashore], "he is up on the shelf to begin with"
+    isle = walk[:isle]
+    stopped = args.state.diver_global_x
+
+    game.define_singleton_method(:wants_jump?) { true }
+    4000.times do
+      game.basic_movements_per_tick
+      game.clamp_depth
+      game.swim_sideways(sand_left ? 2 : -2)
+      game.clamp_depth
+    end
+
+    got = args.state.diver_global_x
+    assert.true! (sand_left ? got - stopped : stopped - got) < 64,
+                 "the wall is still a wall (#{stopped} -> #{got})"
+    assert.true! got > isle.first_x && got < isle.last_x, "and he is still on the island"
   end
 
   # The island must never be a trap. Walking up a beach costs no air, but the

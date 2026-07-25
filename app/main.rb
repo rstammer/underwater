@@ -59,6 +59,10 @@ SOLID_STEP_UP = 48 # ledge he still slips over sideways; anything higher is a wa
 LAND_SPEED = 0.6   # walking in flippers: a waddle, not a swim
 LAND_GRAVITY = 0.6 # px per tick² he gathers stepping off a terrace ...
 LAND_FALL_MAX = 14 # ... and the fastest he ever falls
+JUMP_SPEED = 6.0   # the push of a hop. Against LAND_GRAVITY that peaks about 33 px
+                   # up — half his own height, which is what "a small hop" means.
+                   # IslandWorld::CLIFF_MIN is set against stride + this, so raising
+                   # it is raising how high a wall has to be to still be a wall
 ISLAND_MIN_SECTOR = 2 # no island lands on the home sector ...
 ISLAND_MAX_SECTOR = 10 # ... nor further out than this
 ISLAND_NEAR_SECTOR = 3 # ... except the first one, which always lands this close
@@ -139,8 +143,9 @@ class Game
     state.touch_ids = []
     state.touch_began = false
     state.swim_pose = false
-    state.on_land = false # set every tick from the rock under him (clamp_depth)
-    state.fall = 0        # how fast he is dropping, when he is dropping
+    state.on_land = false  # set every tick from the rock under him (clamp_depth)
+    state.fall = 0         # how fast he is dropping, when he is dropping ...
+    state.airborne = false # ... and whether his feet are off the ground at all
     state.initialized = true
 
     state.album = {} # species documented for good — the one thing dying can't take
@@ -323,7 +328,9 @@ class Game
     # None of it on land: there is no swimming up a mountain, and what brings him
     # down there is gravity rather than buoyancy (see clamp_depth). To get off an
     # island you walk back down the beach the way you came up it.
-    unless on_land?
+    if on_land?
+      update_jump
+    else
       if will_up?
         state.depth_y += state.speed
       elsif will_down?
@@ -408,6 +415,7 @@ class Game
     if state.depth_y < bottom
       state.depth_y = bottom
       state.fall = 0
+      state.airborne = false
     elsif state.depth_y > top
       # Above where he belongs. Between one terrace and the next that is a fall;
       # anywhere the ground below him is sea it stays the snap it has always
@@ -415,6 +423,7 @@ class Game
       on_land? ? fall_toward(top) : state.depth_y = top
     else
       state.fall = 0
+      state.airborne = false
     end
   end
 
@@ -424,7 +433,10 @@ class Game
 
   # Step off a terrace and he drops, gathering speed, until the ground catches
   # him. Snapping him to the rock below in a single frame read as a teleport.
+  # A hop is the same arc read backwards: state.fall starts out negative, so the
+  # first ticks carry him up before gravity turns him round.
   def fall_toward(top)
+    state.airborne = true
     state.fall = (state.fall || 0) + LAND_GRAVITY
     state.fall = LAND_FALL_MAX if state.fall > LAND_FALL_MAX
     state.depth_y -= state.fall
@@ -432,6 +444,27 @@ class Game
 
     state.depth_y = top
     state.fall = 0
+    state.airborne = false
+  end
+
+  # A hop, on the space bar. Only up on an island — in the water the same key is
+  # the sprint, and there is nothing to push off from anyway. Only from the
+  # ground, too: holding the key down must not wind him up into the sky.
+  #
+  # It lifts him clear this very tick, because clamp_depth runs after this and
+  # would otherwise find him still resting on the rock and put the speed back to
+  # nothing.
+  def update_jump
+    return unless wants_jump?
+    return if state.airborne
+
+    state.fall = -JUMP_SPEED
+    state.depth_y -= state.fall
+    state.airborne = true
+  end
+
+  def wants_jump?
+    inputs.keyboard.key_down.space || inputs.controller_one.key_down.a
   end
 
   # As high as he can rise here. He floats at whatever water surface is above
@@ -590,6 +623,7 @@ class Game
 
   def sprint_active?(sprint_key, moving)
     return false if game_paused?
+    return false if on_land? # up here the space bar is a hop, not a sprint
 
     !!sprint_key && !!moving
   end

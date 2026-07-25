@@ -19,8 +19,11 @@ class IslandTests
   # several of these tests are about the rock coast in particular — the shore
   # that stands out of the water and has stacks off it. Ask for the kind under
   # test rather than trusting sector 4 to keep rolling one.
+  # Ask the island, not the roll: a blocked island too low to carry both a dry
+  # shelf and a wall over it is fitted down to a walkable one, so the roll and
+  # what is actually out there are not the same thing.
   def sector_with_shore(kind)
-    (1..60).find { |s| IslandWorld.shape_for(s)[:shore] == kind }
+    (1..60).find { |s| IslandWorld.new(WorldGenerator.generate(s), s).shore == kind }
   end
 
   def rock_island

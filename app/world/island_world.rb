@@ -26,8 +26,10 @@ class IslandWorld
                        # of a floating diver and he wades ashore
   SHELF_TOP = 64       # how far out of the water a blocked island's beach shelf
                        # levels off — low ground you walk in onto
-  CLIFF_MIN = 96       # ... and how far under the rock at the cliff it must stay,
-                       # so the step up there is never one he could take
+  CLIFF_MIN = 128      # ... and how far under the rock at the cliff it must stay.
+                       # Sized against what he can actually reach: SOLID_STEP_UP
+                       # (48) plus the top of a hop (~33), plus the CROWN_STEP the
+                       # crown snaps away. Raise the hop and this has to follow
   BEACH_SAND_HEIGHT = 96 # how high above the water a sand shore still reads as
                        # beach and is drawn as sand. Matches GREEN_MIN, so the
                        # sand stops exactly where the grass starts
@@ -148,12 +150,25 @@ class IslandWorld
 
   # --- How the island meets the water --------------------------------------
 
+  # How this island meets the water. Rolled — but a blocked island has to be tall
+  # enough to carry *both* halves of what it promises: a shelf that is dry land,
+  # and above it a wall nobody gets over. Where the island is too low for both,
+  # it simply isn't that kind of island and is walkable through instead — fitted
+  # rather than set, the same as a gallery that has nowhere to run.
+  def shore
+    @shore_kind ||= @shore == :blocked && !room_for_a_wall? ? :through : @shore
+  end
+
+  def room_for_a_wall?
+    raw_crown_at(cliff_x) - CLIFF_MIN >= WATERLINE_Y + CROWN_STEP
+  end
+
   def beach?
-    @shore != :rock
+    shore != :rock
   end
 
   def crossable?
-    @shore == :through
+    shore == :through
   end
 
   # The side you can walk in from: sand rather than a rock face. Both ends of a
