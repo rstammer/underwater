@@ -252,10 +252,9 @@ class PhotographyTests
 
     game.home_menu_tick
 
-    footer = (args.grid.h - Game::MENU_H) / 2 + Game::MENU_PAD
-    below = args.outputs.labels.select { |l| l[:y] < footer - 2 }
-    assert.equal! below.length, 0,
-                  "nothing is drawn under the footer (#{below.map { |l| l[:text] }.inspect})"
+    below = args.outputs.labels.flatten.select { |l| l[:y] < game.body_bottom - 2 }
+    assert.equal! below.length, 1,
+                  "only the footer hint sits down there (#{below.map { |l| l[:text] }.inspect})"
   end
 
   # The Artenbuch lists only what you've seen — sighted or documented — so it

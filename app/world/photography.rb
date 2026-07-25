@@ -169,6 +169,7 @@ class Game
       state.album[shot[:key]] = shot[:quality]
     end
     state.credits += earned
+    state.log_earned += earned
     state.last_payment = earned # so the boat can say what the magazine paid
     developed = state.film_roll.length
     state.film_roll = []

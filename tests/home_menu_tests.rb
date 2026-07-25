@@ -137,7 +137,7 @@ class HomeMenuTests
 
     rows = Hash[game.logbook_rows]
 
-    assert.equal! rows["Tiefster Tauchgang"], "137 m"
+    assert.equal! rows["Tiefster Punkt"], "137 m"
     assert.equal! rows["Inseln gefunden"], "1 / #{ISLAND_COUNT}"
     assert.equal! rows["Sektoren erkundet"], "3"
     assert.equal! rows["Höhlen durchtaucht"], "0"
@@ -152,5 +152,90 @@ class HomeMenuTests
     game.home_menu_tick
 
     assert.true! true, "the logbook draws over the frozen world"
+  end
+
+  # --- the frame holds ------------------------------------------------------
+  #
+  # Three pages now, on nearly the whole screen. Each is measured against the
+  # frame rather than looked at: the Artenbuch already once ran its last rows
+  # down through the footer and printed over it.
+
+  def at_the_boat_with_things(args)
+    game = build_game(args)
+    game.initialize_game(0)
+    game.spawn_at_surface
+    args.state.game_scene = "area1"
+    args.state.sighted = Species::ALL.each_with_object({}) { |sp, h| h[sp.key] = true }
+    args.state.inventory = ["jewel", "can"]
+    args.state.stash = ["can", "can", "key", "bottle", "shoe"]
+    args.state.credits = 1234
+    game.toggle_home_menu(true)
+    game
+  end
+
+  def test_every_page_stays_inside_the_frame(args, assert)
+    game = at_the_boat_with_things(args)
+
+    Game::BOAT_PAGES.each do |page|
+      args.state.boat_page = page[:id]
+      args.outputs.labels.clear
+      args.outputs.sprites.clear
+      game.home_menu_tick
+
+      labels = args.outputs.labels.flatten
+      low = labels.select { |l| l[:y] < game.body_bottom - 2 }
+      assert.true! low.length <= 1,
+                   "#{page[:title]}: nothing but the footer below the frame " \
+                   "(#{low.map { |l| l[:text] }.inspect})"
+      high = labels.select { |l| l[:y] > game.menu_top }
+      assert.equal! high.length, 0, "#{page[:title]}: and nothing above it"
+    end
+  end
+
+  # Tab has to reach all three, and come back round.
+  def test_tab_walks_all_three_pages(args, assert)
+    game = at_the_boat_with_things(args)
+    seen = []
+
+    Game::BOAT_PAGES.length.times do
+      seen << args.state.boat_page
+      args.inputs.keyboard.key_down.tab = true
+      game.update_boat_page
+    end
+
+    assert.equal! seen.uniq.length, Game::BOAT_PAGES.length, "each page once (#{seen.inspect})"
+    assert.equal! args.state.boat_page, seen.first, "and round to where it started"
+  end
+
+  # The log is a career, not just this dive — that contrast is the point of it.
+  def test_the_logbook_page_shows_the_career_as_well_as_the_dive(args, assert)
+    game = at_the_boat_with_things(args)
+    args.state.log_deepest = 88
+    args.state.log_best = 214
+    args.state.log_dives = 9
+    args.state.log_sold = 4
+    args.state.log_earned = 3200
+    args.state.boat_page = :log
+
+    game.home_menu_tick
+    text = args.outputs.labels.flatten.map { |l| l[:text] }.join("  ")
+
+    assert.true! text.include?("88 m"), "this dive's deepest"
+    assert.true! text.include?("214 m"), "and the deepest ever"
+    assert.true! text.include?("9"), "how many dives"
+    assert.true! text.include?("3200 Cr"), "and what it has all been worth"
+  end
+
+  # The balance moved into the head band, so it is on every page now.
+  def test_the_balance_is_on_every_page(args, assert)
+    game = at_the_boat_with_things(args)
+
+    Game::BOAT_PAGES.each do |page|
+      args.state.boat_page = page[:id]
+      args.outputs.labels.clear
+      game.home_menu_tick
+      text = args.outputs.labels.flatten.map { |l| l[:text] }.join("  ")
+      assert.true! text.include?("1234 Cr"), "#{page[:title]} shows the balance"
+    end
   end
 end

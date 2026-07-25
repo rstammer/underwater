@@ -172,6 +172,8 @@ class Game
 
     state.stash.delete_at(state.stash.index(stack[:kind]))
     state.credits += ITEM_VALUES[stack[:kind]]
+    state.log_earned += ITEM_VALUES[stack[:kind]]
+    state.log_sold += 1
     state.last_payment = ITEM_VALUES[stack[:kind]]
     clamp_exchange # selling the last of a kind takes its row away
   end

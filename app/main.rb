@@ -154,6 +154,12 @@ class Game
     # take it — only the undeveloped film goes down with you.
     state.credits = 0
     state.last_payment = nil
+    # What the logbook remembers past this one dive. Carried in the save file
+    # with everything else, because a career you cannot look back on is a tally.
+    state.log_dives = 0
+    state.log_best = 0    # deepest he has ever been
+    state.log_sold = 0    # finds sold from the boat
+    state.log_earned = 0  # every credit ever taken in, spent or not
     state.album = {} # species documented for good — the one thing dying can't take
     state.sighted = {} # species laid eyes on — the Artenbuch only lists what you've seen
     # What is on disk from last time. Loaded, not applied: the title asks first,
@@ -835,6 +841,7 @@ class Game
   # breathe in its trapped air.
   def track_log
     state.log_deepest = current_depth if current_depth > state.log_deepest
+    state.log_best = current_depth if current_depth > state.log_best
     state.log_sectors[world_index] = true
     state.log_islands[world_index] = true if state.island_sectors.include?(world_index)
     state.log_caves[world_index] = true if breathing? && !at_open_surface?
@@ -872,7 +879,9 @@ class Game
   def save_book(path = book_path)
     $gtk.write_file(path, SaveFile.encode(name: state.player_name,
                                           album: state.album, sighted: state.sighted,
-                                          seed: state.world_seed, credits: state.credits))
+                                          seed: state.world_seed, credits: state.credits,
+                                          dives: state.log_dives, best: state.log_best,
+                                          sold: state.log_sold, earned: state.log_earned))
   end
 
   # Carry the saved book on: same diver, same pages, same sea, straight into the
@@ -884,7 +893,13 @@ class Game
     state.sighted = book[:sighted]
     # A book written before seas had seeds hasn't got one; that diver gets a
     # fresh sea rather than an error.
-    state.credits = book[:credits]
+    # Defaulted, not trusted: a book saved before any of these existed simply
+    # hasn't got them, and a career that starts at nil crashes on its first dive.
+    state.credits = book[:credits] || 0
+    state.log_dives = book[:dives] || 0
+    state.log_best = book[:best] || 0
+    state.log_sold = book[:sold] || 0
+    state.log_earned = book[:earned] || 0
     state.world_seed = book[:seed] || new_world_seed
     reset_game # rebuild the world from that seed before he is put in it
     start_round(told: true)
@@ -898,6 +913,10 @@ class Game
     state.sighted = {}
     state.player_name = ""
     state.credits = 0
+    state.log_dives = 0
+    state.log_best = 0
+    state.log_sold = 0
+    state.log_earned = 0
     state.world_seed = new_world_seed
     reset_game
     state.game_scene = "name"

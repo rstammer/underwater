@@ -63,6 +63,7 @@ class Game
   # moment he first goes under — unless he has been here before (told:), in which
   # case he needs neither them nor the opening screen.
   def start_round(told: false)
+    state.log_dives += 1
     state.dive_hint_pending = !told
     state.dive_hint_at = nil
     spawn_at_surface

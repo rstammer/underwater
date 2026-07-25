@@ -1,25 +1,36 @@
+# The boat screen: home base, and by now the most important screen in the game —
+# what you carry against what lies in the hold, what you have sold, the Artenbuch
+# the whole thing is *for*, and the log of a career. Reopens Game.
+#
+# It takes nearly the whole screen, in three pages behind a row of tabs. It used
+# to be a 900x470 box with two pages and no way to see there was a second one,
+# which was fine while it held four numbers and a list.
 class Game
-  MENU_W = 900
-  MENU_H = 470
-  MENU_BG = [14, 34, 54]
+  MENU_BG = [12, 30, 48]
+  MENU_PANEL = [17, 41, 63]   # the boxes inside it, a shade up from the ground
   MENU_ACCENT = [120, 190, 220]
   MENU_INK = [232, 244, 252]
   MENU_DIM_INK = [150, 184, 208]
   MENU_WARN = [240, 200, 150]
 
-  MENU_PAD = 32
-  MENU_ROW_H = 52     # one line of the logbook, one row of either list
-  MENU_COL_W = 250    # the pack and hold columns
-  MENU_LOG_W = 250    # the tally on the left
-  MENU_ICON_X = 22    # where an item's icon sits inside its row
-  MENU_RULE_GAP = 8   # air between a column title and the rule under it
-  MENU_VEIL = 190     # how far the frozen world behind the screen is dimmed
+  MENU_MARGIN = 26            # air between the screen edge and the boat screen
+  MENU_PAD = 26
+  MENU_ROW_H = 52
+  MENU_ICON_X = 26
+  MENU_RULE_GAP = 8
+  MENU_VEIL = 190
+  MENU_HEAD_H = 74            # the band with the boat, the diver and the money
+  MENU_TAB_H = 46
+  MENU_FOOT_H = 44
 
-  # The boat screen, opened with L while you're at the boat. The world sits
-  # frozen behind a dim veil; this is home base — the round's dive tallied up on
-  # the left, and on the right what you carry against what lies in the hold, so
-  # you can trade the two around before heading back out. L or ESC drops you
-  # back in the water (handled in update_home_menu).
+  # The pages, in the order Tab walks them. Each carries the icon it is drawn
+  # with — a sprite the game already owns, so a tab looks like what it holds.
+  BOAT_PAGES = [
+    { id: :hold, title: "Lager", icon: "sprites/items/jewel.png" },
+    { id: :book, title: "Artenbuch", icon: "sprites/animals/scalar_32_16/blue.png" },
+    { id: :log,  title: "Logbuch", icon: "sprites/decor/boat.png" },
+  ]
+
   def home_menu_tick
     render_underwater # the frozen world behind the veil
     render_fog        # a no-op at the boat, where this screen lives — but the rule
@@ -28,79 +39,225 @@ class Game
     render_boat_screen
   end
 
-  # The boat screen has two pages: the round and the hold on one, the Artenbuch —
-  # what the whole thing is *for* — on the other. Tab turns the page.
+  # Tab walks the pages round. With three of them a toggle no longer says
+  # anything, which is why they are drawn as tabs now.
   def update_boat_page
     return unless state.game_scene == "home_menu"
     return unless inputs.keyboard.key_down.tab
 
-    state.boat_page = state.boat_page == :book ? :hold : :book
+    ids = BOAT_PAGES.map { |page| page[:id] }
+    state.boat_page = ids[(ids.index(state.boat_page).to_i + 1) % ids.length]
   end
 
   def book_page?
     state.boat_page == :book
   end
 
-  # The record rows, as [label, value] pairs — a plain method so the tally is
-  # testable without reaching into the rendered labels.
+  def hold_page?
+    state.boat_page == :hold
+  end
+
+  def log_page?
+    state.boat_page == :log
+  end
+
+  # --- the frame ------------------------------------------------------------
+
+  def menu_left
+    MENU_MARGIN
+  end
+
+  def menu_right
+    grid.w - MENU_MARGIN
+  end
+
+  def menu_bottom
+    MENU_MARGIN
+  end
+
+  def menu_top
+    grid.h - MENU_MARGIN
+  end
+
+  def menu_width
+    menu_right - menu_left
+  end
+
+  # Where the page's own content begins and ends, once the head, the tabs and the
+  # footer have taken theirs. Everything a page draws hangs off these two.
+  def body_top
+    menu_top - MENU_HEAD_H - MENU_TAB_H - 18
+  end
+
+  def body_bottom
+    menu_bottom + MENU_FOOT_H
+  end
+
+  def render_boat_screen
+    outputs.sprites << { x: menu_left, y: menu_bottom, w: menu_width, h: menu_top - menu_bottom,
+                         r: MENU_BG[0], g: MENU_BG[1], b: MENU_BG[2], path: :solid }
+    render_menu_head
+    render_menu_tabs
+    case state.boat_page
+    when :book then render_artenbuch_page
+    when :log then render_logbook_page
+    else render_hold_page
+    end
+    render_menu_foot
+  end
+
+  # The band across the top: whose boat, and what he is worth. The balance is the
+  # number this screen exists to move, so it gets the size and the gold.
+  def render_menu_head
+    top = menu_top
+    outputs.sprites << { x: menu_left, y: top - MENU_HEAD_H, w: menu_width, h: MENU_HEAD_H,
+                         r: MENU_PANEL[0], g: MENU_PANEL[1], b: MENU_PANEL[2], path: :solid }
+    outputs.sprites << { x: menu_left, y: top - 4, w: menu_width, h: 4,
+                         r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2], path: :solid }
+
+    sprite = BOAT_SPRITE
+    outputs.sprites << { x: menu_left + MENU_PAD, y: top - MENU_HEAD_H / 2,
+                         w: sprite[:w] * 2, h: sprite[:h] * 2, path: sprite[:path],
+                         anchor_x: 0, anchor_y: 0.5 }
+    outputs.labels << { x: menu_left + MENU_PAD + 100, y: top - 24, text: "Dein Boot",
+                        size_enum: 4, vertical_alignment_enum: 2,
+                        r: MENU_INK[0], g: MENU_INK[1], b: MENU_INK[2] }
+    outputs.labels << { x: menu_left + MENU_PAD + 100, y: top - 54, text: diver_name,
+                        size_enum: 1, vertical_alignment_enum: 2,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+
+    outputs.labels << { x: menu_right - MENU_PAD, y: top - 22, text: "#{state.credits} Cr",
+                        size_enum: 8, alignment_enum: 2, vertical_alignment_enum: 2,
+                        r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
+    outputs.labels << { x: menu_right - MENU_PAD, y: top - 58, text: "Guthaben",
+                        size_enum: 0, alignment_enum: 2, vertical_alignment_enum: 2,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+  end
+
+  MENU_TAB_W = 240
+
+  def render_menu_tabs
+    y = menu_top - MENU_HEAD_H - MENU_TAB_H
+    BOAT_PAGES.each_with_index do |page, i|
+      x = menu_left + MENU_PAD + i * (MENU_TAB_W + 10)
+      here = state.boat_page == page[:id]
+
+      outputs.sprites << { x: x, y: y, w: MENU_TAB_W, h: MENU_TAB_H,
+                           r: MENU_PANEL[0], g: MENU_PANEL[1], b: MENU_PANEL[2],
+                           a: here ? 255 : 130, path: :solid }
+      outputs.sprites << { x: x, y: y, w: MENU_TAB_W, h: 3,
+                           r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2],
+                           a: here ? 255 : 0, path: :solid }
+      outputs.sprites << { x: x + 26, y: y + MENU_TAB_H / 2, w: 26, h: 26,
+                           path: page[:icon], source_x: 0, source_y: 0,
+                           source_w: 32, source_h: 16, anchor_x: 0.5, anchor_y: 0.5,
+                           a: here ? 255 : 110 }
+      ink = here ? MENU_INK : MENU_DIM_INK
+      outputs.labels << { x: x + 50, y: y + MENU_TAB_H / 2 + 1, text: page[:title],
+                          size_enum: 2, vertical_alignment_enum: 1,
+                          r: ink[0], g: ink[1], b: ink[2] }
+    end
+    outputs.labels << { x: menu_right - MENU_PAD, y: y + MENU_TAB_H / 2 + 1,
+                        text: "[ Tab ] blättert", size_enum: 0, alignment_enum: 2,
+                        vertical_alignment_enum: 1,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+  end
+
+  def render_menu_foot
+    hint =
+      if book_page?
+        artenbuch_pages > 1 ? "← → blättern   ·   L / ESC zurück ins Wasser" : "L / ESC zurück ins Wasser"
+      elsif log_page?
+        "L / ESC zurück ins Wasser"
+      else
+        "Pfeiltasten wählen   ·   [ E ] verschieben   ·   [ V ] verkaufen   ·   L / ESC zurück ins Wasser"
+      end
+    outputs.labels << { x: (menu_left + menu_right) / 2, y: menu_bottom + MENU_FOOT_H - 14,
+                        text: hint, size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+  end
+
+  # A framed box for a page to put a column in. Boxes rather than bare columns
+  # because there is a lot on this screen now, and edges are what let an eye
+  # find the one thing it came for.
+  def render_box(x, y, w, h, title, title_color = nil)
+    outputs.sprites << { x: x, y: y, w: w, h: h,
+                         r: MENU_PANEL[0], g: MENU_PANEL[1], b: MENU_PANEL[2], path: :solid }
+    outputs.sprites << { x: x, y: y + h - 2, w: w, h: 2,
+                         r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2], a: 90, path: :solid }
+    return unless title
+
+    column_heading(x + 18, y + h - 16, title, w - 36, title_color)
+  end
+
+  # --- the pages ------------------------------------------------------------
+
+  def render_hold_page
+    top = body_top
+    h = top - body_bottom - 10
+    half = (menu_width - MENU_PAD * 2 - 20) / 2
+    render_box(menu_left + MENU_PAD, body_bottom + 10, half, h,
+               "Rucksack  #{state.inventory.length} / #{INVENTORY_MAX}",
+               inventory_full? ? MENU_WARN : nil)
+    render_box(menu_left + MENU_PAD + half + 20, body_bottom + 10, half, h,
+               "Lager  #{state.stash.length}")
+
+    rows_y = top - 76
+    render_pack_column(menu_left + MENU_PAD + 18, rows_y, half - 36)
+    render_hold_column(menu_left + MENU_PAD + half + 38, rows_y, half - 36)
+  end
+
+  # The career, which until now was four numbers squeezed beside the hold. This
+  # dive on the left, everything before it on the right — that contrast is the
+  # whole reason to keep a log.
   def logbook_rows
     [
-      ["Tiefster Tauchgang", "#{state.log_deepest} m"],
-      ["Inseln gefunden", "#{state.log_islands.length} / #{ISLAND_COUNT}"],
+      ["Tiefster Punkt", "#{state.log_deepest} m"],
       ["Sektoren erkundet", "#{state.log_sectors.length}"],
+      ["Inseln gefunden", "#{state.log_islands.length} / #{ISLAND_COUNT}"],
       ["Höhlen durchtaucht", "#{state.log_caves.length}"],
     ]
   end
 
-  def render_boat_screen
-    left = (grid.w - MENU_W) / 2
-    bottom = (grid.h - MENU_H) / 2
-    right = left + MENU_W
-    top = bottom + MENU_H
-
-    # Solid, not translucent: the sea behind it is pretty, but reading what you
-    # carry against what's in the hold is what this screen is for.
-    outputs.sprites << { x: left, y: bottom, w: MENU_W, h: MENU_H,
-                         r: MENU_BG[0], g: MENU_BG[1], b: MENU_BG[2], path: :solid }
-    outputs.sprites << { x: left, y: top - 4, w: MENU_W, h: 4,
-                         r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2], path: :solid }
-
-    outputs.labels << { x: left + MENU_PAD, y: top - MENU_PAD, text: "Dein Boot", size_enum: 4,
-                        vertical_alignment_enum: 2, r: MENU_INK[0], g: MENU_INK[1], b: MENU_INK[2] }
-    outputs.labels << { x: right - MENU_PAD, y: top - MENU_PAD - 4, text: diver_name, size_enum: 1,
-                        alignment_enum: 2, vertical_alignment_enum: 2,
-                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
-
-    head_y = top - MENU_PAD - 60
-    row_y = top - MENU_PAD - 128 # clear of the rule under the headings
-    if book_page?
-      render_artenbuch(left + MENU_PAD, head_y, row_y)
-    else
-      render_logbook(left + MENU_PAD, head_y, row_y)
-      render_pack_column(left + MENU_PAD + 316, head_y, row_y)
-      render_hold_column(left + MENU_PAD + 584, head_y, row_y)
-    end
-
-    hint =
-      if book_page? && artenbuch_pages > 1
-        "← → blättern   ·   [ Tab ] Logbuch & Lager   ·   L / ESC schließen"
-      elsif book_page?
-        "[ Tab ] Logbuch & Lager   ·   L / ESC schließen"
-      else
-        "Pfeiltasten wählen   ·   [ E ] verschieben   ·   [ V ] verkaufen   ·   " \
-        "[ Tab ] Artenbuch   ·   L / ESC schließen"
-      end
-    outputs.labels << { x: (left + right) / 2, y: bottom + MENU_PAD, text: hint,
-                        size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
-                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+  def career_rows
+    [
+      ["Tauchgänge", "#{state.log_dives}"],
+      ["Tiefster Punkt je", "#{state.log_best} m"],
+      ["Arten im Artenbuch", "#{album_found} / #{Species::ALL.length}"],
+      ["Fundstücke verkauft", "#{state.log_sold}"],
+      ["Insgesamt verdient", "#{state.log_earned} Cr"],
+    ]
   end
 
-  BOOK_COL_W = 390
+  def render_logbook_page
+    top = body_top
+    h = top - body_bottom - 10
+    half = (menu_width - MENU_PAD * 2 - 20) / 2
+    render_box(menu_left + MENU_PAD, body_bottom + 10, half, h, "Dieser Tauchgang")
+    render_box(menu_left + MENU_PAD + half + 20, body_bottom + 10, half, h, "Deine Laufbahn")
+
+    render_tally(menu_left + MENU_PAD + 18, top - 84, half - 36, logbook_rows)
+    render_tally(menu_left + MENU_PAD + half + 38, top - 84, half - 36, career_rows)
+  end
+
+  def render_tally(x, y, width, rows)
+    rows.each do |label, value|
+      outputs.labels << { x: x, y: y, text: label, size_enum: 1, vertical_alignment_enum: 2,
+                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+      outputs.labels << { x: x + width, y: y, text: value, size_enum: 3, alignment_enum: 2,
+                          vertical_alignment_enum: 2, r: MENU_INK[0], g: MENU_INK[1], b: MENU_INK[2] }
+      y -= MENU_ROW_H
+    end
+  end
+
+  BOOK_COL_W = 556 # each of the book's two columns
+  BOOK_GAP = 56
   BOOK_ROW_H = 50
   # Two columns of this many. Set by what actually fits between the headings and
   # the footer — the roster outgrew the screen and the last rows were printing
-  # down through the hint line and over each other.
-  BOOK_ROWS = 5
+  # down through the hint line and over each other. Two more fit since the screen
+  # grew to nearly the whole window.
+  BOOK_ROWS = 7
   BOOK_PER_PAGE = BOOK_ROWS * 2
 
   # One row per species in the sea, in the order they live from the shallows
@@ -152,19 +309,25 @@ class Game
     turn_artenbuch_page(1) if inputs.keyboard.key_down.right
   end
 
-  def render_artenbuch(x, head_y, row_y)
+  # One box across the width, the roster in two columns inside it. The balance
+  # used to have the second heading here; it lives in the head band now, where it
+  # belongs, and the book gets the whole width to itself.
+  def render_artenbuch_page
+    all = artenbuch_rows
+    heading = "Artenbuch  #{album_found} / #{all.length} gesichtet"
+    heading += "    ·    Seite #{state.artenbuch_page + 1} / #{artenbuch_pages}" if artenbuch_pages > 1
+    render_box(menu_left + MENU_PAD, body_bottom + 10,
+               menu_width - MENU_PAD * 2, body_top - body_bottom - 10, heading)
+    render_artenbuch(menu_left + MENU_PAD + 18, body_top - 76)
+  end
+
+  def render_artenbuch(x, row_y)
     all = artenbuch_rows
     rows = artenbuch_page_rows
-    cx = x + BOOK_COL_W + 28 # centre of the two-column spread
-    # The denominator is what you've *seen*, not the whole roster — so the count
-    # grows as you discover, and never gives away how much is still out there.
-    heading = "Artenbuch  #{album_found} / #{all.length}"
-    heading += "    Seite #{state.artenbuch_page + 1} / #{artenbuch_pages}" if artenbuch_pages > 1
-    column_heading(x, head_y, heading, BOOK_COL_W)
-    column_heading(x + BOOK_COL_W + 56, head_y, "Guthaben  #{state.credits} Cr", BOOK_COL_W)
+    cx = x + BOOK_COL_W + BOOK_GAP / 2 # centre of the two-column spread
 
     if all.empty?
-      outputs.labels << { x: cx, y: row_y - 40, text: "Noch nichts gesichtet — tauch und sieh dich um.",
+      outputs.labels << { x: cx, y: row_y - 60, text: "Noch nichts gesichtet — tauch und sieh dich um.",
                           size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
                           r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
       return
@@ -173,7 +336,7 @@ class Game
     # Down the left column first, then down the right — a page of a book, read
     # the way a page is read.
     rows.each_with_index do |row, i|
-      col_x = x + (i < BOOK_ROWS ? 0 : BOOK_COL_W + 56)
+      col_x = x + (i < BOOK_ROWS ? 0 : BOOK_COL_W + BOOK_GAP)
       render_book_row(col_x, row_y - (i % BOOK_ROWS) * BOOK_ROW_H, row)
     end
 
@@ -212,46 +375,28 @@ class Game
                         r: ink[0], g: ink[1], b: ink[2] }
   end
 
-  def render_logbook(x, head_y, row_y)
-    column_heading(x, head_y, "Logbuch", MENU_LOG_W)
-
-    logbook_rows.each do |label, value|
-      outputs.labels << { x: x, y: row_y, text: label, size_enum: 1,
-                          vertical_alignment_enum: 2,
-                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
-      outputs.labels << { x: x + MENU_LOG_W, y: row_y, text: value, size_enum: 2, alignment_enum: 2,
-                          vertical_alignment_enum: 2, r: MENU_INK[0], g: MENU_INK[1], b: MENU_INK[2] }
-      row_y -= MENU_ROW_H
-    end
-  end
-
   # What you're carrying: one row per piece, INVENTORY_MAX slots deep, so the
-  # empty rows show how much room is left. Turns warm when there's none.
-  def render_pack_column(x, head_y, row_y)
-    full = inventory_full?
-    column_heading(x, head_y, "Rucksack  #{state.inventory.length} / #{INVENTORY_MAX}", MENU_COL_W,
-                   full ? MENU_WARN : nil)
-
+  # empty rows show how much room is left.
+  def render_pack_column(x, row_y, width)
     INVENTORY_MAX.times do |i|
       kind = state.inventory[i]
       y = row_y - i * MENU_ROW_H
       if kind
-        render_exchange_row(x, y, kind, nil, selected?(PACK_SIDE, i), true)
+        render_exchange_row(x, y, width, kind, nil, selected?(PACK_SIDE, i), true)
       else
-        empty_row(x, y, "—")
+        empty_row(x, y, "— leer —")
       end
     end
   end
 
   # The hold: one row per kind with how many of it are down there. Rows go dim
   # while the pack is full — nothing can come up until something goes back.
-  def render_hold_column(x, head_y, row_y)
+  def render_hold_column(x, row_y, width)
     stacks = hold_stacks
-    column_heading(x, head_y, "Lager  #{state.stash.length}", MENU_COL_W)
-    return empty_row(x, row_y, "leer") if stacks.empty?
+    return empty_row(x, row_y, "Noch nichts eingelagert") if stacks.empty?
 
     stacks.each_with_index do |stack, i|
-      render_exchange_row(x, row_y - i * MENU_ROW_H, stack[:kind], stack[:count],
+      render_exchange_row(x, row_y - i * MENU_ROW_H, width, stack[:kind], stack[:count],
                           selected?(HOLD_SIDE, i), !inventory_full?)
     end
   end
@@ -277,35 +422,37 @@ class Game
 
   # One line of either list: the item's icon, its name, and — in the hold — how
   # many of them there are. The selected row gets a lit bar behind it.
-  def render_exchange_row(x, y, kind, count, selected, live)
+  def render_exchange_row(x, y, width, kind, count, selected, live)
     if selected
-      outputs.sprites << { x: x - 12, y: y - 22, w: MENU_COL_W + 24, h: 44,
+      outputs.sprites << { x: x - 10, y: y - 23, w: width + 20, h: 46,
                            r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2],
                            a: live ? 55 : 30, path: :solid }
     end
 
+    # The icon, big enough to be a picture rather than a bullet — this screen is
+    # a shelf of things, and things are quicker to recognise than to read.
     sprite = ITEM_SPRITES[kind]
-    outputs.sprites << { x: x + MENU_ICON_X, y: y, w: sprite[:w] * 2, h: sprite[:h] * 2,
+    outputs.sprites << { x: x + MENU_ICON_X, y: y, w: sprite[:w] * 3, h: sprite[:h] * 3,
                          path: sprite[:path], anchor_x: 0.5, anchor_y: 0.5,
                          a: live ? 255 : 120 }
 
     ink = live ? MENU_INK : MENU_DIM_INK
-    outputs.labels << { x: x + 52, y: y, text: ITEM_NAMES[kind], size_enum: 1,
+    outputs.labels << { x: x + 66, y: y + 10, text: ITEM_NAMES[kind], size_enum: 2,
                         vertical_alignment_enum: 1, r: ink[0], g: ink[1], b: ink[2] }
     # What it fetches, under the name — so you can see which of them is worth
     # carrying home before you decide what to drop.
-    outputs.labels << { x: x + 52, y: y - 17, text: "#{ITEM_VALUES[kind]} Cr", size_enum: 0,
+    outputs.labels << { x: x + 66, y: y - 13, text: "#{ITEM_VALUES[kind]} Cr", size_enum: 0,
                         vertical_alignment_enum: 1,
                         r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2],
                         a: live ? 190 : 110 }
     return unless count
 
-    outputs.labels << { x: x + MENU_COL_W, y: y, text: "#{count}", size_enum: 2, alignment_enum: 2,
+    outputs.labels << { x: x + width, y: y, text: "#{count}x", size_enum: 3, alignment_enum: 2,
                         vertical_alignment_enum: 1, r: ink[0], g: ink[1], b: ink[2] }
   end
 
   def empty_row(x, y, text)
-    outputs.labels << { x: x + 52, y: y, text: text, size_enum: 1, vertical_alignment_enum: 1,
+    outputs.labels << { x: x + 66, y: y, text: text, size_enum: 1, vertical_alignment_enum: 1,
                         r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2], a: 130 }
   end
 end
