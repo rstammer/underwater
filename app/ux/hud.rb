@@ -251,7 +251,7 @@ class Game
     return unless locator?
 
     outputs.labels << {
-      x: grid.w - HUD_RIGHT, y: grid.h - 20,
+      x: grid.w - HUD_RIGHT, y: grid.h - 56,
       text: locator_text,
       size_enum: 1, alignment_enum: 2, vertical_alignment_enum: 1,
       r: 210, g: 228, b: 245, a: 175,
@@ -266,7 +266,8 @@ class Game
     "Sektor #{world_index}    Tiefe #{current_depth} m"
   end
 
-  # One right edge for the whole top-right stack — locator, balance, day.
+  # One right edge for the whole top-right stack, read top down: what time it
+  # is, where you are, what you have.
   HUD_RIGHT = 20
 
   DAYTIME_SHEET = "sprites/decor/daytime.png"
@@ -283,7 +284,7 @@ class Game
   # The icon is placed off the *measured* width of the text, because the text
   # is right-aligned and the day number changes width — guessing an offset put
   # the sun straight through "Tag 1".
-  DAYTIME_Y = 84
+  DAYTIME_Y = 24
   DAYTIME_ICON = 24
   DAYTIME_GAP = 10
 
@@ -309,7 +310,7 @@ class Game
   # money, and a freelance's balance is the one number he never stops knowing.
   def render_credits
     outputs.labels << {
-      x: grid.w - HUD_RIGHT, y: grid.h - 48,
+      x: grid.w - HUD_RIGHT, y: grid.h - 88,
       text: "#{state.credits} Cr",
       size_enum: 2, alignment_enum: 2, vertical_alignment_enum: 1,
       r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2],

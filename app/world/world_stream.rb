@@ -142,6 +142,11 @@ class Game
     # Under rock they stay in the passage they spawned in: the lowest slab over
     # them is their sky.
     top = slabs.empty? ? WATERLINE_Y : slabs.map { |slab| slab[:ceiling] }.min
+    # A cave with air trapped in it has a water surface of its own, *below* the
+    # rock — so the ceiling alone let fish rise straight out of the water into
+    # the air pocket. Whichever is lower is where the water stops.
+    air = world.air_line_at(col * World::COLUMN_WIDTH)
+    top = air if air && air < top
 
     species = Species.pick(biome, depth_in_metres(floor_y))
     return nil unless species
@@ -320,6 +325,9 @@ class Game
     # A slab [ceiling, crown] is in the way iff it overlaps the fish's [low, top].
     top = high + fish_h
     probes.all? do |probe|
+      air = world.air_line_at(probe)
+      next false if air && air < top # it would surface into a chamber's air
+
       world.floor_y_at(probe) <= low &&
         world.slabs_at(probe).none? { |slab| slab[:ceiling] <= top && slab[:crown] >= low }
     end

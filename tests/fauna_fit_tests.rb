@@ -93,4 +93,27 @@ class FaunaFitTests
     caught = args.state.fish.select { |fish| body_in_rock?(world, fish) }
     assert.equal! caught.length, 0, "a startled fish does not bolt through rock"
   end
+
+  # A cave with trapped air has a water surface of its own, well below the rock.
+  # Reading only the ceiling let fish rise straight out of the water into it —
+  # the same mistake as the sea surface, one level down.
+  def test_no_fish_surfaces_into_a_chamber(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    caught = []
+
+    (-14..14).each do |index|
+      world = sea_of(args, game, index)
+      next if world.air_pockets.empty?
+
+      game.spawn_swarm(world)
+      900.times { args.state.fish.each { |fish| fish.tick(args, 0) } }
+      args.state.fish.each do |fish|
+        air = world.air_line_at(fish.x)
+        caught << "#{fish.species.name} at #{fish.y.to_i}, air at #{air}" if air && fish.y + fish.h > air
+      end
+    end
+
+    assert.equal! caught.length, 0, "they stay under the water in there too (#{caught.first(4).inspect})"
+  end
 end
