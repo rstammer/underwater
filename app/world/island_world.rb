@@ -28,6 +28,9 @@ class IslandWorld
                        # levels off — low ground you walk in onto
   CLIFF_MIN = 96       # ... and how far under the rock at the cliff it must stay,
                        # so the step up there is never one he could take
+  BEACH_SAND_HEIGHT = 96 # how high above the water a sand shore still reads as
+                       # beach and is drawn as sand. Matches GREEN_MIN, so the
+                       # sand stops exactly where the grass starts
   SHORES = [:rock, :through, :blocked]
   TUNNEL_MIN = 130     # tightest the corridor ever squeezes ...
   TUNNEL_MAX = 300     # ... and the widest it opens out
@@ -66,7 +69,7 @@ class IslandWorld
   TUNNEL_PLANTS = ["seaweed", "coral", "starfish"]
 
   SCALES = {
-    "palm" => 4, "palm_small" => 3, "bush" => 3, "grass" => 3,
+    "palm" => 6, "palm_small" => 4, "bush" => 3, "grass" => 3,
     "driftwood" => 3, "crab" => 2, "flag" => 3, "gull" => 3,
   }
 
@@ -240,11 +243,26 @@ class IslandWorld
     corridor = corridor_ceiling_at(world_x)
     crown = crown_y_at(world_x)
     gallery = gallery_at(world_x)
-    return [{ ceiling: corridor, crown: crown }] unless gallery
-    return [{ ceiling: gallery_ceiling_at(gallery, world_x), crown: crown }] if shaft?(gallery, world_x)
+    return [lid(corridor, crown, world_x)] unless gallery
+    return [lid(gallery_ceiling_at(gallery, world_x), crown, world_x)] if shaft?(gallery, world_x)
 
     [{ ceiling: corridor, crown: gallery[:floor] },
-     { ceiling: gallery_ceiling_at(gallery, world_x), crown: crown }]
+     lid(gallery_ceiling_at(gallery, world_x), crown, world_x)]
+  end
+
+  # The island's own lid — the slab whose top is the skyline. Tagged where that
+  # top is beach rather than mountain, so the renderer can lay sand there instead
+  # of stone. A rock coast never gets the tag however low it sits, and neither do
+  # the skerries, which are rock by definition.
+  def lid(ceiling, crown, world_x)
+    slab = { ceiling: ceiling, crown: crown }
+    slab[:sand] = true if beach_top?(world_x, crown)
+    slab
+  end
+
+  def beach_top?(world_x, crown)
+    crown > WATERLINE_Y && crown <= WATERLINE_Y + BEACH_SAND_HEIGHT &&
+      sand_side?(span_t_at(WorldGenerator.terrace_start(world_x)))
   end
 
   # The corridor's own roof: a chamber dome where there is one, otherwise the

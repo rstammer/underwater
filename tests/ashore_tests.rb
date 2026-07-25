@@ -340,6 +340,40 @@ class AshoreTests
                  "and clear of the island (#{args.state.diver_global_x})"
   end
 
+  # A beach has to look like one. The island tags the slabs whose top is low
+  # ground on a sand shore, and the renderer lays sand on those instead of the
+  # sun-bleached stone the rest of an island wears.
+  def dry_slabs(game, args, sector)
+    args.state.island_sectors = [sector]
+    args.state.world_cache = {}
+    first = IslandWorld.new(WorldGenerator.generate(sector), sector).first_x.idiv(SCREEN_WIDTH)
+    (first - 1..first + 3).flat_map do |index|
+      world = game.world_at(index)
+      world.roof ? world.roof.flatten.select { |s| s[:crown] > WATERLINE_Y } : []
+    end
+  end
+
+  def test_a_sand_shore_is_drawn_as_sand(args, assert)
+    game = diving(args)
+
+    sandy = dry_slabs(game, args, sector_with_shore(:through)).select { |s| s[:sand] }
+
+    assert.true! sandy.length > 20, "there is a beach to see (#{sandy.length} columns)"
+    sandy.each do |slab|
+      assert.true! slab[:crown] <= WATERLINE_Y + IslandWorld::BEACH_SAND_HEIGHT,
+                   "sand is the low ground, not the summit (#{slab[:crown] - WATERLINE_Y})"
+    end
+  end
+
+  def test_a_rock_coast_is_never_sand(args, assert)
+    game = diving(args)
+
+    slabs = dry_slabs(game, args, sector_with_shore(:rock))
+
+    assert.true! slabs.length > 0, "the island is there at all"
+    assert.equal! slabs.count { |s| s[:sand] }, 0, "and none of it is beach"
+  end
+
   # Stacks say "the rock reaches out here" — in front of sand they would say the
   # opposite, and (measured) they fence off the wade completely, because a skerry
   # is a wall at exactly the depth you walk ashore at.

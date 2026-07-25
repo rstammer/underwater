@@ -21,6 +21,11 @@ require "zlib"
 FRAME_W = 32
 FRAME_H = 32
 FRAMES = 12 # Diver::SPRITES_PER_ROW
+# The art below is authored with the figure high in the frame, the way the
+# swimming sheet has it; on land his feet have to sit on the very bottom row or
+# he stands on a cushion of air. Everything is dropped by this before it is
+# written out.
+GROUND_DROP = 4
 
 # Sampled from sprites/diver_v2.png — same suit, same tank, same flippers.
 PALETTE = {
@@ -56,7 +61,8 @@ UPPER = [
 ]
 
 # Standing: legs together under him, flippers flat on the ground and pointing
-# the way he faces.
+# the way he faces. Short ones — a flipper is longer than a foot, not twice the
+# width of the man.
 STAND_LOWER = [
   "...............AAF..............",
   "...............AAF..............",
@@ -68,74 +74,75 @@ STAND_LOWER = [
   "..............A..F..............",
   "..............A..F..............",
   "..............A..F..............",
-  "..............GGGGGGG...........",
-  "..............HHHHHHH...........",
+  "..............GGGGG.............",
+  "..............HHHHH.............",
   "................................",
   "................................",
   "................................",
   "................................",
 ]
 
-# Mid-stride: legs apart, each flipper slapping down flat. Two of them, with the
-# near and far leg swapped, so the pair reads as a waddle rather than a hop.
-STRIDE_LOWER = [
+# Mid-stride. What reads as walking at this size is a flipper *lifted off the
+# ground* while the other stays planted — legs splayed from the hip in a wide V
+# just read as the splits. So the two stride poses differ in which flipper is up,
+# and the legs barely move. The near leg keeps its colour in both: swapping which
+# leg was lit made the pair flicker rather than walk.
+STRIDE_NEAR_UP = [
   "...............AAF..............",
   "...............AAF..............",
+  "..............A..F..............",
+  "..............A..F..............",
+  ".............A...F..............",
+  ".............A...F..............",
+  "............A....F..............",
+  "............A.....F.............",
+  "............A.....F.............",
+  "...........GGGGG..F.............",
+  "...........HHHHH..GGGGG.........",
+  "..................HHHHH.........",
+  "................................",
+  "................................",
+  "................................",
+  "................................",
+]
+
+STRIDE_FAR_UP = [
+  "...............AAF..............",
+  "...............AAF..............",
+  "..............A..F..............",
   "..............A..F..............",
   "..............A...F.............",
   ".............A....F.............",
   ".............A.....F............",
-  "............A......F............",
-  "............A......F............",
-  "............A......F............",
-  "............A......F............",
-  "..........GGGGGG..GGGGGG........",
-  "..........HHHHHH..HHHHHH........",
+  ".............A.....F............",
+  ".............A.....F............",
+  ".............A....GGGGG.........",
+  "...........GGGGG..HHHHH.........",
+  "...........HHHHH................",
   "................................",
   "................................",
   "................................",
   "................................",
 ]
 
-STRIDE_BACK_LOWER = [
-  "...............AAF..............",
-  "...............AAF..............",
-  "..............A..F..............",
-  ".............A...F..............",
-  ".............A....F.............",
-  "............A.....F.............",
-  "............A......F............",
-  "............A......F............",
-  "............A......F............",
-  "............A......F............",
-  "..........HHHHHH..GGGGGG........",
-  "..........HHHHHH..HHHHHH........",
-  "................................",
-  "................................",
-  "................................",
-  "................................",
-]
-
-def pose(lower, lift = 0)
-  rows = UPPER + lower
-  return rows if lift.zero?
-
-  # Lift the whole figure a pixel: the bob of a waddle.
-  rows.drop(lift) + Array.new(lift) { "." * FRAME_W }
+# Composed, then dropped so his flippers rest on the bottom row of the frame —
+# the sprite is drawn centred on his world position, so any empty rows under him
+# are a gap of daylight between flipper and sand.
+def pose(lower)
+  (Array.new(GROUND_DROP) { "." * FRAME_W } + UPPER + lower).first(FRAME_H)
 end
 
 def stand_pose
   pose(STAND_LOWER)
 end
 
-# The walk: stride, feet together (and a pixel higher — the bob), the other
-# stride, together again. Each pose is held for two frames because the engine
-# runs this sheet at eight frames to the cycle.
+# The walk: near flipper up, both down, far flipper up, both down. Each pose held
+# for two frames, because the engine runs this sheet at eight frames to a cycle.
 def walk_frames
-  [pose(STRIDE_LOWER), pose(STRIDE_LOWER),
-   pose(STAND_LOWER, 1), pose(STAND_LOWER, 1),
-   pose(STRIDE_BACK_LOWER), pose(STRIDE_BACK_LOWER),
-   pose(STAND_LOWER, 1), pose(STAND_LOWER, 1)]
+  [pose(STRIDE_NEAR_UP), pose(STRIDE_NEAR_UP),
+   pose(STAND_LOWER), pose(STAND_LOWER),
+   pose(STRIDE_FAR_UP), pose(STRIDE_FAR_UP),
+   pose(STAND_LOWER), pose(STAND_LOWER)]
 end
 
 def png(pixels, w, h)

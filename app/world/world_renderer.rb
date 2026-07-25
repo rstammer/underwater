@@ -18,6 +18,9 @@ class Game
                              # rock at the waterline and the low skerries stay stone
   ISLAND_ROCK = [138, 122, 102] # sun-bleached stone — an island wears its own colour,
                                 # not the palette of the sea floor around it
+  BEACH_SAND = [231, 208, 156]  # ... except where it meets the water as a beach, which
+                                # is sand and has to look like it (IslandWorld tags those
+                                # slabs; a rock coast and the skerries never carry it)
   CAVE_DIM = 0.5              # inside a cave it is dark whatever the depth says
   ROOF_FADE = 300             # px under the surface over which rock loses the daylight
 
@@ -231,7 +234,10 @@ class Game
 
     island = rock[:crown] > WATERLINE_Y
     grassy = rock[:crown] > WATERLINE_Y + GREEN_MIN
-    body = island ? ISLAND_ROCK : world.biome.floor_colors[2]
+    body = if rock[:sand] then BEACH_SAND
+           elsif island then ISLAND_ROCK
+           else world.biome.floor_colors[2]
+           end
     x = first_col * World::COLUMN_WIDTH + dx
     w = width * World::COLUMN_WIDTH + 1
     shade = (rock[:ceiling].idiv(WorldGenerator::FLOOR_STEP) % 5 - 2) * 4
