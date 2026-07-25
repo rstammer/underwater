@@ -69,8 +69,19 @@ Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
     hat ihren festen Slot** (`SLOT_PHOTO`/`SLOT_PICKUP`/`SLOT_NOTE`/`SLOT_NEW`)
     statt nachzurücken: eine Zeile, die springt, weil woanders etwas auftauchte,
     liest sich schlechter als eine Lücke. Jede Box wird per `calcstringbox` um
-    ihren Text gemessen. Der **Blitz** (`render_flash`) ist keine Meldung und
-    bleibt vollflächig.
+    ihren Text gemessen — **feste Breite** (`MESSAGE_W`). Kästen, die sich an ihren
+    Text anpassen, ändern bei jedem neuen Fisch im Sucher die Größe, und ein Panel,
+    das unter den Augen die Form wechselt, liest sich als *Bewegung*. Ein Test misst
+    die längstmögliche Zeile dagegen (nichts bricht um). Der **Blitz**
+    (`render_flash`) ist keine Meldung und bleibt vollflächig.
+  - **Namen kommen aus dem Artenbuch, nicht aus der Welt** (`species_label`):
+    unter Wasser zeigt eine Art ihren Namen erst, wenn sie **im Album** steht —
+    also erst, nachdem das Foto **am Boot entwickelt** wurde. Vorher „? ? ?".
+    Damit beantwortet die Anzeige „Hab ich den schon?" ohne zweite Anzeige: hat es
+    einen Namen, hast du ihn. Dazu drei Farben (`photo_ink`): `NEW_INK` = noch nie
+    gehabt, `BETTER_INK` = hast du, aber dieses Bild wäre besser, `ENOUGH_INK` =
+    lohnt den Film nicht. Das **Artenbuch am Boot** zeigt weiterhin *gesichtete*
+    Arten mit Namen — dort lernt man sie, unter Wasser kommt man nicht ran.
 - `sprites/` — Pixel-Art (SpearFishing by Szym, PixelArt Diver by Daniel Kole)
 - `sprites/decor/` — selbst generierte Pixel-Art (Blase, Seestern, Koralle,
   Seetang, Fels, Boot; für die Inseln: Palme groß/klein, Busch, Gras, Treibholz,

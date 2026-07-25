@@ -26,7 +26,8 @@ class Game
   # Slots count upward from the bottom, so the steadiest line is nearest the eye.
   MESSAGE_Y = 46      # baseline of the lowest slot, up from the bottom edge
   MESSAGE_ROW = 42    # ... and the step between slots
-  MESSAGE_PAD = 20    # air either side of the text inside its box
+  MESSAGE_W = 600     # one width for every box, whatever is in it (see below)
+  MESSAGE_H = 38
   SLOT_PHOTO = 0
   SLOT_PICKUP = 1
   SLOT_NOTE = 2
@@ -40,18 +41,19 @@ class Game
     [photo_message, pickup_message, shot_message, fresh_message].compact
   end
 
-  # A snug box measured around its own text rather than one fixed width — the
-  # lines run from three words to a whole sentence.
+  # One fixed width, not a box measured around its own text. Fitting each line
+  # snugly meant the box resized every time a different fish came into the lens,
+  # and a panel that changes shape under your eyes is read as *movement* — you
+  # end up watching it flinch instead of reading it. A test measures the longest
+  # line any of these can hold against this width.
   def render_message(line)
-    size = line[:size] || 2
-    w, h = args.gtk.calcstringbox(line[:text], size)
     y = MESSAGE_Y + line[:slot] * MESSAGE_ROW
     cx = grid.w / 2
 
-    outputs.sprites << { x: cx - (w / 2 + MESSAGE_PAD), y: y - (h / 2 + 8),
-                         w: w + MESSAGE_PAD * 2, h: h + 16,
+    outputs.sprites << { x: cx - MESSAGE_W / 2, y: y - MESSAGE_H / 2,
+                         w: MESSAGE_W, h: MESSAGE_H,
                          r: 12, g: 30, b: 48, a: 180, path: :solid }
-    outputs.labels << { x: cx, y: y, text: line[:text], size_enum: size,
+    outputs.labels << { x: cx, y: y, text: line[:text], size_enum: line[:size] || 2,
                         alignment_enum: 1, vertical_alignment_enum: 1,
                         r: line[:color][0], g: line[:color][1], b: line[:color][2] }
   end
@@ -101,8 +103,33 @@ class Game
     }
   end
 
-  # With a creature in the lens, a line naming it and how the shot would come
-  # out — so getting closer is visibly worth it before you spend the frame.
+  # A species tells you its name only once it is in the Artenbuch — which is to
+  # say once you have brought a picture of it home and developed it. Down here,
+  # anything you haven't is three question marks.
+  #
+  # That is the whole answer to "have I got this one already?": if it has a name,
+  # you have. No extra badge, no second thing to read.
+  UNKNOWN_NAME = "? ? ?"
+
+  def species_label(species)
+    state.album[species.key] ? species.name : UNKNOWN_NAME
+  end
+
+  # And the colour says what this shot would be worth, at a glance:
+  NEW_INK = [255, 214, 120]    # never had it — this is the one worth the film
+  BETTER_INK = [150, 220, 255] # have it, but this would be a better picture
+  ENOUGH_INK = [150, 168, 186] # have it, no better than what's in the book
+
+  def photo_ink(species, quality)
+    return NEW_INK unless state.album[species.key]
+    return BETTER_INK if improves?(species.key, quality)
+
+    ENOUGH_INK
+  end
+
+  # With a creature in the lens, a line saying what it is worth and how the shot
+  # would come out — so getting closer is visibly worth it before you spend the
+  # frame.
   def photo_message
     subject = photo_subject
     return nil unless subject
@@ -113,12 +140,12 @@ class Game
       if state.film_left.zero?
         "Kein Film mehr — am Boot entwickeln"
       elsif !improves?(species.key, quality)
-        "#{species.name} — schon besser im Kasten"
+        "#{species_label(species)} — schon besser im Kasten"
       else
-        "[ F ]  #{species.name}  (#{quality})"
+        "[ F ]  #{species_label(species)}  (#{quality})"
       end
 
-    { text: text, slot: SLOT_PHOTO, color: [232, 244, 252] }
+    { text: text, slot: SLOT_PHOTO, color: photo_ink(species, quality) }
   end
 
   # The flash of the shutter, over the whole picture. Not a message — it is the
@@ -134,22 +161,24 @@ class Game
                          a: fade, path: :solid }
   end
 
-  # Afterwards, a line naming what he caught — and NEU for a species that isn't
-  # in the book yet, which is the moment worth having.
+  # Afterwards, a line saying what he caught. Still nameless if it isn't in the
+  # book yet — you have exposed film, not a discovery, and what it was is
+  # something the boat tells you.
   def shot_message
     note = fresh_note
     return nil unless note
 
     # The kraken leaves no grade behind: there is nothing to grade.
     text = note[:quality] ? "#{note[:name]}  —  #{note[:quality]}" : note[:name]
-    { text: text, slot: SLOT_NOTE, size: 3, color: [236, 246, 255] }
+    { text: text, slot: SLOT_NOTE, size: 3,
+      color: note[:fresh] ? NEW_INK : [236, 246, 255] }
   end
 
   def fresh_message
     note = fresh_note
     return nil unless note && note[:fresh]
 
-    { text: "NEU für das Artenbuch", slot: SLOT_NEW, color: [255, 226, 140] }
+    { text: "Etwas Neues! Am Boot entwickeln", slot: SLOT_NEW, color: NEW_INK }
   end
 
   def fresh_note

@@ -281,7 +281,10 @@ class PhotographyTests
 
     text = args.outputs.labels.map { |label| label[:text] }.join(" ")
     assert.true! args.outputs.labels.length > 0, "film counter and prompt draw"
-    assert.true! text.include?("Blauer Burgunder"), "and it names what he just caught"
+    # Nothing is in the book in this round, so it can't name it yet — it says
+    # only that there is something new on the film.
+    assert.true! text.include?(Game::UNKNOWN_NAME), "and reports what he just caught"
+    assert.true! text.include?("Neues"), "as something worth bringing home"
   end
 
   # They used to be strewn across the middle of the screen — over the diver, and
@@ -301,5 +304,78 @@ class PhotographyTests
 
   def grid_height(args)
     args.grid.h
+  end
+
+  # --- what the lens tells you ----------------------------------------------
+  #
+  # A species gives its name only once it is in the book, so "has it got a name?"
+  # *is* the answer to "have I got this one?". No second thing to read.
+
+  def test_a_species_you_have_never_developed_has_no_name_down_here(args, assert)
+    game = diving_with_a_fish(args, species_key: "burgunder", away: 40)
+    args.state.album = {}
+
+    line = game.photo_message
+
+    assert.false! line[:text].include?("Blauer Burgunder"), "it doesn't give itself away"
+    assert.true! line[:text].include?(Game::UNKNOWN_NAME), "it is a question mark"
+    assert.equal! line[:color], Game::NEW_INK, "and it is worth the film"
+  end
+
+  def test_once_it_is_in_the_book_it_has_a_name(args, assert)
+    game = diving_with_a_fish(args, species_key: "burgunder", away: 40)
+    args.state.album = { "burgunder" => :unscharf }
+
+    line = game.photo_message
+
+    assert.true! line[:text].include?("Blauer Burgunder"), "now you know what it is"
+  end
+
+  # The three states are three colours, so the answer is there before you read.
+  def test_the_colour_says_what_the_shot_is_worth(args, assert)
+    fresh = diving_with_a_fish(args, species_key: "burgunder", away: 40)
+    args.state.album = {}
+    assert.equal! fresh.photo_message[:color], Game::NEW_INK, "never had it"
+
+    args.state.album = { "burgunder" => :unscharf } # a poor one is in the book
+    assert.equal! fresh.photo_message[:color], Game::BETTER_INK, "this would be better"
+
+    args.state.album = { "burgunder" => :perfekt } # nothing left to gain
+    assert.equal! fresh.photo_message[:color], Game::ENOUGH_INK, "no need to spend film"
+  end
+
+  def test_the_shot_note_keeps_its_secret_too(args, assert)
+    game = diving_with_a_fish(args, species_key: "burgunder", away: 40)
+    args.state.album = {}
+
+    game.take_photo
+
+    assert.true! args.state.shot_note[:name].include?(Game::UNKNOWN_NAME),
+                 "exposed film, not a discovery"
+    assert.true! args.state.shot_note[:fresh], "but it does say it is something new"
+  end
+
+  # Boxes that fit themselves to their text resize every time another fish comes
+  # into the lens, and a panel changing shape under your eyes reads as movement.
+  # One width for all of them — measured here against the longest line any of
+  # them can hold, since nothing wraps.
+  def test_every_running_message_fits_the_box(args, assert)
+    longest = [
+      "Kein Film mehr — am Boot entwickeln",
+      "Inventar voll — am Boot einlagern",
+      "[ E ]  Flaschenpost aufheben",
+      "Etwas Neues! Am Boot entwickeln",
+      "[ F ]  Schwarzer Schattenhai  (unscharf)",
+      "Purpurner Prunkflosser — schon besser im Kasten",
+    ]
+    room = Game::MESSAGE_W - 24 # a little air at each end
+
+    longest.each do |text|
+      w, _h = args.gtk.calcstringbox(text, 2)
+      assert.true! w <= room, "\"#{text}\" fits (#{w.to_i} of #{room})"
+    end
+    # The note line is drawn a size larger.
+    w, _h = args.gtk.calcstringbox("Schwarzer Schattenhai  —  unscharf", 3)
+    assert.true! w <= room, "and so does the shot note (#{w.to_i} of #{room})"
   end
 end

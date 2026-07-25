@@ -12,7 +12,13 @@
 class Species
   # How much of the spawn a rarity gets. Common things have to *be* common, or
   # nothing feels like a find.
-  RARITIES = { common: 8, uncommon: 3, rare: 1 }
+  #
+  # These are weights *within whatever fits this water*, and most stretches of
+  # sea only suit two or three species — so a gentle spread gets flattened out by
+  # the small pool. Measured at 8/3/1, an uncommon crab turned up more often than
+  # a common one. Steeper, so the tiers can still be told apart at the bottom of
+  # a short list.
+  RARITIES = { common: 12, uncommon: 3, rare: 1 }
 
   SCALAR = "sprites/animals/scalar_32_16/"
   BASS = "sprites/animals/bass1_32_16/"
@@ -131,7 +137,7 @@ class Species
     new(key: "languste", name: "Gestreifte Languste", latin: "Palinurus fasciatus",
         sheet: SHELLS + "languste.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Riff", "Tiefsee"],
-        shallowest: 45, deepest: 130, rarity: :uncommon, points: 28),
+        shallowest: 55, deepest: 130, rarity: :uncommon, points: 28),
 
     # Down where the suit already complains. The last page of the crustacean
     # chapter costs the same kind of nerve the Laternenträger does.

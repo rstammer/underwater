@@ -141,9 +141,14 @@ class Game
     state.film_roll << { key: key, quality: quality }
   end
 
+  # What he just caught, as far as he can tell down here — which for something
+  # not yet in the book is not much (see Game#species_label). Both fields are
+  # settled now, and neither can change while the note is up: the album only
+  # moves at the boat.
   def note_shot(species, quality)
     state.shot_at = Kernel.tick_count
-    state.shot_note = { name: species.name, quality: quality, fresh: !state.album[species.key] }
+    state.shot_note = { name: species_label(species), quality: quality,
+                        fresh: !state.album[species.key] }
   end
 
   # At the boat: everything on the roll that beats what is in the book goes into

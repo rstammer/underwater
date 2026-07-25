@@ -29,7 +29,7 @@ class Biome
     floor_colors: [[242, 208, 169], [238, 200, 143], [225, 188, 109]],
     fog: 0.12,
     seaweed: 5, coral: 1, starfish: 4,
-    fish_count: 6, crab_count: 5, shark: false,
+    fish_count: 6, crab_count: 3, shark: false,
   )
 
   # A dense green kelp forest.
@@ -39,7 +39,7 @@ class Biome
     floor_colors: [[120, 132, 96], [96, 112, 78], [78, 96, 66]],
     fog: 0.42,
     seaweed: 16, coral: 2, starfish: 2,
-    fish_count: 9, crab_count: 4, shark: false,
+    fish_count: 9, crab_count: 2, shark: false,
   )
 
   # A colourful reef, full of coral and fish.
@@ -49,7 +49,7 @@ class Biome
     floor_colors: [[236, 196, 150], [210, 150, 120], [180, 120, 110]],
     fog: 0.18,
     seaweed: 6, coral: 10, starfish: 5,
-    fish_count: 12, crab_count: 6, shark: false,
+    fish_count: 12, crab_count: 3, shark: false,
   )
 
   # The dark deep — sparse, foggy, and a shark prowls.
@@ -59,7 +59,7 @@ class Biome
     floor_colors: [[60, 66, 84], [48, 54, 72], [38, 44, 60]],
     fog: 0.70,
     seaweed: 3, coral: 1, starfish: 1,
-    fish_count: 4, crab_count: 3, shark: true,
+    fish_count: 4, crab_count: 2, shark: true,
   )
 
   ALL = [SANDBANK, KELP, REEF, DEEP]
