@@ -4,6 +4,7 @@
 # to the sea is adding a row to that roster, not a class here.
 class Creature
   SPEEDS = [0.25, 0.5, 0.75, 0.65, 0.35, 0.15]
+  SIZES = [1, 1, 1, 2] # mostly small ones, now and then a bigger specimen
   DRIFT = 60 # how far it wanders from the depth it was spawned at
   BOLT_SPEED = 1.7  # how fast a startled one leaves — comfortably faster than a
                     # swimming diver, so chasing is hopeless by design
@@ -13,20 +14,28 @@ class Creature
   attr_reader :species
 
   # from_x/to_x bound the stretch of open water this fish was spawned in — it
-  # turns around at the ends rather than swimming on into rock.
+  # turns around at the ends rather than swimming on into rock. low/high do the
+  # same for the water above and below it, and they matter for the same reason
+  # the span does: a fish is up to 64 by 32 px of animal drawn out and up from
+  # this x/y, so a point in open water is no promise that the *fish* is.
+  #
+  # size comes from outside now: the sea has to know how big the animal will be
+  # before it can work out which water it fits in.
   def initialize(current_args, sprite_index, species:, x: 10, y: 200,
-                 from_x: 0, to_x: SCREEN_WIDTH)
+                 from_x: 0, to_x: SCREEN_WIDTH, low: nil, high: nil, size: nil)
     @sprite_index = sprite_index
     @current_args = current_args
     @species = species
+    @size = size || SIZES.sample
     @x = x
     @y = y
     @home_y = y # world y of its patch of water — it never strays far from this
     @from_x = from_x
     @to_x = to_x
+    @low = low || y - DRIFT
+    @high = high || y + DRIFT
     @heading = 1
     @speed = SPEEDS.sample
-    @size = [1, 1, 1, 2].sample
     @bolting = 0
   end
 
@@ -100,6 +109,9 @@ class Creature
       @y += (-1)**rand(10) * rand(5)
       @y = @home_y - DRIFT if @y < @home_y - DRIFT
       @y = @home_y + DRIFT if @y > @home_y + DRIFT
+      # ... and never out of the water it was given, whatever the drift says.
+      @y = @low if @y < @low
+      @y = @high if @y > @high
     end
   end
 

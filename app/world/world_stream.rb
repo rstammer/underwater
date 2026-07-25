@@ -117,27 +117,57 @@ class Game
   # A fresh fish swarm for the world's biome (colours and count from the biome).
   # They're spawned in the water just above this segment's own sea floor, so a
   # deep trench has its own fish down there instead of an empty void.
+  FAUNA_CLEARANCE = 10 # water kept between an animal and the rock or the surface
+
   def spawn_swarm(world)
     biome = world.biome
-    state.fish = biome.fish_count.times.map do
-      col = rand(world.columns)
-      floor_y = world.floor[col]
-      slabs = world.roof ? (world.roof[col] || []) : []
-      # Under rock they stay in the passage they spawned in: the lowest slab over
-      # them is their sky.
-      top = slabs.empty? ? WATERLINE_Y : slabs.map { |slab| slab[:ceiling] }.min
-      headroom = top - floor_y - 100
-      headroom = FAUNA_BAND if headroom > FAUNA_BAND
-      headroom = 30 if headroom < 30
-      y = floor_y + 30 + rand(headroom)
-      from_x, to_x = open_water_span(world, col, y)
-      # What lives here depends on the biome *and* how deep this stretch is, so
-      # a trench in the deep sea holds different things than its shallow bank.
-      Creature.new(args, 0,
-                   species: Species.pick(biome, depth_in_metres(y)),
-                   x: col * World::COLUMN_WIDTH, y: y,
-                   from_x: from_x, to_x: to_x)
+    state.fish = biome.fish_count.times.map { spawn_one_fish(world, biome) }.compact
+  end
+
+  # One fish, or nothing if the column it drew has no water for it. The span walk
+  # only ever tested the *neighbours* of the spawn column, never the column
+  # itself — so a fish that drew a solid one started life inside it and stayed
+  # there, penned between a from_x and a to_x that were the same wall.
+  def spawn_one_fish(world, biome)
+    8.times do
+      fish = try_fish(world, biome, rand(world.columns))
+      return fish if fish
     end
+    nil
+  end
+
+  def try_fish(world, biome, col)
+    floor_y = world.floor[col]
+    slabs = world.roof ? (world.roof[col] || []) : []
+    # Under rock they stay in the passage they spawned in: the lowest slab over
+    # them is their sky.
+    top = slabs.empty? ? WATERLINE_Y : slabs.map { |slab| slab[:ceiling] }.min
+
+    species = Species.pick(biome, depth_in_metres(floor_y))
+    return nil unless species
+
+    size = Creature::SIZES.sample
+    fish_w = species.frame_w * size
+    fish_h = species.frame_h * size
+    # The water it may use, worked out for *the whole animal*: it is drawn out
+    # and up from its x/y, so a y that is in open water is no promise that its
+    # back is. Half of them were hanging out of cliffs and poking through the
+    # surface.
+    low = floor_y + FAUNA_CLEARANCE
+    high = top - fish_h - FAUNA_CLEARANCE
+    high = low + FAUNA_BAND if high > low + FAUNA_BAND # they keep near the bottom
+    return nil if high < low                            # no room here for this one
+
+    # And the column it drew has to hold it too. Nothing checked that before: the
+    # span walk only ever tested the *neighbours*, so a fish that drew a solid
+    # column started life inside it, penned between a from_x and a to_x that were
+    # the same wall.
+    return nil unless open_water?(world, col, low, high, fish_w, fish_h)
+
+    from_x, to_x = open_water_span(world, col, low, high, fish_w, fish_h)
+    Creature.new(args, 0, species: species, size: size,
+                 x: col * World::COLUMN_WIDTH, y: low + rand(high - low + 1),
+                 from_x: from_x, to_x: to_x, low: low, high: high)
   end
 
   # What walks on this segment's sand. Depth is read from the floor itself, so a
@@ -258,19 +288,35 @@ class Game
     depth < 0 ? 0 : depth.to_i
   end
 
-  # How far a fish can swim either way from where it spawned before it would run
-  # into rock. Checked across the whole band it drifts through, so it can't rise
-  # into a cave roof on the way either.
-  def open_water_span(world, col, y)
+  # How far a fish can swim either way before it would run into rock. Checked
+  # across the whole band it may drift through *and* across its own length, so
+  # neither its back nor its nose can be in a wall its x/y is clear of. The nose
+  # is what mattered in practice: a fish turns at a column whose *anchor* is
+  # still in water, with most of the animal already inside the cliff.
+  def open_water_span(world, col, low, high, fish_w, fish_h)
     left = col
-    left -= 1 while left > 0 && open_water?(world, left - 1, y)
+    left -= 1 while left > 0 && open_water?(world, left - 1, low, high, fish_w, fish_h)
     right = col
-    right += 1 while right < world.columns - 1 && open_water?(world, right + 1, y)
+    right += 1 while right < world.columns - 1 && open_water?(world, right + 1, low, high, fish_w, fish_h)
     [left * World::COLUMN_WIDTH, right * World::COLUMN_WIDTH]
   end
 
-  def open_water?(world, col, y)
+  # Every column the animal covers, not just the two ends of it: a fish is up to
+  # 64 px long, which is eight columns, and a pillar standing in the middle of
+  # them fits neatly between two end probes.
+  def open_water?(world, col, low, high, fish_w, fish_h)
     x = col * World::COLUMN_WIDTH
-    !world.solid_at?(x, y - Creature::DRIFT) && !world.solid_at?(x, y + Creature::DRIFT)
+    probes = []
+    step = x
+    while step <= x + fish_w
+      probes << step
+      step += World::COLUMN_WIDTH
+    end
+    probes << x + fish_w
+    # ... and the height it really occupies: high is where its *belly* may get to,
+    # so the ceiling that matters is high + fish_h. Probing the anchor band alone
+    # let a column with a lower roof pass while the fish's back was in it.
+    levels = [low, (low + high).idiv(2), high, high + fish_h]
+    probes.all? { |probe| levels.none? { |level| world.solid_at?(probe, level) } }
   end
 end
