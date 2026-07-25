@@ -362,11 +362,17 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   aus dem offenen Wasser der Segmentmitte heraus (und nie am Segmentrand, sonst
   Naht). **Gras (`GREEN`) nur noch auf Fels, der `GREEN_MIN` über Wasser steht** —
   die flachen Skerries und die Wasserlinie bleiben nackter Fels.
-- **Wo die Inseln liegen:** `ISLAND_COUNT` Stück pro Runde, ausgewürfelt in
-  `roll_island_sectors` (verschiedene Sektoren, beide Richtungen), gemerkt in
-  `state.island_sectors`. Die **erste landet immer nah** (`1..ISLAND_NEAR_SECTOR`),
-  damit man beim Rausschwimmen in *irgendeine* Richtung auf eine trifft; die
-  übrigen liegen weiter draußen (`ISLAND_MIN_SECTOR`..`ISLAND_MAX_SECTOR`).
+- **Wo die Inseln liegen:** `ISLAND_COUNT` Stück pro Runde, gemerkt in
+  `state.island_sectors`. Eine davon ist immer die **Insel nebenan**
+  (`IslandWorld::HOME_SECTOR` = −2): jede Runde dieselbe, immer `:through` (also
+  begehbar und überquerbar), gut einen Bildschirm nach links — damit eine Runde nie
+  mit der Suche nach einem Strand anfängt. Die übrigen werden gewürfelt
+  (`ISLAND_MIN_SECTOR`..`ISLAND_MAX_SECTOR`, beide Richtungen).
+  - **Warum −2 und nicht −1:** eine Insel ist bis `SPAN_MAX`=2800 breit und um
+    ihren Sektor *zentriert*. Von −1 reicht sie bis x 676 — mitten über das Boot bei
+    `SURFACE_BOAT_X`=120. Gemessen: der Taucher spawnt dann **unter Fels**
+    (`depth_y` 560 statt 700) und `at_the_boat?` ist `false` — kein Logbuch, kein
+    Entwickeln, keine Anzugreparatur. −2 endet bei x −1004 und lässt das Boot in Ruhe.
 - **`world_stream.rb`** (reopenet `Game`) — die Segment-Verwaltung: `current_world`
   wählt das Chunk des Tauchers (`world_index = diver_global_x / SCREEN_WIDTH`) für
   Biom/Fauna/Fog, `world_at`/`world_for` cachen bzw. bauen Segmente,
@@ -686,7 +692,11 @@ Screen-Positionen und werden nicht direkt gesetzt.
   `state.speed` / `oxygen_drain`. Taste im Stehen kostet nichts. Kein Konflikt
   mit `fire_input?` (das nutzt `key_down`, nur in pausierten Szenen).
 - **Fog of War:** unter Wasser aktiv (`FOG_OF_WAR`), an der Oberfläche
-  (`breathing?`) aus (dort ist Tageslicht).
+  (`at_open_surface?`) aus (dort ist Tageslicht). **Der Fog gehört zur Welt, nicht
+  zum Taucher** (`render_fog`): als Teil von `render_diver` gezeichnet, hob ihn das
+  Pausenmenü auf — das friert die Welt ein und zeichnet sie *ohne* den Taucher, also
+  gab es die ganze Karte für einen Tastendruck. **Wer das Meer zeichnet, zeichnet
+  das Dunkel mit** (`pause_tick`, `home_menu_tick`).
 - **Hai:** in Hai-Biomen (Tiefsee) unterwegs; **Kollision in Welt-Koordinaten**
   (Taucher auf `depth_y` vs. Hai-Welt-`y`, `intersect_rect?`) → `game_over` /
   `:eaten`. Er patrouilliert auf **Taucher-Tiefe** (`shark_patrol_y`, geclampt in

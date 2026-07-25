@@ -34,6 +34,15 @@ class IslandWorld
                        # beach and is drawn as sand. Matches GREEN_MIN, so the
                        # sand stops exactly where the grass starts
   SHORES = [:rock, :through, :blocked]
+  # One island always lies just off home, and it is always one you can walk onto,
+  # so a round never opens with a hunt for somewhere to come ashore.
+  #
+  # -2 rather than -1 because an island is up to SPAN_MAX across and centred on
+  # its sector: from -1 it reaches x 676, straight over the boat at
+  # SURFACE_BOAT_X, and the diver spawns under its rock with the boat unreachable
+  # — no log, no developing, no patching the suit. -2 ends at x -1004, a good
+  # screen's swim out and clear of home.
+  HOME_SECTOR = -2
   TUNNEL_MIN = 130     # tightest the corridor ever squeezes ...
   TUNNEL_MAX = 300     # ... and the widest it opens out
   TUNNEL_WAVE = 260    # px over which its height changes
@@ -110,7 +119,11 @@ class IslandWorld
       shore: SHORES[rng.int(SHORES.length)],
       beach_left: rng.int(2).zero?,        # which end the blocked island's sand is on
       cliff_at: 0.30 + rng.int(16) / 100.0, # ... and how far in the wall stands
-    }
+    }.tap do |shape|
+      # Overridden after the rolls, never instead of one: the draws have to stay
+      # in their order or every island in the sea changes.
+      shape[:shore] = :through if sector == HOME_SECTOR
+    end
   end
 
   def self.centre_x(sector)

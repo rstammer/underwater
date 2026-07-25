@@ -22,6 +22,8 @@ class Game
   # back in the water (handled in update_home_menu).
   def home_menu_tick
     render_underwater # the frozen world behind the veil
+    render_fog        # a no-op at the boat, where this screen lives — but the rule
+                      # is that anything drawing the sea draws the dark with it
     outputs.sprites << { x: 0, y: 0, w: grid.w, h: grid.h, r: 4, g: 12, b: 22, a: MENU_VEIL, path: :solid }
     render_boat_screen
   end

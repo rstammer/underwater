@@ -165,6 +165,52 @@ class AshoreTests
   # Counted on the islands themselves rather than on the rolls: the fitting takes
   # blocked islands away when they are too low to carry a wall, so this is the
   # test that would notice if it took nearly all of them.
+  # --- the island next door --------------------------------------------------
+  #
+  # One walkable island always lies just off home, so a round never starts with a
+  # hunt for somewhere to come ashore.
+
+  def test_every_round_has_a_walkable_island_next_to_home(args, assert)
+    game = build_game(args)
+
+    6.times do
+      game.initialize_game(0)
+      assert.true! args.state.island_sectors.include?(IslandWorld::HOME_SECTOR),
+                   "there is one off home (#{args.state.island_sectors.inspect})"
+    end
+
+    isle = IslandWorld.new(WorldGenerator.generate(IslandWorld::HOME_SECTOR),
+                           IslandWorld::HOME_SECTOR)
+    assert.false! isle.shore == :rock, "and it is one you can get out of the water onto"
+  end
+
+  # It must not swallow the boat. An island is up to 2800 px across and centred on
+  # its sector, so the one at -1 reaches x 676 — right over the boat at x 120,
+  # which leaves the diver spawning under rock with no way to log, develop or
+  # patch his suit. -2 is the nearest sector that clears it.
+  def test_the_island_next_door_leaves_the_boat_alone(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    isle = IslandWorld.new(WorldGenerator.generate(IslandWorld::HOME_SECTOR),
+                           IslandWorld::HOME_SECTOR)
+
+    assert.true! isle.last_x + IslandWorld::REACH < SURFACE_BOAT_X - BOAT_REACH,
+                 "it stops well short of the boat (ends #{isle.last_x})"
+
+    game.spawn_at_surface
+    assert.true! game.at_the_boat?, "so a round still starts at the boat"
+    assert.false! game.on_land?, "floating, not standing on an island"
+  end
+
+  def test_you_can_wade_ashore_on_the_island_next_door(args, assert)
+    game = diving(args)
+
+    walk = walk_in(game, args, IslandWorld::HOME_SECTOR, true)
+
+    assert.true! walk[:ashore],
+                 "the island off home lets you out of the water (#{walk[:highest] - WATERLINE_Y})"
+  end
+
   def test_the_sea_holds_all_three_kinds_of_shore(args, assert)
     kinds = (1..60).map { |s| IslandWorld.new(WorldGenerator.generate(s), s).shore }
     IslandWorld::SHORES.each do |kind|

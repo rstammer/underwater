@@ -7,7 +7,8 @@ class Game
   PAUSE_H = 320
 
   def pause_tick
-    render_underwater # the frozen world behind the veil
+    render_underwater # the frozen world behind the veil ...
+    render_fog        # ... still as dark as it was: pausing is not an x-ray
     outputs.sprites << { x: 0, y: 0, w: grid.w, h: grid.h, r: 4, g: 12, b: 22, a: 170, path: :solid }
     read_pause_input
     render_pause_card

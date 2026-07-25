@@ -162,12 +162,12 @@ class Game
     center_camera   # frame the diver right away instead of gliding in on the first ticks
   end
 
-  # Where the islands lie this round: distinct sectors to either side of home.
-  # The first one lands close enough that you run into it swimming out in either
-  # direction — otherwise a round can go by without ever finding one. The rest
-  # are scattered further out, for exploring.
+  # Where the islands lie this round. One of them is always the island next door
+  # (IslandWorld::HOME_SECTOR) — the same one every round, always walkable, a
+  # screen's swim to the left — so a round never opens with a hunt for somewhere
+  # to come ashore. The rest are rolled and scattered, for exploring.
   def roll_island_sectors
-    sectors = [roll_island_sector(ISLAND_MIN_SECTOR, ISLAND_NEAR_SECTOR)]
+    sectors = [IslandWorld::HOME_SECTOR]
     sectors << roll_island_sector until sectors.uniq.length == ISLAND_COUNT
     sectors.uniq
   end
@@ -788,12 +788,21 @@ class Game
 
   def render_diver
     outputs.sprites << state.diver.to_h
-    if FOG_OF_WAR && !at_open_surface? # no fog at the surface — there's daylight up here
-      biome = current_world.biome
-      outputs.sprites << FogOfWar.new(state.diver,
-                                      radius: fog_radius(biome),
-                                      color: fog_color(biome)).to_a
-    end
+    render_fog
+  end
+
+  # The dark closing in around him. It belongs to the *world*, not to the diver —
+  # drawing it as part of him meant the pause screen, which freezes the world and
+  # draws it without him, lifted the fog and handed you the whole map for one key
+  # press. Anything that draws the sea has to draw this too.
+  def render_fog
+    return unless FOG_OF_WAR
+    return if at_open_surface? # no fog at the surface — there's daylight up here
+
+    biome = current_world.biome
+    outputs.sprites << FogOfWar.new(state.diver,
+                                    radius: fog_radius(biome),
+                                    color: fog_color(biome)).to_a
   end
 end
 
