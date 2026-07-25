@@ -238,6 +238,7 @@ class Game
 
   def career_rows
     [
+      ["Tag", "#{state.day}"],
       ["Tauchgänge", "#{state.log_dives}"],
       ["Tiefster Punkt je", "#{state.log_best} m"],
       ["Arten im Artenbuch", "#{album_found} / #{Species::ALL.length}"],

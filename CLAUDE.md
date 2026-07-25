@@ -708,6 +708,18 @@ Screen-Positionen und werden nicht direkt gesetzt.
   (`at_the_boat?`, `SUIT_REPAIR`) — das gibt dem Boot seinen Zweck. HUD: Anzug-
   Balken **unter** dem O2-Balken (`render_gauges`), er warnt mit
   „Anzug — Druck!", sobald man unter der Auslegungstiefe ist.
+- **Energie = der Tag (die dritte Uhr).** `state.energy` läuft über **~15 Minuten**
+  herunter, egal ob unten oder an der Oberfläche — was vergeht, ist der Tag, nicht
+  der Atem. Leer heißt **nicht tot**, sondern erschöpft (`exhausted?`, Tempo
+  ×`TIRED_SPEED`), damit man noch heimkommt. Aufgefüllt wird sie **nur durch
+  Schlafen am Boot** (`S`, `sleep_at_boat`) — das beendet den Tag, zählt
+  `state.day` hoch und flickt nebenbei den Anzug.
+  - **Die Uhrzeit wird aus der Energie gelesen** (`time_of_day`, `DAY_PHASES`):
+    Morgen → Nacht in sechs Stufen. Es gibt bewusst **keinen zweiten Zähler**, der
+    mit dem Balken in Takt gehalten werden müsste — Balken, Uhr und Kalender
+    hängen alle an derselben Zahl. Icons: `sprites/decor/daytime.png`
+    (`tools/make_daytime_sprites.rb`), sechs Frames in der Reihenfolge des Tages,
+    also wählt das HUD per Index und muss keine Namen auf Bilder abbilden.
 - **Sauerstoff:** Drain unter Wasser (`OXYGEN_DRAIN`/Tick, ~3 min). Refill **nur**
   wenn `breathing?` — Kopf über *einer* Wasseroberfläche: der des Meeres **oder**
   der in einer Luftkammer. Leer → `game_over` /

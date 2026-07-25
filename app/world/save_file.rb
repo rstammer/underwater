@@ -23,12 +23,13 @@ class SaveFile
   QUALITIES = { "unscharf" => :unscharf, "gut" => :gut, "perfekt" => :perfekt }
 
   def self.encode(name:, album:, sighted:, seed: nil, credits: 0,
-                  dives: 0, best: 0, sold: 0, earned: 0)
+                  dives: 0, best: 0, sold: 0, earned: 0, day: 1, energy: nil)
     lines = []
     lines << "name #{name.strip}" if name && !name.strip.empty?
     lines << "seed #{seed}" if seed
     lines << "credits #{credits}" if credits && credits > 0
-    { "dives" => dives, "best" => best, "sold" => sold, "earned" => earned }.each do |key, value|
+    { "dives" => dives, "best" => best, "sold" => sold, "earned" => earned,
+      "day" => day, "energy" => energy }.each do |key, value|
       lines << "#{key} #{value}" if value && value > 0
     end
     (album || {}).each { |key, quality| lines << "album #{key} #{quality}" }
@@ -41,7 +42,7 @@ class SaveFile
 
   def self.decode(text)
     book = { name: "", album: {}, sighted: {}, seed: nil, credits: 0,
-             dives: 0, best: 0, sold: 0, earned: 0 }
+             dives: 0, best: 0, sold: 0, earned: 0, day: 1, energy: nil }
     return book if text.nil?
 
     text.split("\n").each { |line| read_line(book, line.strip.split(" ")) }
@@ -52,7 +53,7 @@ class SaveFile
     case parts[0]
     when "name"
       book[:name] = parts[1..-1].join(" ")
-    when "credits", "dives", "best", "sold", "earned"
+    when "credits", "dives", "best", "sold", "earned", "day", "energy"
       book[parts[0].to_sym] = parts[1].to_i if parts[1].to_i > 0
     when "seed"
       # A book written before seas had seeds simply hasn't got this line, and
@@ -79,6 +80,6 @@ class SaveFile
 
   def self.blank
     { name: "", album: {}, sighted: {}, seed: nil, credits: 0,
-      dives: 0, best: 0, sold: 0, earned: 0 }
+      dives: 0, best: 0, sold: 0, earned: 0, day: 1, energy: nil }
   end
 end

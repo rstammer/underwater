@@ -10,6 +10,7 @@ class Game
     render_film_gauge
     render_locator
     render_credits
+    render_daytime
     render_inventory
     render_dive_hint
     render_flash    # the shutter going off, over the whole picture
@@ -262,6 +263,30 @@ class Game
     "Sektor #{world_index}    Tiefe #{current_depth} m"
   end
 
+  DAYTIME_SHEET = "sprites/decor/daytime.png"
+  DAYTIME_FRAME = 24
+  DAY_NAMES = {
+    morgen: "Morgen", vormittag: "Vormittag", mittag: "Mittag",
+    nachmittag: "Nachmittag", abend: "Abend", nacht: "Nacht",
+  }
+
+  # Which day it is and roughly where in it — under the locator, with the sun (or
+  # the moon) that goes with it. Roughly is the point: a diver knows it is
+  # getting on towards evening, not that it is 17:42.
+  def render_daytime
+    x = grid.w - 20
+    outputs.labels << { x: x, y: grid.h - 80, text: "Tag #{state.day}",
+                        size_enum: 2, alignment_enum: 2,
+                        r: 226, g: 238, b: 250 }
+    outputs.labels << { x: x - 40, y: grid.h - 110, text: DAY_NAMES[time_of_day],
+                        size_enum: 1, alignment_enum: 2,
+                        r: 190, g: 212, b: 234 }
+    outputs.sprites << { x: x - 30, y: grid.h - 118, w: 28, h: 28,
+                         path: DAYTIME_SHEET,
+                         source_x: day_phase_index * DAYTIME_FRAME, source_y: 0,
+                         source_w: DAYTIME_FRAME, source_h: DAYTIME_FRAME }
+  end
+
   CREDIT_INK = [236, 226, 150]
 
   # The balance, under the locator. Always up: what you are down here for is
@@ -288,12 +313,18 @@ class Game
   GAUGE_GAP = 62 # enough for the lower gauge's own label to sit clear
   OXYGEN_COLOR = [40, 170, 230]
   SUIT_COLOR = [190, 160, 90]
+  ENERGY_COLOR = [130, 190, 130]
 
-  # The two things that can run out on you, stacked: how long you can stay down,
-  # and how deep you can go.
+  # The three things that can run out on you, stacked: how long you can stay
+  # down, how deep you can go, and how much day is left.
   def render_gauges
     render_gauge(GAUGE_Y, "Sauerstoff", state.oxygen / OXYGEN_MAX, OXYGEN_COLOR)
     render_gauge(GAUGE_Y - GAUGE_GAP, suit_label, state.suit / SUIT_MAX, SUIT_COLOR)
+    render_gauge(GAUGE_Y - GAUGE_GAP * 2, energy_label, state.energy / ENERGY_MAX.to_f, ENERGY_COLOR)
+  end
+
+  def energy_label
+    exhausted? ? "Energie — erschöpft, heim zum Boot" : "Energie"
   end
 
   def suit_label

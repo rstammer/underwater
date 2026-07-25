@@ -55,6 +55,12 @@ SUIT_DRAIN = 0.0025 # damage per tick, per metre past the rated depth
 SUIT_REPAIR = 0.4 # per tick while patching it up at the boat
 BOAT_REACH = 160 # how close to the boat counts as being back home
 SPRINT_MULTIPLIER = 2 # sprinting: this much faster, and this much thirstier for air
+ENERGY_MAX = 100
+# A day is a quarter of an hour: 15 min x 60 s x 60 ticks. Energy *is* the day —
+# the clock and the calendar are both read off this one number, so nothing can
+# drift out of step with anything else.
+ENERGY_DRAIN = ENERGY_MAX / (15.0 * 60 * 60)
+TIRED_SPEED = 0.55    # what is left of him once the day is gone
 SHARK_PATROL_SPREAD = 200 # how far above/below the diver's depth the shark comes back in
 DIVER_FOOTPRINT = 20 # how far to each side the diver's footing feels for sand to rest on
 SOLID_STEP_UP = 48 # ledge he still slips over sideways; anything higher is a wall
@@ -95,6 +101,7 @@ class Game
     update_artenbuch_paging # ... and the arrows turn its pages
     update_escape    # ESC: out of the boat screen, or out of the dive to the title
     quit_game if at_the_boat? && inputs.keyboard.key_down.q # Q at the boat quits
+    update_sleep # S at the boat ends the day
     update_sprint
     update_characters(sprite_index)
     unless game_paused?
@@ -105,6 +112,7 @@ class Game
       update_boat_stash # I at the boat empties the pack into the hold
       update_oxygen
       update_suit
+      update_energy
       update_dive_hint # ... and the camera's rules come up, once the water closes
       update_kraken # deep down, the legend hangs at the edge of the dark
       update_sightings # note which species you've now laid eyes on
@@ -132,6 +140,8 @@ class Game
     state.game_scene = "title"
     state.oxygen = OXYGEN_MAX
     state.suit = SUIT_MAX
+    state.energy = ENERGY_MAX # the day ahead of him
+    state.day = 1
     state.death_cause = nil
     state.sprinting = false
     state.speed = Diver::SPEED
@@ -699,7 +709,9 @@ class Game
 
   def current_speed
     speed = state.sprinting ? Diver::SPEED * SPRINT_MULTIPLIER : Diver::SPEED
-    on_land? ? speed * LAND_SPEED : speed
+    speed *= LAND_SPEED if on_land?
+    speed *= TIRED_SPEED if exhausted? # a day gone is a long swim home
+    speed
   end
 
   # Oxygen tops up only while the head is actually above the waterline,
@@ -738,6 +750,53 @@ class Game
 
   def repair_suit
     state.suit = [state.suit + SUIT_REPAIR, SUIT_MAX].min
+  end
+
+  # --- the day --------------------------------------------------------------
+  #
+  # Oxygen says how long you can stay under and the suit says how deep you can
+  # go; energy says how much day is left. It runs whether you are down there or
+  # bobbing at the surface, because what is passing is the day, not your breath.
+  # Running out doesn't kill you — it leaves you too tired to do much but get
+  # home, which is where the only bed is.
+
+  DAY_PHASES = [:morgen, :vormittag, :mittag, :nachmittag, :abend, :nacht]
+
+  def update_energy
+    state.energy = [state.energy - ENERGY_DRAIN, 0].max
+  end
+
+  def exhausted?
+    state.energy <= 0
+  end
+
+  # The clock, read off the gauge: no second counter to keep in step with it.
+  def time_of_day
+    spent = (ENERGY_MAX - state.energy) / ENERGY_MAX.to_f
+    phase = (spent * DAY_PHASES.length).floor
+    phase = 0 if phase < 0
+    phase = DAY_PHASES.length - 1 if phase >= DAY_PHASES.length
+    DAY_PHASES[phase]
+  end
+
+  def day_phase_index
+    DAY_PHASES.index(time_of_day)
+  end
+
+  def update_sleep
+    sleep_at_boat if inputs.keyboard.key_down.s
+  end
+
+  # Turn in for the night. The only way to get a day back — and the boat sees to
+  # the suit while you are asleep, which is the other reason to come home.
+  def sleep_at_boat
+    return unless at_the_boat?
+
+    state.day += 1
+    state.energy = ENERGY_MAX
+    state.suit = SUIT_MAX
+    state.oxygen = OXYGEN_MAX
+    save_book # a day ended is worth remembering
   end
 
   def too_deep?
@@ -881,7 +940,8 @@ class Game
                                           album: state.album, sighted: state.sighted,
                                           seed: state.world_seed, credits: state.credits,
                                           dives: state.log_dives, best: state.log_best,
-                                          sold: state.log_sold, earned: state.log_earned))
+                                          sold: state.log_sold, earned: state.log_earned,
+                                          day: state.day, energy: state.energy.round))
   end
 
   # Carry the saved book on: same diver, same pages, same sea, straight into the
@@ -900,6 +960,8 @@ class Game
     state.log_best = book[:best] || 0
     state.log_sold = book[:sold] || 0
     state.log_earned = book[:earned] || 0
+    state.day = book[:day] || 1
+    state.energy = book[:energy] || ENERGY_MAX
     state.world_seed = book[:seed] || new_world_seed
     reset_game # rebuild the world from that seed before he is put in it
     start_round(told: true)
@@ -917,6 +979,8 @@ class Game
     state.log_best = 0
     state.log_sold = 0
     state.log_earned = 0
+    state.day = 1
+    state.energy = ENERGY_MAX
     state.world_seed = new_world_seed
     reset_game
     state.game_scene = "name"

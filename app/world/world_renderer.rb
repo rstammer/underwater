@@ -340,6 +340,7 @@ class Game
       lines << { text: "[ F ]  Film entwickeln (#{state.film_roll.length})",
                  size: 0, color: [232, 226, 150] }
     end
+    lines << { text: "[ S ]  Schlafen — Tag #{state.day} beenden", size: 0, color: [180, 214, 180] }
     lines << { text: "[ L ]  Logbuch & Lager", size: 0, color: [150, 198, 224] }
     lines << { text: "[ I ]  Alles einlagern (#{state.inventory.length})", size: 0, color: [150, 198, 224] }
     lines << { text: "[ Q ]  Spiel beenden", size: 0, color: [150, 198, 224] }
