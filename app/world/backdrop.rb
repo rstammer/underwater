@@ -25,18 +25,19 @@
 class Game
   # Each rank: [how much wider, how much taller, how far shifted, colour, alpha].
   #
-  # Kept close to the island's own width. At 2.9 the range ran most of a screen
-  # past the coast on both sides — the island's underwater flanks are long, and
-  # stretching them put hills over open water where there is plainly no land.
-  # Taller instead: height is what reads as distance, width is what gives it
-  # away.
+  # *Narrower* than the island, not wider. That was the mistake underneath every
+  # version of this: widening the curve necessarily makes the range stick out
+  # past the coast on both sides, which is exactly where there is plainly no
+  # land. A mountain behind an island does not stick out — it rises over the
+  # top of it. So the curve is squeezed inward and pushed up instead.
   # The nearer rank is the darker one — haze drains colour with distance, and a
   # pale ridge in front of a dark one reads as fog rather than as land.
   BACKDROP_RANKS = [
-    [1.75, 1.95, -190, [154, 190, 210], 255],
-    [1.35, 1.55, 110, [112, 152, 178], 255],
+    [0.72, 2.30, -170, [162, 198, 216], 255],
+    [0.86, 1.75, 90, [104, 146, 174], 255],
   ].freeze
-  BACKDROP_STEP = 12 # px per drawn column: pixel-art ridges, not curves
+  BACKDROP_STEP = 12   # px per drawn column: pixel-art ridges, not curves
+  BACKDROP_SAMPLE = 24 # px of island curve per sample, locked to the world
   BACKDROP_ON = true
 
   # Only above water, and never on the framing screens: the title, the opening,
@@ -81,20 +82,41 @@ class Game
     isle = backdrop_island(sector)
     centre = IslandWorld.centre_x(sector)
     base = WATERLINE_Y - state.camera_y
-    columns = (SCREEN_WIDTH / BACKDROP_STEP) + 2
 
-    (0...columns).map do |i|
-      x = i * BACKDROP_STEP
-      world_x = state.camera_x + x
-      # Sample the island's own curve a third of the way out from its middle and
-      # draw it at full width: that is what turns the same shape into a wider one.
-      source = centre + (world_x - centre - shift) / wider
+    # Walked along the *curve*, not along the screen. Walking the screen means
+    # each drawn column asks about a slightly different place on the island as
+    # the camera moves, and since the crown steps in terraces the whole range
+    # shimmered: a column would flick between one terrace and the next every
+    # few pixels of swimming. Stepping the source on a fixed world grid and
+    # projecting each sample onto the screen means the same places are always
+    # asked about, so the silhouette can only ever slide sideways.
+    #
+    # Which way round it is matters more than it looks — it is the difference
+    # between "where is the island at this pixel?" and "where does this bit of
+    # island land?", and only the second one holds still.
+    first = to_source(centre, shift, wider, state.camera_x)
+    last = to_source(centre, shift, wider, state.camera_x + SCREEN_WIDTH)
+    first, last = last, first if first > last
+    step = BACKDROP_SAMPLE
+    source = (first / step).floor * step
+    width = (step * wider).ceil + 1
+
+    out = []
+    while source <= last + step
       lift = backdrop_lift(isle, source, taller, index)
-      next nil if lift <= 0
+      if lift > 0
+        x = centre + (source - centre) * wider + shift - state.camera_x
+        out << { x: x, y: base, w: width, h: lift,
+                 r: colour[0], g: colour[1], b: colour[2], a: alpha, path: :solid }
+      end
+      source += step
+    end
+    out
+  end
 
-      { x: x, y: base, w: BACKDROP_STEP + 1, h: lift,
-        r: colour[0], g: colour[1], b: colour[2], a: alpha, path: :solid }
-    end.compact
+  # Screen x back to a place on the island's curve.
+  def to_source(centre, shift, wider, world_x)
+    centre + (world_x - centre - shift) / wider
   end
 
   # How high this column stands over the water. Zero wherever the island's own
