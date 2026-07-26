@@ -10,7 +10,10 @@
 # Nothing wraps — one entry is one line, "" is a paragraph break, and a test
 # measures every line against the intro screen's column.
 class Game
-  DIVER_NAME = "Taucher" # only used if somehow nobody typed a name
+  # The stand-in when nobody typed anything. A name rather than a job title:
+  # "Taucher" made the game assume something about whoever is holding the
+  # controller, and every other word here is careful not to.
+  DIVER_NAME = "Namenlos"
 
   def diver_name
     named? ? state.player_name.strip : DIVER_NAME
@@ -23,8 +26,8 @@ class Game
   # One entry per line, "" for a paragraph break.
   def story_lines
     [
-      "Freier Wildlife-Fotograf. Spezialisiert auf alles, was unter",
-      "Wasser lebt. Festanstellung war noch nie deins.",
+      "Wildlife-Fotografie, freiberuflich. Spezialisiert auf alles,",
+      "was unter Wasser lebt. Festanstellung war noch nie deins.",
       "",
       "Du arbeitest für eine Reihe von Magazinen und Online-Plattformen",
       "sowie einige maritime Forschungsprojekte. Du wirst bezahlt für",

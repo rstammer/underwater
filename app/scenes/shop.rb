@@ -122,7 +122,7 @@ class Game
   # Read off the state, most specific first. The order is the point: the first
   # thing that is true about this diver is the most useful thing to tell them.
   def shop_tip
-    return "Du bist ja ganz neu. Fang flach an — die Sandbank ist voller Anfänger wie du, und die zahlen auch." if state.log_dives.to_i <= 1
+    return "Du bist ja ganz neu. Fang flach an — an der Sandbank fangen alle an, und sie zahlt auch." if state.log_dives.to_i <= 1
     return "Erst mal Luft holen? Dein Anzug hat was abbekommen." if state.suit < SUIT_MAX * 0.4
     return "Mit dem Anzug kommst du keine hundert Meter tief. Das Beste da unten fängt aber erst darunter an." if gear_level(:suit).zero? && state.log_best.to_i >= 80
     return "Zwölf Bilder sind schnell weg, wenn's mal gut läuft. Frag mich, wenn du magst." if gear_level(:film).zero? && album_found >= 4
