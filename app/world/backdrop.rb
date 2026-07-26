@@ -10,10 +10,24 @@
 # cheapest depth there is — no new sprites, no parallax bookkeeping, just the
 # fact that distance drains colour.
 #
-# They are *behind everything*: drawn after the sky and before any of the world's
-# own rock, so an island always occludes them. And they never break the horizon
-# line — a ridge rising out of the sea in the wrong place would read as terrain
-# you could swim to, which is exactly what they are not.
+# CURRENTLY OFF (BACKDROP_ON). Three passes at it and the approach is wrong at
+# the root, so it is switched off rather than tuned again:
+#
+#   * It is a separate layer with a visibility switch, and a hard switch has to
+#     pop. The range appeared at full height in one frame.
+#   * It scrolls slower than the world, so it drags along behind you as you walk
+#     — correct for a distant mountain range, wrong for a thing that is supposed
+#     to *be* the island you are standing on, continuing backwards.
+#   * Centred on the island's sector rather than on its visible land, so it sat
+#     beside the island instead of behind it.
+#
+# What it should be instead: not a layer at all, but a second silhouette derived
+# from the island's own crown (IslandWorld#crown_y_at) — the same curve, taller
+# and wider, hazed and offset, drawn behind the island's rock. Then it cannot
+# appear without the island, cannot drag (it moves with it), and is by
+# construction the same landmass carrying on. The drawing below — two haze
+# ranks, ridged noise, the block raster — carries over unchanged; only where the
+# heights come from has to change.
 class Game
   # Two ranks. More would be mush at this palette; one would look like a mistake.
   # The far rank is drawn first and the near one over it, so the near one has to
@@ -46,7 +60,15 @@ class Game
   # Only where there is an island. On the open sea the horizon is the point —
   # a ridge out there would be land you can see and never reach, which is a
   # promise the game cannot keep.
+  # Off. Three attempts in and the model is wrong, not the numbers — see the
+  # note at the top of this file. Left in place rather than deleted because the
+  # drawing half (haze ranks, ridged noise, block raster) is sound and only the
+  # *positioning* has to be rebuilt.
+  BACKDROP_ON = false
+
   def render_backdrop
+    return unless BACKDROP_ON
+
     # Never on the framing screens. The title, the opening, the recap and the
     # night all park the camera at the boat *for the clean horizon* — that is
     # the whole reason they draw the real sea — and the home island is close
