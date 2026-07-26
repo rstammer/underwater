@@ -20,7 +20,10 @@ class Game
   SHOP_PAD = 26
   SHOP_HEAD_H = 96
   SHOP_FOOT_H = 44
-  SHOP_ROW_H = 132
+  # Five ladders, not three: the rows had to give up the height the two new
+  # ones needed, or the shelf ran off the bottom of the screen and the hint
+  # line printed through it.
+  SHOP_ROW_H = 88
   SHOP_STEP_GAP = 250 # room the price column keeps to itself, measured against
                       # the longest thing either column can hold
   SHOP_INK = [232, 244, 252]
@@ -245,9 +248,9 @@ class Game
 
       x = left + SHOP_PAD + 24
       ink = here ? SHOP_INK : SHOP_DIM
-      outputs.labels << { x: x, y: y + SHOP_ROW_H - 30, text: row[:name], size_enum: 3,
+      outputs.labels << { x: x, y: y + SHOP_ROW_H - 22, text: row[:name], size_enum: 2,
                           vertical_alignment_enum: 2, r: ink[0], g: ink[1], b: ink[2] }
-      outputs.labels << { x: x, y: y + SHOP_ROW_H - 62, text: row[:blurb], size_enum: 0,
+      outputs.labels << { x: x, y: y + SHOP_ROW_H - 46, text: row[:blurb], size_enum: 0,
                           vertical_alignment_enum: 2,
                           r: SHOP_DIM[0], g: SHOP_DIM[1], b: SHOP_DIM[2], a: 190 }
 
@@ -263,20 +266,20 @@ class Game
              else
                gear_reading(row[:key], row[:now])
              end
-      outputs.labels << { x: step_right, y: y + SHOP_ROW_H - 40, text: step,
+      outputs.labels << { x: step_right, y: y + SHOP_ROW_H - 26, text: step,
                           size_enum: 2, alignment_enum: 2, vertical_alignment_enum: 2,
                           r: ink[0], g: ink[1], b: ink[2] }
 
       price = row[:price].nil? ? "ausgereizt" : "#{row[:price]} Cr"
       colour = row[:price].nil? ? SHOP_DIM : (affordable ? CREDIT_INK : SHOP_WARN)
-      outputs.labels << { x: price_right, y: y + SHOP_ROW_H - 40, text: price,
+      outputs.labels << { x: price_right, y: y + SHOP_ROW_H - 26, text: price,
                           size_enum: 2, alignment_enum: 2, vertical_alignment_enum: 2,
                           r: colour[0], g: colour[1], b: colour[2] }
       # Why E does nothing, on its own line rather than glued to the price where
       # it was what made the two columns collide.
       next if row[:price].nil? || affordable
 
-      outputs.labels << { x: price_right, y: y + SHOP_ROW_H - 74, text: "reicht noch nicht",
+      outputs.labels << { x: price_right, y: y + SHOP_ROW_H - 54, text: "reicht noch nicht",
                           size_enum: 0, alignment_enum: 2, vertical_alignment_enum: 2,
                           r: SHOP_WARN[0], g: SHOP_WARN[1], b: SHOP_WARN[2], a: 200 }
     end

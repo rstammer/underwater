@@ -34,6 +34,7 @@ require "app/world/static_worlds.rb"
 require "app/world/island_world.rb"
 require "app/world/world_stream.rb"
 require "app/world/world_renderer.rb"
+require "app/world/backdrop.rb"
 require "app/world/items.rb"
 require "app/world/photography.rb"
 require "app/world/kraken.rb"
@@ -836,10 +837,10 @@ class Game
   end
 
   def current_speed
-    speed = state.sprinting ? Diver::SPEED * SPRINT_MULTIPLIER : Diver::SPEED
+    # Fins push on the sprint, not on the cruise — see Game#swim_factor.
+    speed = state.sprinting ? Diver::SPEED * SPRINT_MULTIPLIER * swim_factor : Diver::SPEED
     speed *= LAND_SPEED if on_land?
     speed *= TIRED_SPEED if exhausted? # a day gone is a long swim home
-    speed *= swim_factor               # ... and better fins push harder
     speed
   end
 

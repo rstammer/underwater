@@ -84,6 +84,8 @@ class Game
   def render_world
     outputs.sprites << world_water(current_world)
     outputs.sprites << sky_fill
+    # Distance, before anything near is drawn: the island has to occlude it.
+    render_backdrop
     outputs.sprites << surface_line
     visible_world_indices.each do |index|
       world = world_at(index)

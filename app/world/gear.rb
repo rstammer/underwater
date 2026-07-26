@@ -29,8 +29,9 @@ class Game
   # How far you see, as a multiplier on the fog. A mask is the one piece of kit
   # you look *through*, so it buys the thing the deep takes away first.
   MASK_STEPS = [100, 130, 165].freeze
-  # And how fast you swim, in percent. Fins are the difference between the sea
-  # being big and the sea being far.
+  # How hard you push when you sprint, in percent. Deliberately the *sprint*
+  # and not the cruise: sprinting is the thing you do when the air is running
+  # out and the boat is a long way off, so that is where fins are worth money.
   FINS_STEPS = [100, 118, 140].freeze
 
   # The shop's stock, as data: what it is, what it does, what each rung costs.
@@ -58,9 +59,9 @@ class Game
       blurb: "Du siehst weiter. Was du früher siehst, kannst du früher fotografieren." },
 
     { key: :fins, name: "Flossen", steps: FINS_STEPS, prices: [nil, 160, 430],
-      unit: "% Tempo",
+      unit: "% Sprint",
       titles: ["Ausgelatschte Gummifüße", "Schnelle Schwimmhäute", "Turbo-Delfinflossen"],
-      blurb: "Schneller unterwegs. Das Meer wird nicht kleiner, aber die Wege werden kürzer." },
+      blurb: "Mehr Schub, wenn du sprintest. Das Meer wird nicht kleiner, aber die Wege werden kürzer." },
   ].freeze
 
   def reset_gear
@@ -98,6 +99,8 @@ class Game
     case key
     when :air then air_minutes_label(value)
     when :suit then "#{value} m"
+    when :mask then "#{value} % Sicht"
+    when :fins then "#{value} % Sprint"
     else "#{value} Aufnahmen"
     end
   end

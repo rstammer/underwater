@@ -143,15 +143,40 @@ class GearTests
     assert.true! game.fog_radius(Biome::DEEP) > bare, "the dark backs off a little"
   end
 
-  def test_better_fins_swim_faster(args, assert)
+  # On the sprint, and only there. Sprinting is what you do when the air is
+  # going and the boat is far, so that is where fins are worth money.
+  def test_better_fins_push_harder_on_the_sprint(args, assert)
     game = a_diver(args, credits: 5000)
-    args.state.sprinting = false
     args.state.on_land = false
+    args.state.sprinting = true
     bare = game.current_speed
 
     game.buy_gear(:fins)
 
     assert.true! game.current_speed > bare
+  end
+
+  def test_fins_leave_the_cruise_alone(args, assert)
+    game = a_diver(args, credits: 5000)
+    args.state.on_land = false
+    args.state.sprinting = false
+    bare = game.current_speed
+
+    game.buy_gear(:fins)
+
+    assert.equal! game.current_speed, bare, "an easy swim is an easy swim"
+  end
+
+  # Every ladder has to read in its own unit. The mask announced itself in
+  # "Aufnahmen" on the shelf, which is the camera's unit and not its own.
+  def test_each_ladder_reads_in_its_own_unit(args, assert)
+    game = a_diver(args)
+
+    assert.true! game.gear_reading(:mask, 130).include?("Sicht")
+    assert.true! game.gear_reading(:fins, 118).include?("Sprint")
+    assert.true! game.gear_reading(:film, 20).include?("Aufnahmen")
+    assert.true! game.gear_reading(:suit, 170).include?("m")
+    assert.true! game.gear_reading(:air, 166).include?("min")
   end
 
   # Bare kit has to leave the game exactly as it was, or every number tuned
