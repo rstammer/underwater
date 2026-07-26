@@ -193,6 +193,7 @@ class Game
     state.log_earned = 0  # every credit ever taken in, spent or not
     state.album = {} # species documented for good — the one thing dying can't take
     state.sighted = {} # species laid eyes on — the Artenbuch only lists what you've seen
+    state.flocks = {}  # ... and the biggest school of each you have brought home
     # What is on disk from last time. Loaded, not applied: the title asks first,
     # because carrying a book on is a choice and so is putting it down.
     state.book_slot = nil # no book is open until one is chosen at the title
@@ -1095,6 +1096,7 @@ class Game
     state.player_name = book[:name]
     state.album = book[:album]
     state.sighted = book[:sighted]
+    state.flocks = book[:flocks] || {} # a book from before schools simply has none
     # A book written before seas had seeds hasn't got one; that diver gets a
     # fresh sea rather than an error.
     # Defaulted, not trusted: a book saved before any of these existed simply
@@ -1134,6 +1136,7 @@ class Game
     open_slot(slot || (1..SAVE_SLOTS).find { |i| !slot_used?(i) } || 1)
     state.album = {}
     state.sighted = {}
+    state.flocks = {}
     state.player_name = ""
     state.credits = 0
     state.log_dives = 0

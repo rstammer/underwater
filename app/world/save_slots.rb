@@ -61,6 +61,7 @@ class Game
   def encode_book
     SaveFile.encode(name: state.player_name,
                     album: state.album, sighted: state.sighted,
+                    flocks: state.flocks,
                     seed: state.world_seed, stash: state.stash,
                     credits: state.credits,
                     dives: state.log_dives, best: state.log_best,

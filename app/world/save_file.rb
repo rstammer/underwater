@@ -47,7 +47,7 @@ class SaveFile
               "gear_film", "gear_air", "gear_suit", "gear_mask", "gear_fins",
               "shop_met"]
 
-  def self.encode(name:, album:, sighted:, seed: nil, stash: [], **counters)
+  def self.encode(name:, album:, sighted:, seed: nil, stash: [], flocks: {}, **counters)
     lines = []
     lines << "name #{name.strip}" if name && !name.strip.empty?
     lines << "seed #{seed}" if seed
@@ -61,6 +61,10 @@ class SaveFile
       lines << "stash #{kind} #{stash.count { |stored| stored == kind }}"
     end
     (album || {}).each { |key, quality| lines << "album #{key} #{quality}" }
+    # The biggest school of a species brought home. One fish is not a school, so
+    # it is never written — which keeps the file the same size as before for
+    # anybody who has not photographed one.
+    (flocks || {}).each { |key, count| lines << "flock #{key} #{count}" if count.to_i > 1 }
     # Documented implies seen, so those keys don't need saying twice.
     (sighted || {}).each_key do |key|
       lines << "sighted #{key}" unless album && album.key?(key)
@@ -94,6 +98,11 @@ class SaveFile
 
       book[:album][parts[1]] = QUALITIES[parts[2]]
       book[:sighted][parts[1]] = true
+    when "flock"
+      return unless known?(parts[1]) && parts[2].to_i > 1
+
+      book[:flocks][parts[1]] = parts[2].to_i
+      book[:sighted][parts[1]] = true
     when "sighted"
       book[:sighted][parts[1]] = true if known?(parts[1])
     end
@@ -109,7 +118,7 @@ class SaveFile
   end
 
   def self.blank
-    book = { name: "", album: {}, sighted: {}, seed: nil, stash: [] }
+    book = { name: "", album: {}, sighted: {}, flocks: {}, seed: nil, stash: [] }
     COUNTERS.each { |key| book[key.to_sym] = 0 }
     # A day starts at one, and "no energy written" has to stay tellable from
     # "worn out": nil means a fresh morning, 0 means he has nothing left.

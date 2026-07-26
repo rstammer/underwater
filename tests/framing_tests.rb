@@ -234,6 +234,25 @@ class FramingTests
     assert.equal! game.frame_report[:flock], 4
   end
 
+  # The whole way through, because every step of it is somewhere the count could
+  # quietly be dropped: composed in the water, exposed on the film, developed at
+  # the boat, written in the book, and paid for.
+  def test_a_group_shot_gets_all_the_way_into_the_book(args, assert)
+    game = with_a_school(args, count: 3)
+    args.state.album = {}
+    args.state.flocks = {}
+
+    hold(game, args, 110)
+    release(game, args)
+    assert.equal! args.state.film_roll[0][:flock], 3, "the roll carries the count"
+
+    game.develop_film
+
+    assert.equal! args.state.flocks["hornhering"], 3, "and so does the book"
+    assert.true! args.state.credits > game.photo_fee(Species["hornhering"], :perfekt),
+                 "paid for more than the single (#{args.state.credits} Cr)"
+  end
+
   # --- letting go without shooting ---------------------------------------------
 
   def test_cancelling_costs_nothing(args, assert)

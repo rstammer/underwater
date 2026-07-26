@@ -175,35 +175,60 @@ class Game
 
     species = report[:species]
     quality = frame_quality(report)
-    return unless improves?(species.key, quality)
+    flock = report[:flock]
+    return unless improves?(species.key, quality, flock)
 
     state.film_left -= 1
-    store_shot(species.key, quality)
+    store_shot(species.key, quality, flock)
     note_shot(species, quality)
     dismiss_dive_hint # he has got it; the card can go
   end
 
-  # Better than what is on the roll *and* better than what is in the book.
-  def improves?(key, quality)
+  # Better than what is on the roll *and* better than what is in the book — and
+  # there are two ways for a picture to be better now. A school of six at the
+  # same grade as the single you already have is not the same photograph, so it
+  # is worth the frame; the same school out of focus is not, or the wide-open
+  # frame would be a free record of whatever you happened to be swimming past.
+  def improves?(key, quality, flock = 1)
     rank = QUALITY_RANK[quality]
     on_roll = state.film_roll.find { |shot| shot[:key] == key }
+    return true if quality != :unscharf && flock > best_flock(key, on_roll)
     return false if on_roll && QUALITY_RANK[on_roll[:quality]] >= rank
     return false if state.album[key] && QUALITY_RANK[state.album[key]] >= rank
 
     true
   end
 
+  # The biggest school of this one you have anywhere — brought home, or on the
+  # film you are still carrying.
+  def best_flock(key, on_roll = nil)
+    on_roll ||= state.film_roll.find { |shot| shot[:key] == key }
+    booked = flock_record(key)
+    rolled = on_roll ? (on_roll[:flock] || 1) : 1
+    rolled > booked ? rolled : booked
+  end
+
+  def flock_record(key)
+    ((state.flocks || {})[key] || 1)
+  end
+
   # The frame carries the day it was taken. Not the day it is developed: you can
   # sleep on an exposed roll, and a print dated the morning it was pulled out of
   # the tank would be a lie about where you were.
-  def store_shot(key, quality)
+  # One frame per species on the roll, holding the best of each thing it can be
+  # best at. The grade and the size of the school are kept separately because
+  # they can come off different exposures — a tight portrait in the morning and a
+  # loose school in the afternoon are two facts about the same animal, and
+  # neither should quietly wipe the other.
+  def store_shot(key, quality, flock = 1)
     existing = state.film_roll.find { |shot| shot[:key] == key }
-    if existing
-      existing[:quality] = quality
-      return existing[:day] = state.day
+    unless existing
+      return state.film_roll << { key: key, quality: quality, flock: flock, day: state.day }
     end
 
-    state.film_roll << { key: key, quality: quality, day: state.day }
+    existing[:quality] = quality if QUALITY_RANK[quality] > QUALITY_RANK[existing[:quality]]
+    existing[:flock] = flock if quality != :unscharf && flock > (existing[:flock] || 1)
+    existing[:day] = state.day
   end
 
   # What he just caught, as far as he can tell down here — which for something
@@ -227,20 +252,34 @@ class Game
     earned = 0
     prints = []
     state.film_roll.each do |shot|
-      known = state.album[shot[:key]]
-      next if known && QUALITY_RANK[known] >= QUALITY_RANK[shot[:quality]]
-
       species = Species[shot[:key]]
       next unless species # a species retired from the roster since the shot
 
-      fee = photo_fee(species, shot[:quality]) - (known ? photo_fee(species, known) : 0)
+      known = state.album[shot[:key]]
+      better = known.nil? || QUALITY_RANK[shot[:quality]] > QUALITY_RANK[known]
+      # The two halves of a page move independently: a school you had not got is
+      # worth developing even if the picture is no sharper than the one on file.
+      flock = shot[:flock] || 1
+      recorded = flock_record(shot[:key])
+      bigger = shot[:quality] != :unscharf && flock > recorded
+      next unless better || bigger
+
+      fee = 0
+      if better
+        fee += photo_fee(species, shot[:quality]) - (known ? photo_fee(species, known) : 0)
+        state.day_species += 1 unless known # a page nobody had before today
+        state.album[shot[:key]] = shot[:quality]
+      end
+      if bigger
+        fee += flock_fee(species, flock) - flock_fee(species, recorded)
+        state.flocks[shot[:key]] = flock
+      end
       earned += fee
-      state.day_species += 1 unless known # a page nobody had before today
-      state.album[shot[:key]] = shot[:quality]
       # A print, not a row of numbers. This is the one moment in the game where a
       # shape in the murk becomes a name, a size and a date — so the tank hands
       # over something to look at, and the darkroom screen shows it.
-      prints << { species: species, quality: shot[:quality], fee: fee,
+      prints << { species: species, quality: state.album[shot[:key]], fee: fee,
+                  flock: bigger ? flock : 0,
                   day: shot[:day] || state.day, fresh: known.nil? }
     end
     state.developed_roll = prints
@@ -258,8 +297,11 @@ class Game
   # you go — then it can never drift out of step with what is actually
   # documented, and it is the photography half of the credit balance.
   def album_score
-    state.album.reduce(0) do |sum, (key, quality)|
+    booked = state.album.reduce(0) do |sum, (key, quality)|
       sum + photo_fee(Species[key], quality)
+    end
+    (state.flocks || {}).reduce(booked) do |sum, (key, flock)|
+      sum + flock_fee(Species[key], flock)
     end
   end
 
@@ -267,6 +309,24 @@ class Game
     return 0 unless species
 
     (species.fee * QUALITY_FACTOR[quality]).round
+  end
+
+  # What a school is worth over and above the single animal, per extra fish in
+  # the frame. A separate fee rather than a multiplier on the portrait, so the
+  # two stay independent — the tidy invariant is that album_score is exactly what
+  # the photography has paid you, and that only holds if each thing the book
+  # records has its own price.
+  #
+  # A perfect single herring fetches 8; six of them fetch 22 on top of that. The
+  # ratio is meant to make a school the reason to keep diving somewhere you have
+  # already documented, without making the portraits pointless.
+  FLOCK_FACTOR = 0.9
+
+  def flock_fee(species, flock)
+    return 0 unless species
+    return 0 if flock.nil? || flock < 2
+
+    (species.fee * FLOCK_FACTOR * (flock - 1)).round
   end
 
   def album_found

@@ -194,6 +194,7 @@ class Game
                          r: MENU_PANEL[0], g: MENU_PANEL[1], b: MENU_PANEL[2], path: :solid }
     render_picture(x, y + DARKROOM_CAPTION_H, w, picture_h, species, print[:quality])
     render_print_caption(x, y, w, print)
+    render_flock_badge(x, y, w, h, print)
     return unless print[:fresh]
 
     # The badge is the whole reason this screen exists: it says which of these
@@ -202,6 +203,24 @@ class Game
                          r: NEW_BADGE[0], g: NEW_BADGE[1], b: NEW_BADGE[2], path: :solid }
     outputs.labels << { x: x + DARKROOM_INSET + 27, y: y + h - DARKROOM_INSET - 11, text: "NEU",
                         size_enum: 0, alignment_enum: 1, vertical_alignment_enum: 1,
+                        r: 12, g: 30, b: 48 }
+  end
+
+  # How many of them were in the frame, in the far corner from the NEU badge.
+  # A badge rather than another line of caption: the count is a fact about the
+  # picture, so it belongs on the picture, and the caption column is already four
+  # lines deep in a card this size.
+  FLOCK_BADGE = [130, 200, 236]
+
+  def render_flock_badge(x, y, w, h, print)
+    return if (print[:flock] || 0) < 2
+
+    outputs.sprites << { x: x + w - DARKROOM_INSET - 54, y: y + h - DARKROOM_INSET - 22,
+                         w: 54, h: 22,
+                         r: FLOCK_BADGE[0], g: FLOCK_BADGE[1], b: FLOCK_BADGE[2], path: :solid }
+    outputs.labels << { x: x + w - DARKROOM_INSET - 27, y: y + h - DARKROOM_INSET - 11,
+                        text: "× #{print[:flock]}", size_enum: 0,
+                        alignment_enum: 1, vertical_alignment_enum: 1,
                         r: 12, g: 30, b: 48 }
   end
 

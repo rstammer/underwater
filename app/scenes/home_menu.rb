@@ -350,8 +350,9 @@ class Game
   def artenbuch_rows
     Species::ALL.select { |species| species_known?(species.key) }.map do |species|
       quality = state.album[species.key]
-      { species: species, quality: quality,
-        fee: quality ? photo_fee(species, quality) : 0 }
+      flock = (state.flocks || {})[species.key] || 0
+      { species: species, quality: quality, flock: flock,
+        fee: (quality ? photo_fee(species, quality) : 0) + flock_fee(species, flock) }
     end
   end
 
@@ -447,7 +448,13 @@ class Game
                          a: found ? 255 : 70 }
     outputs.labels << { x: x + 60, y: y + 10, text: species.name, size_enum: 1,
                         vertical_alignment_enum: 1, r: ink[0], g: ink[1], b: ink[2] }
-    outputs.labels << { x: x + 60, y: y - 10, text: species.latin, size_enum: 0,
+    # The school stands under the latin name rather than beside the grade: it is
+    # a second photograph of the animal, not a footnote to the first, and a
+    # species that shoals but has never been caught in one has an empty line
+    # there that says so.
+    subtitle = species.latin
+    subtitle += "   ·   Schwarm bis #{row[:flock]}" if (row[:flock] || 0) > 1
+    outputs.labels << { x: x + 60, y: y - 10, text: subtitle, size_enum: 0,
                         vertical_alignment_enum: 1,
                         r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2], a: 150 }
 
