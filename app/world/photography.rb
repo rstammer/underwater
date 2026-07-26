@@ -35,7 +35,16 @@ class Game
   def update_camera
     return unless inputs.keyboard.key_down.f || tapped?(:photo)
 
-    at_the_boat? ? develop_film : take_photo
+    at_the_boat? ? develop_at_the_boat : take_photo
+  end
+
+  # Developing is a moment, so it stops the game and shows what came out. The
+  # decision to *show* lives here rather than in develop_film: developing is a
+  # change to the book, opening a screen is not, and a test that develops a roll
+  # should not find itself in another scene.
+  def develop_at_the_boat
+    develop_film
+    open_darkroom
   end
 
   # What the lens is on: the nearest creature in front of him and within reach.
@@ -134,11 +143,17 @@ class Game
     true
   end
 
+  # The frame carries the day it was taken. Not the day it is developed: you can
+  # sleep on an exposed roll, and a print dated the morning it was pulled out of
+  # the tank would be a lie about where you were.
   def store_shot(key, quality)
     existing = state.film_roll.find { |shot| shot[:key] == key }
-    return existing[:quality] = quality if existing
+    if existing
+      existing[:quality] = quality
+      return existing[:day] = state.day
+    end
 
-    state.film_roll << { key: key, quality: quality }
+    state.film_roll << { key: key, quality: quality, day: state.day }
   end
 
   # What he just caught, as far as he can tell down here — which for something
@@ -160,15 +175,25 @@ class Game
   # invariant: what the photography has earned you is exactly album_score.
   def develop_film
     earned = 0
+    prints = []
     state.film_roll.each do |shot|
       known = state.album[shot[:key]]
       next if known && QUALITY_RANK[known] >= QUALITY_RANK[shot[:quality]]
 
       species = Species[shot[:key]]
-      earned += photo_fee(species, shot[:quality]) - (known ? photo_fee(species, known) : 0)
+      next unless species # a species retired from the roster since the shot
+
+      fee = photo_fee(species, shot[:quality]) - (known ? photo_fee(species, known) : 0)
+      earned += fee
       state.day_species += 1 unless known # a page nobody had before today
       state.album[shot[:key]] = shot[:quality]
+      # A print, not a row of numbers. This is the one moment in the game where a
+      # shape in the murk becomes a name, a size and a date — so the tank hands
+      # over something to look at, and the darkroom screen shows it.
+      prints << { species: species, quality: shot[:quality], fee: fee,
+                  day: shot[:day] || state.day, fresh: known.nil? }
     end
+    state.developed_roll = prints
     state.credits += earned
     state.log_earned += earned
     state.day_earned += earned

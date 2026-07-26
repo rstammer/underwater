@@ -7,6 +7,7 @@ require "app/scenes/title.rb"
 require "app/scenes/name.rb"
 require "app/scenes/intro.rb"
 require "app/scenes/night.rb"
+require "app/scenes/darkroom.rb"
 require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
 require "app/scenes/area2.rb"
@@ -187,6 +188,7 @@ class Game
     reset_log       # the dive log starts empty each round
     reset_items     # scatter fresh treasures, empty the pack
     reset_film      # a fresh roll, nothing exposed
+    state.developed_roll = [] # ... and nothing pinned up in the darkroom
     center_camera   # frame the diver right away instead of gliding in on the first ticks
   end
 
@@ -851,7 +853,8 @@ class Game
   end
 
   def game_paused?
-    ["title", "name", "intro", "night", "game_over", "home_menu", "pause"].include?(state.game_scene)
+    ["title", "name", "intro", "night", "darkroom",
+     "game_over", "home_menu", "pause"].include?(state.game_scene)
   end
 
   # The boat screen: press L at the boat to open it, L to close it again. The
@@ -877,6 +880,7 @@ class Game
     escape = inputs.keyboard.key_down.escape
     case state.game_scene
     when "home_menu" then resume_scene if escape
+    when "darkroom" then close_darkroom if escape
     when "name" then abandon_name if escape
     when "pause" then resume_scene if escape # ESC also closes the pause menu
     when "area1", "area2" then open_pause if escape || tapped?(:pause)
