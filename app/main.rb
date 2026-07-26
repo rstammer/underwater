@@ -18,6 +18,7 @@ require "app/scenes/pause.rb"
 require "app/entities/dark_shark.rb"
 require "app/entities/creature.rb"
 require "app/entities/crustacean.rb"
+require "app/entities/jelly.rb"
 require "app/entities/diver.rb"
 
 require "app/world/fog_of_war.rb"
@@ -36,6 +37,7 @@ require "app/world/items.rb"
 require "app/world/photography.rb"
 require "app/world/kraken.rb"
 require "app/world/whale.rb"
+require "app/world/sting.rb"
 require "app/world/save_file.rb"
 
 SCREEN_WIDTH = 1280
@@ -114,6 +116,7 @@ class Game
       update_pickup # E near an item picks it up (if the pack has room)
       update_camera # F: the shutter down here, the darkroom up at the boat
       update_boat_stash # I at the boat empties the pack into the hold
+      update_sting  # a bell against your arm costs air, not blood
       update_oxygen
       update_suit
       update_energy
@@ -188,6 +191,8 @@ class Game
     state.fish = []       # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
     state.crawlers = []   # ... what walks about on that segment's sea floor
     state.shore_life = [] # ... and what walks about on its beach, if it has one
+    state.jellies = []    # ... and what drifts in it, where a field has settled
+    state.stung_at = nil  # ... and nothing has stung him yet
     state.stash = [] # the boat's hold; survives dying, not a new career
     reset_log       # the dive log starts empty each round
     reset_items     # scatter fresh treasures, empty the pack
@@ -274,6 +279,7 @@ class Game
     state.fish ||= []     # resilience against stale state (e.g. DragonRuby hot reload)
     state.crawlers ||= []
     state.shore_life ||= []
+    state.jellies ||= []
     update_shyness # before they tick, so a frightened one leaves this very frame
     creatures.each { |creature| creature.tick(args, sprite_index) }
 

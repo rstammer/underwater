@@ -88,9 +88,12 @@ class Game
     sea_creatures + shore_creatures
   end
 
-  # In the water — what the swarm and the sea floor hold.
+  # In the water — what the swarm, the sea floor and any drifting field hold.
+  # The jellies are in here rather than kept apart so that everything the sea
+  # already does to living things happens to them for nothing: they get ticked,
+  # they can be photographed, and they go into the Artenbuch on sight.
   def sea_creatures
-    (state.fish || []) + (state.crawlers || [])
+    (state.fish || []) + (state.crawlers || []) + (state.jellies || [])
   end
 
   # Above the waterline, on an island's beach.
@@ -112,6 +115,54 @@ class Game
     spawn_swarm(world)
     spawn_crawlers(world)
     spawn_shore_life(world)
+    spawn_jellies(world)
+  end
+
+  # A *field*, not a scattering. Jellyfish are the first thing out here that is
+  # terrain rather than fauna: something you steer around, and you only steer
+  # around a wall of them. Rolled one at a time across the segment they would be
+  # a fish that happens to be a jellyfish, and the whole idea would be gone.
+  #
+  # So one place is chosen and the animals are packed into it — a patch a few
+  # hundred pixels across, hanging in the water column. Where the biome has no
+  # jellyfish (Species.pick_drift has no fallback, like the sea floor's roll),
+  # there is no field, which is what keeps one worth finding.
+  JELLY_FIELD_W = 10      # columns either side of the centre a field spreads over ...
+  JELLY_FIELD_H = 260     # ... and how tall it hangs
+  JELLY_COUNT = 18        # animals in one
+  JELLY_CLEARANCE = 40    # water kept between a bell and the rock
+
+  def spawn_jellies(world)
+    state.jellies = []
+    col = rand(world.columns)
+    floor_y = world.floor[col]
+    species = Species.pick_drift(world.biome, depth_in_metres(floor_y))
+    return unless species
+
+    centre = jelly_field_centre(world, col, floor_y)
+    return unless centre
+
+    state.jellies = JELLY_COUNT.times.map do |i|
+      Jelly.new(args, 0, species: species,
+                x: centre[:x] + rand(2 * JELLY_FIELD_W + 1) * World::COLUMN_WIDTH -
+                   JELLY_FIELD_W * World::COLUMN_WIDTH,
+                y: centre[:y] + rand(JELLY_FIELD_H) - JELLY_FIELD_H / 2,
+                # Spread across the beat: a field pulsing in unison is a
+                # screensaver, one pulsing out of step is a crowd.
+                phase: i * 37)
+    end
+  end
+
+  # Somewhere in the open column with room for the whole field above the sand
+  # and under whatever is overhead.
+  def jelly_field_centre(world, col, floor_y)
+    slabs = world.roof ? (world.roof[col] || []) : []
+    top = slabs.empty? ? WATERLINE_Y : slabs.map { |slab| slab[:ceiling] }.min
+    low = floor_y + JELLY_CLEARANCE + JELLY_FIELD_H / 2
+    high = top - JELLY_CLEARANCE - JELLY_FIELD_H / 2
+    return nil if high < low
+
+    { x: col * World::COLUMN_WIDTH, y: low + rand(high - low + 1) }
   end
 
   # A fresh fish swarm for the world's biome (colours and count from the biome).

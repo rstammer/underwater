@@ -40,7 +40,16 @@ class Game
   end
 
   def running_messages
-    [photo_message, pickup_message, shot_message, fresh_message].compact
+    [photo_message, pickup_message, shot_message, fresh_message, sting_message].compact
+  end
+
+  # Being stung. It takes the pickup slot, which is free while you are in a
+  # field — nothing to pick up in open water — rather than adding a fifth line
+  # to a panel that is already four lines of the bottom of the screen.
+  def sting_message
+    return nil unless sting_note_visible?
+
+    { text: state.sting_note, slot: SLOT_PICKUP, color: [244, 168, 140] }
   end
 
   # One fixed width, not a box measured around its own text. Fitting each line

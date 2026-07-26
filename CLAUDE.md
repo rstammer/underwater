@@ -825,6 +825,29 @@ Screen-Positionen und werden nicht direkt gesetzt.
   prüft die **ganze Körperhöhe** (`shark_span_solid?`, drei y-Punkte), und die
   vertikale Drift lehnt Ziel-`y` ab, die im Fels läge — sonst schlüpfte er in einen
   dünnen freistehenden Skerry.
+- **Quallenfelder (`app/entities/jelly.rb`, `Game#spawn_jellies`, `app/world/sting.rb`).**
+  Das erste im Spiel, das **Gelände statt Fauna** ist: es geht nirgendwohin, es ist
+  einfach *im Weg*, und durchzuschwimmen ist eine Entscheidung.
+  - **Ein Feld, keine Streuung.** Ein Ort wird gewählt, dann werden die Tiere
+    hineingepackt (`JELLY_FIELD_W/H`, `JELLY_COUNT`). Einzeln übers Segment
+    gewürfelt wären sie ein Fisch, der zufällig eine Qualle ist — und die ganze
+    Idee wäre weg. `Species.pick_drift` hat wie der Boden-Wurf **keinen Fallback**:
+    wo das Biom keine Quallen kennt, gibt es kein Feld.
+  - **Jede Qualle hat eigene Phase** (`phase:`) — ein Feld, das im Gleichtakt
+    pulsiert, ist ein Bildschirmschoner; eines im Gegentakt ist eine Menge.
+  - **Eigene Uhr statt `Kernel.tick_count`** (`@age`, hochgezählt in `tick`):
+    sonst driften und pulsieren sie hinter dem Pausenmenü weiter, das die Welt
+    gerade deshalb zeichnet, *weil* sie eingefroren ist — und nichts, was nur
+    eine globale Uhr bewegt, lässt sich ohne laufendes Spiel testen.
+  - **Der Stich kostet Luft, nie den Anzug** (`STING_COST`, `STING_GRACE`). Der
+    Anzug ist die Tiefen-Uhr und wird nur am Boot repariert — eine Quallenwand
+    zwischen dir und zu Hause wäre ein Urteil statt einer Entscheidung. Luft
+    heißt: der Tauchgang wird *kürzer*, und die Frage ist, ob der Umweg lohnt.
+    Die Karenzzeit macht aus „stillhalten und in zwei Sekunden ersticken" ein
+    „jeder Durchgang kostet dich was". Getroffen wird die **Glocke**, nicht der
+    Sprite-Rahmen — der ist zum größten Teil Fäden und klares Wasser.
+  - Sie hängen in `sea_creatures`, damit alles, was das Meer mit Lebendigem tut,
+    umsonst für sie gilt: getickt, fotografierbar, im Artenbuch bei Sichtung.
 - **Wal — das Gegenstück zum Kraken (`app/world/whale.rb`).** Nicht gefährlich,
   versteckt sich nicht, und **nimmt keine Notiz von dir**. Er zieht durchs
   Blauwasser, sonst nirgends (`Species.giant_for`), und das Einzige, was er von
