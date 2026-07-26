@@ -202,6 +202,7 @@ class Game
     state.stung_at = nil  # ... and nothing has stung him yet
     state.stash = [] # the boat's hold; survives dying, not a new career
     reset_gear      # nothing bought yet — the ladders all start at the bottom
+    state.shop_met = 0
     reset_log       # the dive log starts empty each round
     reset_items     # scatter fresh treasures, empty the pack
     reset_film      # a fresh roll, nothing exposed
@@ -1096,7 +1097,8 @@ class Game
                                           day_sold: state.day_sold,
                                           gear_film: gear_level(:film),
                                           gear_air: gear_level(:air),
-                                          gear_suit: gear_level(:suit)))
+                                          gear_suit: gear_level(:suit),
+                                          shop_met: state.shop_met.to_i))
   end
 
   # Carry the saved book on: same diver, same pages, same sea, straight into the
@@ -1126,6 +1128,7 @@ class Game
     # What he has bought, before reset_game refills the tank and the roll from it.
     state.gear = { film: book[:gear_film] || 0, air: book[:gear_air] || 0,
                    suit: book[:gear_suit] || 0 }
+    state.shop_met = book[:shop_met] || 0 # whether she has introduced herself
     state.world_seed = book[:seed] || new_world_seed
     reset_game # rebuild the world from that seed before he is put in it
     state.stash = book[:stash] || [] # ... and the hold as he left it, after reset_items
@@ -1149,6 +1152,7 @@ class Game
     state.day = 1
     state.energy = ENERGY_MAX
     reset_gear # a new diver owns nothing
+    state.shop_met = 0 # ... and has not met her yet
     reset_day_tally
     state.stash = [] # a new career comes with an empty hold
     state.world_seed = new_world_seed

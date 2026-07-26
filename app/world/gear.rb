@@ -61,6 +61,25 @@ class Game
     item[:steps][gear_level(key)] || item[:steps].last
   end
 
+  # A rung as the player experiences it. The tank's raw capacity is a number
+  # nobody can act on — "166 Luft" means nothing, and it was printed on the shelf
+  # exactly like that. What you actually feel is minutes, so that is what the
+  # shop says.
+  def gear_reading(key, value)
+    case key
+    when :air then air_minutes_label(value)
+    when :suit then "#{value} m"
+    else "#{value} Aufnahmen"
+    end
+  end
+
+  # Tenths of a minute, with the German comma, built by hand — there is no
+  # locale in here to ask and no format string that would do it.
+  def air_minutes_label(capacity)
+    tenths = (capacity / OXYGEN_DRAIN / 360.0).round
+    "#{tenths.idiv(10)},#{tenths % 10} min"
+  end
+
   def film_capacity
     gear_value(:film)
   end

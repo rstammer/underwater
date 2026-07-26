@@ -194,6 +194,73 @@ class ShopTests
     assert.true! game.kraken_fade_depth < game.kraken_depth, "with the hysteresis intact"
   end
 
+  # --- the first time -------------------------------------------------------
+
+  def test_she_introduces_herself_on_the_first_visit(args, assert)
+    game = at_the_door(args)
+    args.state.shop_met = 0
+
+    game.open_shop
+
+    assert.true! game.shop_intro?, "she says who she is"
+  end
+
+  # Once per career, not per session — it lives in the save file, so coming back
+  # tomorrow does not get the speech again.
+  def test_she_only_says_it_once(args, assert)
+    game = at_the_door(args)
+    args.state.shop_met = 0
+    game.open_shop
+    game.dismiss_shop_intro
+
+    game.close_shop
+    game.open_shop
+
+    assert.false! game.shop_intro?, "she has met you now"
+    assert.equal! args.state.shop_met, 1
+  end
+
+  def test_it_travels_with_the_book(args, assert)
+    back = SaveFile.decode(SaveFile.encode(name: "Kins", album: {}, sighted: {}, shop_met: 1))
+
+    assert.equal! back[:shop_met], 1
+  end
+
+  # Nothing reaches the shelf until she has finished talking, or the same press
+  # would dismiss her *and* buy something.
+  def test_the_shelf_is_deaf_while_she_talks(args, assert)
+    game = at_the_door(args, credits: 5000)
+    args.state.shop_met = 0
+    game.open_shop
+    before = args.state.credits
+
+    args.inputs.keyboard.key_down.e = true
+    game.update_shop_input
+
+    assert.equal! args.state.credits, before, "the key that ends her speech buys nothing"
+    assert.false! game.shop_intro?, "and it does end it"
+  end
+
+  def test_the_speech_fits_its_panel(args, assert)
+    game = at_the_door(args)
+
+    Game::SHOP_INTRO_LINES.each do |line|
+      width = args.gtk.calcstringbox(line, 2)[0]
+      assert.true! width <= Game::SHOP_INTRO_W,
+                   "\"#{line}\" is #{width.round} px on a #{Game::SHOP_INTRO_W} px column"
+    end
+  end
+
+  def test_the_intro_renders_without_error(args, assert)
+    game = at_the_door(args)
+    args.state.shop_met = 0
+    game.open_shop
+
+    game.shop_tick
+
+    assert.true! args.outputs.labels.flatten.length > 0
+  end
+
   def test_it_renders_without_error(args, assert)
     game = in_the_shop(args)
 

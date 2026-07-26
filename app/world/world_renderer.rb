@@ -40,7 +40,7 @@ class Game
     "flag"       => { path: "sprites/decor/flag.png",       w: 12, h: 10 },
     "rock"       => { path: "sprites/decor/rock.png",       w: 14, h: 10 },
     "fern"       => { path: "sprites/decor/fern.png",       w: 14, h: 9 },
-    "shop"       => { path: "sprites/decor/shop.png",       w: 34, h: 26 },
+    "shop"       => { path: "sprites/decor/shop.png",       w: 60, h: 32 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up
@@ -93,6 +93,7 @@ class Game
       outputs.sprites << world_decorations(world, dx)
     end
     render_shop_hut
+    render_shop_hint if at_the_shop? && !game_paused?
     if home_visible?
       outputs.sprites << home_boat
       # Not while the boat screen is up: labels always draw over sprites in
@@ -120,7 +121,7 @@ class Game
     render_world
   end
 
-  SHOP_SCALE = 3
+  SHOP_SCALE = 4 # a shack, not a doll's house: about three times the diver's height
   SHOP_REACH = 150 # how close to the door counts as being in the shop
 
   # Where the hut stands, in world coordinates. Read off the island that is
@@ -398,7 +399,30 @@ class Game
   # same card, same place, so the opening is something the boat says rather than
   # a screen to click past.
   def render_boat_hint
-    render_boat_card(boat_action_lines, BOAT_HINT_W)
+    render_boat_card(boat_action_lines, BOAT_HINT_W,
+                     SURFACE_BOAT_X - state.camera_x,
+                     WATERLINE_Y + 210 - state.camera_y)
+  end
+
+  SHOP_HINT_W = 400
+
+  # The same card the boat gets, over the hut. Without it the shop was a
+  # building you could stand in front of and nothing else: the boat tells you
+  # every key it answers to, and a shop that keeps its own key a secret is a
+  # shop nobody opens. (Which is exactly what happened.)
+  def render_shop_hint
+    ground = shop_ground_y
+    return unless ground
+
+    render_boat_card(shop_action_lines, SHOP_HINT_W,
+                     shop_x - state.camera_x,
+                     ground + DECOR_SPRITES["shop"][:h] * SHOP_SCALE + 150 - state.camera_y)
+  end
+
+  def shop_action_lines
+    [{ text: "#{SHOP_KEEPER}s Laden", size: 2, color: [232, 244, 252] },
+     { text: "[ L ]  Ausrüstung kaufen", size: 0, color: [232, 226, 150] },
+     { text: "#{state.credits} Cr dabei", size: 0, color: [150, 198, 224] }]
   end
 
   def boat_action_lines
@@ -416,13 +440,14 @@ class Game
     lines
   end
 
-  def render_boat_card(lines, width)
+  # Anchored rather than pinned to the boat: the shop uses the same card, over
+  # its own hut. It hangs *down* from `top` so a long card can never run off the
+  # upper edge of the screen.
+  def render_boat_card(lines, width, x, top)
     pad = 16
     height = pad + 12
     lines.each { |line| height += boat_line_height(line) }
 
-    x = SURFACE_BOAT_X - state.camera_x
-    top = WATERLINE_Y + 210 - state.camera_y # top edge; the card hangs just above the boat
     left = x - width / 2
 
     outputs.sprites << { x: left, y: top - height, w: width, h: height,

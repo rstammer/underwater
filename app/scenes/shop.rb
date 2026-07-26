@@ -20,7 +20,9 @@ class Game
   SHOP_PAD = 26
   SHOP_HEAD_H = 96
   SHOP_FOOT_H = 44
-  SHOP_ROW_H = 96
+  SHOP_ROW_H = 132
+  SHOP_STEP_GAP = 250 # room the price column keeps to itself, measured against
+                      # the longest thing either column can hold
   SHOP_INK = [232, 244, 252]
   SHOP_DIM = [150, 184, 208]
   SHOP_WARN = [240, 200, 150]
@@ -43,7 +45,37 @@ class Game
     state.game_scene = "shop"
     state.shop_row = 0
     state.shop_said = shop_tip # settled on entry, so it cannot change while read
+    # The first time ever, she introduces herself and says what the place is
+    # for. Once per career, not per session: it lives in the save file, so
+    # coming back tomorrow does not get the speech again.
+    state.shop_intro = state.shop_met.to_i.zero?
   end
+
+  def shop_intro?
+    !!state.shop_intro
+  end
+
+  # Read once and put away for good.
+  def dismiss_shop_intro
+    state.shop_intro = false
+    state.shop_met = 1
+    save_book
+  end
+
+  SHOP_INTRO_LINES = [
+    "Na, du bist neu hier. Ich bin #{SHOP_KEEPER}.",
+    "",
+    "Den Laden hier gibt's, seit ich denken kann. Ich verkaufe",
+    "an alle, die runtergehen — Film, Luft und Anzüge.",
+    "",
+    "Deine Ausrüstung ist das, was dich begrenzt: wie viele Bilder",
+    "du machen kannst, wie lange du unten bleibst, wie tief du",
+    "darfst. Bring mir Credits, und ich hebe dir jede der drei",
+    "Grenzen an. Behalten tust du das für immer.",
+    "",
+    "Und keine Sorge — du findest mich immer hier. Diese Insel",
+    "läuft nicht weg.",
+  ]
 
   def close_shop
     state.game_scene = state.diver_global_x < 1281 ? "area1" : "area2"
@@ -53,6 +85,12 @@ class Game
   # behaviour is testable without simulated keys.
   def update_shop_input
     return unless state.game_scene == "shop"
+
+    if shop_intro?
+      dismiss_shop_intro if fire_input? || inputs.keyboard.key_down.e ||
+                            inputs.keyboard.key_down.enter
+      return # nothing reaches the shelf until she has finished talking
+    end
 
     move_shop_cursor(-1) if inputs.keyboard.key_down.down
     move_shop_cursor(1) if inputs.keyboard.key_down.up
@@ -112,7 +150,47 @@ class Game
     render_fog
     outputs.sprites << { x: 0, y: 0, w: grid.w, h: grid.h,
                          r: 4, g: 12, b: 22, a: MENU_VEIL, path: :solid }
-    render_shop_screen
+    shop_intro? ? render_shop_intro : render_shop_screen
+  end
+
+  SHOP_INTRO_W = 720
+  SHOP_INTRO_LINE_H = 30
+  SHOP_INTRO_GAP_H = 14
+
+  # Her own screen the first time, in the shape the opening uses: prose wants
+  # room, and a shelf behind a speech is neither.
+  def render_shop_intro
+    left = (grid.w - SHOP_INTRO_W) / 2
+    top = grid.h - 90
+    bottom = shop_intro_bottom - 56
+
+    outputs.sprites << { x: left - 34, y: bottom, w: SHOP_INTRO_W + 68, h: top - bottom + 34,
+                         r: 6, g: 22, b: 40, a: 226, path: :solid }
+    outputs.sprites << { x: left - 34, y: top + 30, w: SHOP_INTRO_W + 68, h: 4,
+                         r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2], path: :solid }
+
+    outputs.labels << { x: left, y: top + 8, text: "#{SHOP_KEEPER}s Laden", size_enum: 6,
+                        vertical_alignment_enum: 2, r: 255, g: 244, b: 205 }
+    y = top - 46
+    SHOP_INTRO_LINES.each do |line|
+      unless line.empty?
+        outputs.labels << { x: left, y: y, text: line, size_enum: 2,
+                            vertical_alignment_enum: 2, r: 216, g: 234, b: 248 }
+      end
+      y -= line.empty? ? SHOP_INTRO_GAP_H : SHOP_INTRO_LINE_H
+    end
+    outputs.labels << { x: left, y: shop_intro_bottom - 20,
+                        text: state.touch_seen ? "Tippen — sehen wir mal" : "[ Leertaste ]  sehen wir mal",
+                        size_enum: 3, vertical_alignment_enum: 2, r: 255, g: 244, b: 205,
+                        a: Kernel.tick_count.idiv(30).even? ? 255 : 140 }
+  end
+
+  # Where the speech stops — the one number the rest of the panel hangs off, the
+  # way the intro screen's does.
+  def shop_intro_bottom
+    y = grid.h - 90 - 46
+    SHOP_INTRO_LINES.each { |line| y -= line.empty? ? SHOP_INTRO_GAP_H : SHOP_INTRO_LINE_H }
+    y
   end
 
   def render_shop_screen
@@ -171,21 +249,34 @@ class Game
                           vertical_alignment_enum: 2,
                           r: SHOP_DIM[0], g: SHOP_DIM[1], b: SHOP_DIM[2], a: 190 }
 
+      # Two right-aligned columns that keep out of each other's way. They used to
+      # share an edge and the long ones ran straight through each other on
+      # screen ("166 Lu220 Cr").
+      price_right = right - SHOP_PAD - 24
+      step_right = price_right - SHOP_STEP_GAP
+
       # The whole decision in one line: what you have, what you would have.
-      step = row[:nxt] ? "#{row[:now]}  →  #{row[:nxt]} #{row[:unit]}" : "#{row[:now]} #{row[:unit]}"
-      outputs.labels << { x: right - SHOP_PAD - 200, y: y + SHOP_ROW_H - 34, text: step,
+      step = if row[:nxt]
+               "#{gear_reading(row[:key], row[:now])}  →  #{gear_reading(row[:key], row[:nxt])}"
+             else
+               gear_reading(row[:key], row[:now])
+             end
+      outputs.labels << { x: step_right, y: y + SHOP_ROW_H - 40, text: step,
                           size_enum: 2, alignment_enum: 2, vertical_alignment_enum: 2,
                           r: ink[0], g: ink[1], b: ink[2] }
 
-      price =
-        if row[:price].nil? then "ausgereizt"
-        elsif affordable then "#{row[:price]} Cr"
-        else "#{row[:price]} Cr — zu teuer"
-        end
+      price = row[:price].nil? ? "ausgereizt" : "#{row[:price]} Cr"
       colour = row[:price].nil? ? SHOP_DIM : (affordable ? CREDIT_INK : SHOP_WARN)
-      outputs.labels << { x: right - SHOP_PAD - 24, y: y + SHOP_ROW_H - 34, text: price,
+      outputs.labels << { x: price_right, y: y + SHOP_ROW_H - 40, text: price,
                           size_enum: 2, alignment_enum: 2, vertical_alignment_enum: 2,
                           r: colour[0], g: colour[1], b: colour[2] }
+      # Why E does nothing, on its own line rather than glued to the price where
+      # it was what made the two columns collide.
+      next if row[:price].nil? || affordable
+
+      outputs.labels << { x: price_right, y: y + SHOP_ROW_H - 74, text: "reicht noch nicht",
+                          size_enum: 0, alignment_enum: 2, vertical_alignment_enum: 2,
+                          r: SHOP_WARN[0], g: SHOP_WARN[1], b: SHOP_WARN[2], a: 200 }
     end
   end
 end
