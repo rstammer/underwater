@@ -26,8 +26,14 @@ class JellyTests
 
   # --- a field, not a scattering ---------------------------------------------
 
-  def test_the_jelly_water_has_a_field_in_it(args, assert)
+  # Every time, not most times. A biome that sometimes has no field is a bug you
+  # only ever meet as a flaky test.
+  def test_the_jelly_water_always_has_a_field_in_it(args, assert)
     game = a_jelly_field(args)
+    20.times do
+      game.spawn_fauna(game.current_world)
+      assert.true! args.state.jellies.length > 4, "a field, every time"
+    end
 
     assert.true! args.state.jellies.length > 4, "a crowd, not a specimen"
     assert.true! args.state.jellies.all? { |j| j.species.habitat == :drift }
@@ -106,7 +112,11 @@ class JellyTests
     jelly = args.state.jellies.first
     sector = args.state.diver_global_x.idiv(SCREEN_WIDTH)
     args.state.diver_global_x = sector * SCREEN_WIDTH + jelly.x
-    args.state.depth_y = jelly.y + jelly.h / 2 - Jelly::BELL_H
+    # The bell's own middle. BELL_H is in sprite pixels and the animal is drawn
+    # at SIZE, so leaving the scale out put him half a bell off — near enough to
+    # touch on some spawns and not others, which is a flaky test rather than a
+    # wrong one.
+    args.state.depth_y = jelly.y + jelly.h / 2 - Jelly::BELL_H * Jelly::SIZE / 2
     args.state.oxygen = OXYGEN_MAX
     args.state.stung_at = nil
     game

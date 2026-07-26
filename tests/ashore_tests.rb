@@ -304,7 +304,11 @@ class AshoreTests
     assert.equal! sprite[:angle], 30, "including the lean"
   end
 
-  def test_walking_is_slower_than_swimming(args, assert)
+  # He used to waddle: slower on land than in the water, which made an island —
+  # a place you cross to get somewhere — the slowest part of the game. He walks
+  # a little quicker than an easy swim now, and still nowhere near a sprint,
+  # because sprinting is the thing you buy fins for.
+  def test_walking_is_brisker_than_an_easy_swim(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     args.state.island_sectors = []
@@ -318,9 +322,11 @@ class AshoreTests
     standing_on(args, game, WATERLINE_Y + 80)
     game.update_sprint
 
-    assert.true! args.state.speed < swimming,
-                 "flippers on rock are a waddle (#{args.state.speed} against #{swimming})"
-    assert.true! args.state.speed > 0, "but he does get about"
+    walking = args.state.speed
+    assert.true! walking > swimming,
+                 "he gets on with it on land (#{walking} against #{swimming})"
+    assert.true! walking < swimming * SPRINT_MULTIPLIER,
+                 "but a walk is not a sprint (#{walking})"
   end
 
   def test_there_is_no_swimming_up_a_mountain(args, assert)

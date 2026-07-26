@@ -132,15 +132,25 @@ class Game
   JELLY_COUNT = 18        # animals in one
   JELLY_CLEARANCE = 40    # water kept between a bell and the rock
 
+  # Tries several places before giving up, the way the swarm does. One draw meant
+  # a jellyfield biome whose one rolled column had no room came out with no field
+  # at all — rare enough to look like a flake in the tests and to be invisible in
+  # the sea, which is the worst way for a thing to be wrong.
+  JELLY_TRIES = 16
+
   def spawn_jellies(world)
     state.jellies = []
-    col = rand(world.columns)
-    floor_y = world.floor[col]
-    species = Species.pick_drift(world.biome, depth_in_metres(floor_y))
-    return unless species
+    col, floor_y, species, centre = nil
+    JELLY_TRIES.times do
+      col = rand(world.columns)
+      floor_y = world.floor[col]
+      species = Species.pick_drift(world.biome, depth_in_metres(floor_y))
+      next unless species
 
-    centre = jelly_field_centre(world, col, floor_y)
-    return unless centre
+      centre = jelly_field_centre(world, col, floor_y)
+      break if centre
+    end
+    return unless species && centre
 
     state.jellies = JELLY_COUNT.times.map do |i|
       Jelly.new(args, 0, species: species,

@@ -21,12 +21,15 @@ class Game
   # a dark one reads as fog rather than as land.
   BACKDROP_RANKS = [
     # [how far off (parallax divisor), height in px, colour, alpha]
-    [6.0, 300, [154, 190, 208], 255],
-    [3.4, 380, [112, 152, 176], 255],
+    [6.0, 260, [158, 194, 212], 255],
+    [3.4, 420, [104, 146, 172], 255],
   ].freeze
   # Short enough that a screen holds two or three summits. At 1700 you saw one
   # slope at a time and it read as a grey slab rather than as hills.
-  BACKDROP_WAVELENGTH = 520 # px of world per summit
+  # Short enough that a summit is a summit. At 520 the peaks were wider than the
+  # screen and came out as one grey plateau — the very slab this was meant to
+  # replace.
+  BACKDROP_WAVELENGTH = 300
   BACKDROP_SEED = 90_210
   BACKDROP_STEP = 16         # px per drawn column: pixel-art ridges, not curves
   # How far below the waterline the ranks are rooted. They sit *in* the sea by a
@@ -44,6 +47,12 @@ class Game
   # a ridge out there would be land you can see and never reach, which is a
   # promise the game cannot keep.
   def render_backdrop
+    # Never on the framing screens. The title, the opening, the recap and the
+    # night all park the camera at the boat *for the clean horizon* — that is
+    # the whole reason they draw the real sea — and the home island is close
+    # enough that its hills turned up behind the boat and spoiled exactly the
+    # thing those screens were built on.
+    return if game_paused?
     return unless backdrop_visible?
 
     visible_islands.each do |sector|
@@ -106,6 +115,8 @@ class Game
     ridge = 1.0 - (2.0 * Noise.value(world_x, BACKDROP_WAVELENGTH, seed) - 1.0).abs
     detail = 1.0 - (2.0 * Noise.value(world_x, BACKDROP_WAVELENGTH / 3, seed + 41) - 1.0).abs
     peaks = ridge * 0.75 + detail * 0.25
-    ((envelope * (0.35 + 0.65 * peaks) * height) / BACKDROP_STEP).floor * BACKDROP_STEP
+    # Steep: cubed peaks give sharp summits with real saddles between them
+    # instead of a rolling line that reads as one mass.
+    ((envelope * (0.12 + 0.88 * peaks * peaks * peaks) * height) / BACKDROP_STEP).floor * BACKDROP_STEP
   end
 end

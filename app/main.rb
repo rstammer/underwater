@@ -77,7 +77,9 @@ TIRED_SPEED = 0.55    # what is left of him once the day is gone
 SHARK_PATROL_SPREAD = 200 # how far above/below the diver's depth the shark comes back in
 DIVER_FOOTPRINT = 20 # how far to each side the diver's footing feels for sand to rest on
 SOLID_STEP_UP = 48 # ledge he still slips over sideways; anything higher is a wall
-LAND_SPEED = 0.9   # walking in flippers: a shade slower than swimming, but brisk
+LAND_SPEED = 1.3   # walking in flippers. Faster than swimming rather than slower:
+                   # an island is a place you cross to get somewhere, and at 0.9 the
+                   # walk was the slowest thing in a game whose islands are wide
 LAND_GRAVITY = 0.6 # px per tick² he gathers stepping off a terrace ...
 LAND_FALL_MAX = 14 # ... and the fastest he ever falls
 JUMP_SPEED = 6.0   # the push of a hop. Against LAND_GRAVITY that peaks about 33 px
