@@ -40,7 +40,7 @@ class Game
     "flag"       => { path: "sprites/decor/flag.png",       w: 12, h: 10 },
     "rock"       => { path: "sprites/decor/rock.png",       w: 14, h: 10 },
     "fern"       => { path: "sprites/decor/fern.png",       w: 14, h: 9 },
-    "shop"       => { path: "sprites/decor/shop.png",       w: 60, h: 32 },
+    "shop"       => { path: "sprites/decor/shop.png",       w: 54, h: 34 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up
@@ -132,12 +132,21 @@ class Game
     IslandWorld.centre_x(IslandWorld::SHOP_SECTOR)
   end
 
+  # The *lowest* rock under the whole width of the stall, not the height at its
+  # middle. The island is terraced, so a stall centred on a step had its far end
+  # hanging in the air over the drop — counter, boards and all. Sitting it on the
+  # lowest ground buries a pixel or two of the near end instead, which reads as a
+  # building dug into a slope rather than one floating off a cliff.
   def shop_ground_y
-    world = world_at(shop_x.idiv(SCREEN_WIDTH))
-    slabs = world.slabs_at(shop_x % SCREEN_WIDTH)
-    return nil if slabs.empty?
+    sprite = DECOR_SPRITES["shop"]
+    half = sprite[:w] * SHOP_SCALE / 2
+    crowns = [shop_x - half, shop_x, shop_x + half].map do |x|
+      slabs = world_at(x.idiv(SCREEN_WIDTH)).slabs_at(x % SCREEN_WIDTH)
+      slabs.empty? ? nil : slabs.map { |slab| slab[:crown] }.max
+    end.compact
+    return nil if crowns.empty?
 
-    slabs.map { |slab| slab[:crown] }.max
+    crowns.min
   end
 
   # On the island, on foot, near the door. On foot matters: you cannot shop by

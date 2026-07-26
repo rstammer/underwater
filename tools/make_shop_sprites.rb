@@ -17,8 +17,8 @@
 # right.
 require "zlib"
 
-W = 60
-H = 32
+W = 54
+H = 34
 
 PALETTE = {
   "w" => [126, 92, 62],    # planked wall
@@ -34,44 +34,54 @@ PALETTE = {
   "g" => [110, 176, 140],  # goods: a row of green bottles ...
   "o" => [226, 150, 84],   # ... and stacked tins
   "y" => [246, 222, 140],  # highlights on both
-  "b" => [86, 178, 190],   # surfboard, teal
-  "B" => [232, 176, 90],   # surfboard, yellow
-  "c" => [246, 246, 240],  # the stripe down a board
+  "b" => [46, 150, 168],   # surfboard, teal — darker than it was, so it reads
+  "B" => [214, 146, 52],   # surfboard, amber — against a bright sky the pale
+  "c" => [250, 250, 244],  # ones vanished; the white stripe is what says "board"
+  "P" => [118, 84, 54],    # the bar top's shaded front edge
+  "n" => [104, 74, 48],    # the planking of the bar front
+  "h" => [96, 62, 44],     # Insa: hair ...
+  "k" => [226, 176, 138],  # ... face and hands ...
+  "e" => [40, 34, 32],     # ... eyes ...
+  "t" => [86, 142, 156],   # ... and her shirt
+  "S" => [72, 108, 132],   # lettering on the sign
+  "f" => [196, 208, 216],  # a stack of film boxes
 }
 
 # Drawn facing the camera; nothing flips it. The hut is on the left, the counter
 # and its awning in the middle, the board rack on the right.
 SHAPE = [
-  "..............ss.ss.ss",
-  "..............s.....s",
-  "..............sssssss",
-  "..................d",
-  "..................d",
-  "......rrrrrrrrrrrrrrrrrrrrrr",
-  ".....rRRRRRRRRRRRRRRRRRRRRRRr",
-  "....rRRRRRRRRRRRRRRRRRRRRRRRRr",
-  "...rrrrrrrrrrrrrrrrrrrrrrrrrrrr",
-  "...dwwwwwwwwwwwwwwwwwwwwwwwwwwd",
-  "...dwWWWWwwwwwwwwwwwwwwwwwwwwwd",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..aAaAaAaAaAaAaAaAa",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..aAaAaAaAaAaAaAaAa",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..d...............d",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..d..gg....oo.....d..b",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..d..gg....oo.....d.bcb..B",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..d.ygg...yoo.....d.bcb.BcB",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..ppppppppppppppppd.bcb.BcB",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..ppppppppppppppppd.bcb.BcB",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..d..............d..bcb.BcB",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..d..............d..bcb.BcB",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..d..............d..bcb.BcB",
-  "...dwWllWwwwwwwwwwwwwwwwwwwwwwd..d..............d..bcb.BcB",
-  "...dwwwwwwwwwwwwwwwwwwwwwwwwwwd..d..............d..bcb.BcB",
-  "...dwwwwwwwwwwwwwwwwwwwwwwwwwwd..d..............d..bcb.BcB",
-  "...dddddddddddddddddddddddddddd..d..............d..bcb.BcB",
-  ".................................d..............d..bcb.BcB",
-  ".................................d..............d..bbb.BBB",
-  ".................................d..............d...b...B",
+  "...dddddddddddddddddddddddddddddddddddddddd",
+  "...daAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAd",
+  "...daAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAd",
+  "...daAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAd",
+  "...dddddddddddddddddddddddddddddddddddddddd",
+  "....d........ssssssssssssssssssss........d",
+  "....d........ssSsSsSsSsSsSsSsSsss........d",
+  "....d........ssSsSsSsSsSsSsSsSsss........d",
+  "....d........ssssssssssssssssssss........d",
+  "....d................hhhhhh..............d",
+  "....d...............hhhhhhhh.............d",
+  "....d...............hkkkkkkh.............d",
+  "....d...............hkekkekh.............d",
+  "....d................kkkkkk..............d",
+  "....d...gg..........tttttttt.....oo......d",
+  "....d...gg........tttttttttttt...oo......d",
+  "....d..ygg........tttttttttttt...ooy.....d..bcbb",
+  "....d...gg...ff...tttttttttttt...oo......d..bcbb",
+  "....d...gg..ffff..kttttttttttk...oo......d..bcbb",
+  "...pppppppppppppppppppppppppppppppppppppppp.bcbb.BcBB",
+  "...pppppppppppppppppppppppppppppppppppppppp.bcbb.BcBB",
+  "...PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP.bcbb.BcBB",
+  "....dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd..bcbb.BcBB",
+  "....dn....nnnn....nnnn....nnnn....nnnnnnnd..bcbb.BcBB",
+  "....dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd..bcbb.BcBB",
+  "....dn....nnnn....nnnn....nnnn....nnnnnnnd..bcbb.BcBB",
+  "....dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd..bcbb.BcBB",
+  "....dn....nnnn....nnnn....nnnn....nnnnnnnd..bcbb.BcBB",
+  "....dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd..bcbb.BcBB",
+  "....dddddddddddddddddddddddddddddddddddddd..bcbb.BcBB",
+  "............................................bcbb.BcBB",
+  "............................................bcbb.BcBB",
   "",
   "",
 ]
