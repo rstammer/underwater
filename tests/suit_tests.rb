@@ -69,7 +69,7 @@ class SuitTests
     assert.equal! args.state.suit, 0
     assert.equal! args.state.game_scene, "game_over"
     assert.equal! args.state.death_cause, :crushed
-    assert.true! game.death_message.downcase.include?("druck"), "the message names the pressure"
+    assert.true! game.death_message.downcase.include?("anzug"), "the message names the suit"
   end
 
   # The boat is where you patch the suit up — that's what makes it worth coming

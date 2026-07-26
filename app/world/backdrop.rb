@@ -21,12 +21,12 @@ class Game
   # a dark one reads as fog rather than as land.
   BACKDROP_RANKS = [
     # [how far off (parallax divisor), height in px, colour, alpha]
-    [6.0, 330, [150, 186, 206], 255],
-    [3.2, 230, [112, 154, 178], 255],
+    [6.0, 300, [154, 190, 208], 255],
+    [3.4, 380, [112, 152, 176], 255],
   ].freeze
   # Short enough that a screen holds two or three summits. At 1700 you saw one
   # slope at a time and it read as a grey slab rather than as hills.
-  BACKDROP_WAVELENGTH = 820
+  BACKDROP_WAVELENGTH = 520 # px of world per summit
   BACKDROP_SEED = 90_210
   BACKDROP_STEP = 16         # px per drawn column: pixel-art ridges, not curves
   # How far below the waterline the ranks are rooted. They sit *in* the sea by a
@@ -40,39 +40,72 @@ class Game
     WATERLINE_Y - state.camera_y < SCREEN_HEIGHT
   end
 
+  # Only where there is an island. On the open sea the horizon is the point —
+  # a ridge out there would be land you can see and never reach, which is a
+  # promise the game cannot keep.
   def render_backdrop
     return unless backdrop_visible?
 
-    BACKDROP_RANKS.each_with_index do |(distance, height, colour, haze), rank|
-      outputs.sprites << backdrop_rank(distance, height, colour, haze, rank)
+    visible_islands.each do |sector|
+      BACKDROP_RANKS.each_with_index do |(distance, height, colour, alpha), rank|
+        outputs.sprites << backdrop_ridge(sector, distance, height, colour, alpha, rank)
+      end
     end
   end
 
-  # One rank, as a row of columns. Parallax by division: a rank three times as
-  # far away slides a third as fast, which is what makes the near island appear
-  # to move against it.
-  def backdrop_rank(distance, height, colour, haze, rank)
+  def visible_islands
+    (state.island_sectors || []).select do |sector|
+      visible_world_indices.any? { |index| IslandWorld.covers?(sector, index) }
+    end
+  end
+
+  # A mass rising behind *this* island, centred on it and wider than it: the
+  # island is the front of a hill, and this is the rest of the hill carrying on
+  # backwards. Anchored to the island's own centre rather than scrolling with
+  # the world, so the two never come apart.
+  #
+  # Parallax pulls the far ranks *towards* that centre as you walk past — near
+  # the middle they sit still and the flanks compress, which is what a solid
+  # thing seen from a moving point does.
+  BACKDROP_SPREAD = 1500 # px each side of the island's centre the mass reaches
+
+  def backdrop_ridge(sector, distance, height, colour, alpha, rank)
     base = WATERLINE_Y - state.camera_y - BACKDROP_FOOT
-    origin = (state.camera_x / distance).to_i
+    centre = IslandWorld.centre_x(sector)
     columns = (SCREEN_WIDTH / BACKDROP_STEP) + 2
 
     (0...columns).map do |i|
       x = i * BACKDROP_STEP
-      world_x = origin + x
-      top = base + backdrop_height(world_x, height, rank)
-      { x: x, y: base, w: BACKDROP_STEP + 1, h: top - base,
-        r: colour[0], g: colour[1], b: colour[2], a: haze, path: :solid }
-    end
+      # Screen x back to world x, then pulled toward the island by the parallax.
+      world_x = centre + ((state.camera_x + x) - centre) / distance
+      lift = backdrop_height(world_x, centre, height, rank)
+      next nil if lift <= 0
+
+      { x: x, y: base, w: BACKDROP_STEP + 1, h: lift,
+        r: colour[0], g: colour[1], b: colour[2], a: alpha, path: :solid }
+    end.compact
   end
 
-  # The skyline itself: two octaves of the world's own noise so the ridges have
-  # both a shape and a texture, rastered to BACKDROP_STEP so they are drawn in
-  # blocks like everything else in this game rather than as a smooth curve.
-  def backdrop_height(world_x, height, rank)
+  # A dome that falls away to nothing at BACKDROP_SPREAD, roughened by the
+  # world's own noise so it is a ridge rather than a hill from a geometry
+  # lesson. Rastered to BACKDROP_STEP: blocks, like everything else here.
+  # Peaks, not a hill. A smooth dome across fifteen hundred pixels comes out as
+  # a flat slab on a screen this wide — a wall behind the island rather than
+  # land behind it. Ridged noise (the fold at 0.5 makes a *point* where plain
+  # noise makes a bump) gives summits and saddles at a wavelength short enough
+  # that two or three of them fit behind one island.
+  #
+  # The dome survives as an envelope only: it is what brings the range down to
+  # nothing at the ends instead of cutting it off mid-mountain.
+  def backdrop_height(world_x, centre, height, rank)
+    t = (world_x - centre).abs / BACKDROP_SPREAD.to_f
+    return 0 if t >= 1.0
+
+    envelope = (Math.cos(t * Math::PI) + 1) / 2.0
     seed = BACKDROP_SEED + rank * 977
-    broad = Noise.value(world_x, BACKDROP_WAVELENGTH, seed)
-    fine = Noise.value(world_x, BACKDROP_WAVELENGTH / 4, seed + 31)
-    ridge = broad * 0.78 + fine * 0.22
-    ((ridge * height) / BACKDROP_STEP).floor * BACKDROP_STEP
+    ridge = 1.0 - (2.0 * Noise.value(world_x, BACKDROP_WAVELENGTH, seed) - 1.0).abs
+    detail = 1.0 - (2.0 * Noise.value(world_x, BACKDROP_WAVELENGTH / 3, seed + 41) - 1.0).abs
+    peaks = ridge * 0.75 + detail * 0.25
+    ((envelope * (0.35 + 0.65 * peaks) * height) / BACKDROP_STEP).floor * BACKDROP_STEP
   end
 end

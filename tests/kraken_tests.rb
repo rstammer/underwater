@@ -128,7 +128,7 @@ class KrakenTests
 
     assert.equal! args.state.game_scene, "game_over"
     assert.equal! args.state.death_cause, :taken
-    assert.true! game.death_message.include?("Dunkelheit"), "dragged down into the dark"
+    assert.true! game.death_message.include?("Tiefe"), "dragged down into the dark"
   end
 
   # But at its usual lure distance it never grabs you — the deep does the killing.

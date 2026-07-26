@@ -83,10 +83,18 @@ class GameOverTests
     game = build_game(args)
     game.initialize_game(0)
 
+    # What it says, not that you died: nobody dies any more. The round already
+    # takes the film, which is the only thing that hurts.
     args.state.death_cause = :eaten
-    assert.true! game.death_message.include?("gefressen"), "eaten message should mention being eaten"
+    assert.true! game.death_message.include?("Hai"), "the eaten message names the shark"
+    assert.true! game.death_message.include?("Delfine"), "and who got you out"
 
     args.state.death_cause = :drowned
-    assert.true! game.death_message.downcase.include?("luft"), "drowned message should mention air"
+    assert.true! game.death_message.downcase.include?("luft"), "drowned message mentions air"
+
+    Game::DEATH_CAUSES.each do |cause|
+      args.state.death_cause = cause
+      assert.true! game.death_message.length > 0, "#{cause} has something to say"
+    end
   end
 end

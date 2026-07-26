@@ -37,13 +37,26 @@ class Game
     outputs.labels << labels
   end
 
-  # Cause-specific game-over message (shark, air, or the pressure down there).
+  DEATH_CAUSES = [:eaten, :drowned, :crushed, :taken].freeze
+
+  # What went wrong, and how you got out of it.
+  #
+  # These used to end with you dead — eaten, drowned, crushed. The round already
+  # takes the only thing that hurts (the undeveloped film), so killing the diver
+  # on top of it was a second punishment for the same mistake, and a harsher
+  # story than the game tells anywhere else. The sea here is dangerous, not
+  # cruel: something goes badly, somebody or something gets you back to the
+  # boat, and the pictures are what you pay with.
   def death_message
     case state.death_cause
-    when :drowned then "Dir ging die Luft aus — du bist ertrunken!"
-    when :crushed then "Der Druck war zu groß — dein Anzug hat aufgegeben!"
-    when :taken then "Etwas hat dich hinab in die Dunkelheit gezogen …"
-    else "Oh nein! Du wurdest gefressen!"
+    when :drowned then "Die Luft war weg. Du bist hochgetrieben, hustend, aber " \
+                       "an Bord — und die Rolle ist im Wasser geblieben."
+    when :crushed then "Der Anzug hat aufgegeben. Du bist gerade noch " \
+                       "hochgekommen; die Kamera hat es nicht überstanden."
+    when :taken then "Etwas hat dich in die Tiefe gezogen und wieder losgelassen. " \
+                     "Du weißt nicht, warum. Der Film ist hin."
+    else "Der Hai hat dich erwischt. Eine Schule Delfine hat ihn verjagt und " \
+         "dich zum Schiff zurückgebracht — deine Fotos sind leider hinüber."
     end
   end
 end
