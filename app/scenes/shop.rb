@@ -8,14 +8,14 @@
 # app/world/gear.rb). Each is a ladder of three rungs and each rung is a decision
 # about which limit you would rather stop feeling.
 #
-# Marlene is the other half of it. Her line is not decoration and it is not a
+# Insa is the other half of it. Her line is not decoration and it is not a
 # pot of quotes rolled at random: it is picked off *your* state — how deep you
 # have been, how the book is coming along, what you are carrying, what you have
 # not seen yet. A shopkeeper who tells you the same thing every visit is a
 # vending machine; one who notices is a person, and she doubles as the only
 # signposting the game has for water you have not found yet.
 class Game
-  SHOP_KEEPER = "Marlene"
+  SHOP_KEEPER = "Insa"
   SHOP_MARGIN = 26
   SHOP_PAD = 26
   SHOP_HEAD_H = 96

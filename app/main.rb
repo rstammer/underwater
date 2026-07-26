@@ -106,7 +106,7 @@ class Game
 
     update_scene
     update_controls # touch: read the on-screen joystick and buttons into intents
-    update_shop      # L at the island shop opens Marlene's, and closes it again
+    update_shop      # L at the island shop opens Insa's, and closes it again
     update_shop_input # ... and inside it the arrows and E work the shelf
     update_home_menu # L at the boat opens the boat screen and closes it again
     update_exchange  # and while it's open, the arrows and E sort pack against hold
