@@ -40,7 +40,7 @@ class Game
     "flag"       => { path: "sprites/decor/flag.png",       w: 12, h: 10 },
     "rock"       => { path: "sprites/decor/rock.png",       w: 14, h: 10 },
     "fern"       => { path: "sprites/decor/fern.png",       w: 14, h: 9 },
-    "shop"       => { path: "sprites/decor/shop.png",       w: 54, h: 34 },
+    "shop"       => { path: "sprites/decor/shop.png",       w: 112, h: 44 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up
@@ -121,8 +121,9 @@ class Game
     render_world
   end
 
-  SHOP_SCALE = 4 # a shack, not a doll's house: about three times the diver's height
-  SHOP_REACH = 150 # how close to the door counts as being in the shop
+  SHOP_SCALE = 3 # the art carries the detail now, so it needs less blowing up
+  SHOP_REACH = 220 # how close counts as being at the stalls — it is a row of
+                   # them now, so the reach covers its whole width
 
   # Where the hut stands, in world coordinates. Read off the island that is
   # actually stamped there rather than off the island's own maths: if the two

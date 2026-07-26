@@ -17,8 +17,8 @@
 # right.
 require "zlib"
 
-W = 54
-H = 34
+W = 112
+H = 44
 
 PALETTE = {
   "w" => [126, 92, 62],    # planked wall
@@ -37,7 +37,8 @@ PALETTE = {
   "b" => [46, 150, 168],   # surfboard, teal — darker than it was, so it reads
   "B" => [214, 146, 52],   # surfboard, amber — against a bright sky the pale
   "c" => [250, 250, 244],  # ones vanished; the white stripe is what says "board"
-  "P" => [118, 84, 54],    # the bar top's shaded front edge
+  "P" => [118, 84, 54],
+  "N" => [58, 40, 26],    # the shaded inside of the hut    # the bar top's shaded front edge
   "n" => [104, 74, 48],    # the planking of the bar front
   "h" => [96, 62, 44],     # Insa: hair ...
   "k" => [226, 176, 138],  # ... face and hands ...
@@ -50,40 +51,50 @@ PALETTE = {
 # Drawn facing the camera; nothing flips it. The hut is on the left, the counter
 # and its awning in the middle, the board rack on the right.
 SHAPE = [
-  "...dddddddddddddddddddddddddddddddddddddddd",
-  "...daAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAd",
-  "...daAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAd",
-  "...daAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAd",
-  "...dddddddddddddddddddddddddddddddddddddddd",
-  "....d........ssssssssssssssssssss........d",
-  "....d........ssSsSsSsSsSsSsSsSsss........d",
-  "....d........ssSsSsSsSsSsSsSsSsss........d",
-  "....d........ssssssssssssssssssss........d",
-  "....d................hhhhhh..............d",
-  "....d...............hhhhhhhh.............d",
-  "....d...............hkkkkkkh.............d",
-  "....d...............hkekkekh.............d",
-  "....d................kkkkkk..............d",
-  "....d...gg..........tttttttt.....oo......d",
-  "....d...gg........tttttttttttt...oo......d",
-  "....d..ygg........tttttttttttt...ooy.....d..bcbb",
-  "....d...gg...ff...tttttttttttt...oo......d..bcbb",
-  "....d...gg..ffff..kttttttttttk...oo......d..bcbb",
-  "...pppppppppppppppppppppppppppppppppppppppp.bcbb.BcBB",
-  "...pppppppppppppppppppppppppppppppppppppppp.bcbb.BcBB",
-  "...PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP.bcbb.BcBB",
-  "....dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd..bcbb.BcBB",
-  "....dn....nnnn....nnnn....nnnn....nnnnnnnd..bcbb.BcBB",
-  "....dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd..bcbb.BcBB",
-  "....dn....nnnn....nnnn....nnnn....nnnnnnnd..bcbb.BcBB",
-  "....dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd..bcbb.BcBB",
-  "....dn....nnnn....nnnn....nnnn....nnnnnnnd..bcbb.BcBB",
-  "....dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd..bcbb.BcBB",
-  "....dddddddddddddddddddddddddddddddddddddd..bcbb.BcBB",
-  "............................................bcbb.BcBB",
-  "............................................bcbb.BcBB",
   "",
   "",
+  "",
+  "",
+  "..........sssssssssssssssssssss",
+  "..........sssssssssssssssssssss.........................................................bbbbbb",
+  "..........ssSSssSSssSSssSSssSss.......................................................dbbbbbbb",
+  "..........ssSSssSSssSSssSSssSss.......................................................dbbccbbd",
+  "..........sssssssssssssssssssss...ddddddddddddddddddddddddddddddddddddddddddddddddd...dbbccbbd",
+  "..........ssSSssSSssSSssSssssss...ddddddddddddddddddddddddddddddddddddddddddddddddd...dbbccbbd",
+  "..........ssSSssSSssSSssSssssss....aaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaA....dbbccbbd.....BBBBBB",
+  "..........sssssssssssssssssssss....aaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaA....dbbccbbd...dBBBBBBB",
+  "..........sssssssssssssssssssss....aaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaA....dbbccbbd...dBBccBBd",
+  "...................dd..............aaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaA....dbbccbbd...dBBccBBd",
+  "...................dd..............aaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaA....dbbccbbd...dBBccBBd",
+  "...................dd.............dd.............................................dd....dbbccbbd..dBBccBBd",
+  "...................dd.............dd..................hhhhhh.....................dd....dbbccbbd..dBBccBBd",
+  "...................dd.............dd..................hhhhhh.....................dd....dbbccbbd..dBBccBBd",
+  "...................dd.............dd..................hhhhhh.....................dd....dbbccbbd..dBBccBBd",
+  "...................dd.............dd..................hkkkkh.....................dd....dbbccbbd..dBBccBBd",
+  ".......ygg.yoo.ygg.ddfyoo.........dd..................hekkeh.....................dd...ddbbccbbdddddBBccBBddddddd",
+  ".......ggg.ooo.ggg.ddfooo.........dd..................hkkkkh.....................dd...ddbbccbbdddddBBccBBddddddd",
+  ".......ggg.ooo.ggg.ddfooo.........dd...................kkkk......................dd....dbbccbbd...dBBccBBd",
+  ".......ggg.ooo.ggg.ddfooo.........dd..................tttttt.....................dd....dbbccbbd...dBBccBBd",
+  ".......ggg.ooo.ggg.ddfooo.........dd..................tttttt.....................dd.....dbbccbbd..dBBccBBd",
+  ".......ggg.ooo.ggg.ddfooo.........dd..yggygg..........tttttt............yoo.yff..dd.....dbbccbbd..dBBccBBd",
+  "....pppppppppppppppddpppppp.......dd..gggggg........tttttttttt..........ooo.fff..dd.....dbbccbbd..dBBccBBd",
+  "....ppppppppppppppppppppppp.......dd..gggggg........tttttttttt..........ooo.fff..dd.....dbbccbbd..dBBccBBd",
+  "....PPPPPPPPPPPPPPPPPPPPPPP.......dd..gggggg........tttttttttt..........ooo.fff..dd.....dbbccbbd..dBBccBBd",
+  ".....dd.................dd........dd..gggggg........tttttttttt..........ooo.fff..dd.....dbbccbbd...dBBccBBd",
+  ".....dd.................dd........dd..gggggg........kttttttttk..........ooo.fff..dd.....dbbccbbd...dBBccBBd",
+  ".....dd.................dd........ppppppppppppppppppppppppppppppppppppppppppppppppp.....dbbccbbd...dBBccBBd",
+  ".....dd.................dd........ppppppppppppppppppppppppppppppppppppppppppppppppp.....dbbccbbd...dBBccBBd",
+  ".....dd.................dd........ppppppppppppppppppppppppppppppppppppppppppppppppp......dbbccbbd..dBBccBBd",
+  ".....dd.................dd........PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP......dbbccbbd..dBBccBBd",
+  ".....dd.................dd........dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd......dbbccbbd..dBBccBBd",
+  ".....dd.................dd........dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd......dbbccbbd..dBBccBBd",
+  ".....dd.................dd........dnnn.......nnnn.......nnnn.......nnnn.......nnnnd......dbbccbbd..dBBccBBd",
+  ".....dd.................dd........dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd......dbbccbbd...dBBccBBd",
+  ".....dd.................dd........dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd......dbbccbbd...dBBccBBd",
+  ".....dd.................dd........dnnn.......nnnn.......nnnn.......nnnn.......nnnnd......dbbccbbd...dBBccBBd",
+  ".....dd.................dd........dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd......dbbccbbd...dBBccBBd",
+  ".....dd.................dd........dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd.......dbbccbbd..dBBccBBd",
+  ".....dd.................dd........dnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnd.......dbbccbbd..dBBccBBd",
 ]
 
 def png(pixels, w, h)
