@@ -1,18 +1,89 @@
-﻿# 🐠 Underwater
+# 🐠 Underwater
 
-<img width="700" alt="Bildschirmfoto 2024-11-10 um 20 00 34" src="https://github.com/user-attachments/assets/93abe1ed-50a3-4966-9598-7f0db62a5a3f">
+You are a freelance underwater wildlife photographer. Dive, find things nobody
+has a picture of, and bring the film home.
+
+<img width="700" alt="A diver in the fog of war beside a field of red jellyfish, with air, suit and energy gauges, film left, and the lens naming what it is looking at" src="media/screenshot.png">
 
 **▶ [Play it in your browser](https://stammer.dev/underwater/)**
 
-This is my first game made using DragonRuby. It's a pet project
-for the joy of learning on how to make games. 
+My first game, made with [DragonRuby GTK](https://dragonruby.org). A pet project
+for the joy of learning how to make games.
 
+> **The game itself is in German.** This README is not.
 
-So - follow me and the adventures of the little diver! 
+## What it is
 
-The goal of the game is to survive and get mesmerized by the beauty of the underwater universe.
+A 2D pixel-art sea, generated as you swim: sandbanks, kelp forests, reefs and
+trenches, walkable islands with tunnel systems inside them, and a blue whale out
+in the clear water if you go looking. Twenty-two species live in it, each in its
+own biome and depth band — the rarest of them at or below what your suit is
+rated for, so the last pages of the book cost real risk.
 
-### Assets used
+The camera is the point of all of it:
+
+- **A photograph is a crop, not a snapshot.** Hold the shutter and a frame opens
+  wide and closes steadily; letting go is the picture. Getting the animal large,
+  whole and centred is the skill, and holding on too long clips it.
+- **Several of a kind in one frame is a group shot** — worth more, and released
+  earlier, because the group needs a wider frame than one fish does.
+- **Fish are shy.** Moving scares them off; keeping still brings them to you. A
+  perfect frame is nearer than they will let you swim, so photography here is
+  patience rather than chasing.
+- **Film is exposed, not banked.** A roll only becomes pages in the Artenbuch
+  when it is developed at the boat. Drown out there and the roll goes with you —
+  the book does not.
+
+Around that: air and suit pressure as two clocks, energy as a third that makes a
+day, sleeping on the boat to end one, finds on the sea floor to sell, and a shop
+on an island where the money turns into better gear.
+
+## Controls
+
+| | |
+|---|---|
+| Arrows / WASD / gamepad | swim — and walk, ashore |
+| **Hold `F`** | the shutter. The frame closes while you hold it; **letting go takes the picture** |
+| `F` at the boat | develop the roll (darkroom) |
+| Space | sprint underwater (costs air, blurs photos) · jump on land |
+| `E` | pick up a find · move things between pack and hold in the boat screen |
+| `L` | the boat screen: logbook, hold, Artenbuch (`Tab` turns the page) · and the shop, at the shop island |
+| `I` | at the boat: stow everything at once |
+| `S` | at the boat: sleep, and end the day |
+| `Esc` | pause · back out of a screen |
+| `Enter` | confirm |
+| `Q` | at the boat: quit |
+
+There is a touch layout too — joystick and buttons appear as soon as a finger
+touches the screen, so it plays on a phone.
+
+## Running it locally
+
+**The DragonRuby engine is deliberately not in this repo.** It is commercial
+software and everything belonging to it is gitignored; only `app/`, `tests/`,
+`bin/`, `sprites/` and `sounds/` are versioned. So a fresh clone will not run
+until you drop your own licensed copy in:
+
+1. Get DragonRuby GTK (from [itch.io](https://dragonruby.itch.io/dragonruby-gtk)
+   or [dragonruby.org](https://dragonruby.org)) and unpack it.
+2. Copy the **contents** of `dragonruby-macos/` (the `dragonruby` binary,
+   `docs/`, `samples/`, `.dragonruby/`, `font.ttf` …) into this directory —
+   **without** the sample `mygame/`. The engine files end up next to `app/` and
+   are all ignored by git.
+
+Then:
+
+```sh
+./dragonruby .                  # run the game (the game folder is the repo root)
+bin/test                        # the whole suite
+bin/test tests/framing_tests.rb # one file
+```
+
+619 tests across 50 files, run headless in DragonRuby's own test runner.
+`bin/test` wraps it because `--test` always exits 0, which is no use to anyone
+who wants to know whether the tests passed.
+
+## Assets used
 
 I'm highly thankful for the people that provided the lovely pixel art assets
 I used in my game, like
@@ -20,16 +91,10 @@ I used in my game, like
 * [SpearFishing by Szym](https://nszym.itch.io/spearfishing-assets-pack)
 * [PixelArt Diver by Daniel Kole](https://dkproductions.itch.io/pixel-art-diver)
 
-### How to run locally for development
+Everything else — decor, crabs, jellyfish, items, the boat, the diver on land —
+is generated from ASCII art and a palette by the scripts in `tools/`.
 
-For production we're building OS-specific binaries, but for 
-development, if you have dragonruby locally, then:
-
-```sh
-./dragonruby .
-```
-
-### Building a web (HTML5 / WASM) version
+## Building a web (HTML5 / WASM) version
 
 DragonRuby can export the game to WebAssembly so it runs in the browser — this
 works even on the **Standard** license. The output is a folder of plain static
