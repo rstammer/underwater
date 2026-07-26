@@ -59,7 +59,7 @@ class Game
     [
       "[ F ]  fotografiert, was vor dir ist",
       "Je näher dran, desto schärfer — Sprinten verwackelt",
-      "Der Film reicht für #{FILM_MAX} Aufnahmen",
+      "Der Film reicht für #{film_capacity} Aufnahmen",
       "Entwickelt wird am Boot. Was du nicht heimbringst, ist weg.",
     ]
   end

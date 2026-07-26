@@ -38,6 +38,7 @@ require "app/world/photography.rb"
 require "app/world/kraken.rb"
 require "app/world/whale.rb"
 require "app/world/sting.rb"
+require "app/world/gear.rb"
 require "app/world/save_file.rb"
 
 SCREEN_WIDTH = 1280
@@ -53,7 +54,10 @@ CAMERA_EASE = 0.1 # how quickly the camera catches up per tick — smooths the r
 SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center rests (only head/shoulders show)
 SURFACE_BOAT_X = 120 # world x of the diver's home boat, floating at the waterline
 OXYGEN_MAX = 100
-OXYGEN_DRAIN = 0.009 # per tick underwater (~3 min of air at 60 fps)
+# Per tick under water. The starting bottle is deliberately short — about a
+# minute and a half — so the swim home is something you are counting from the
+# very first dive, and so a bigger bottle is worth buying (see app/world/gear.rb).
+OXYGEN_DRAIN = 0.0185
 OXYGEN_REFILL = 1.0 # per tick while breathing at the surface (fast top-up)
 SUIT_MAX = 100
 SUIT_DEPTH_LIMIT = 100 # metres this suit is rated for; below that the pressure works on it
@@ -146,7 +150,7 @@ class Game
     state.island_sectors = roll_island_sectors
     state.dark_shark = { x: -300, y: 300 }
     state.game_scene = "title"
-    state.oxygen = OXYGEN_MAX
+    state.oxygen = air_capacity
     state.suit = SUIT_MAX
     state.energy = ENERGY_MAX # the day ahead of him
     state.day = 1
@@ -194,6 +198,7 @@ class Game
     state.jellies = []    # ... and what drifts in it, where a field has settled
     state.stung_at = nil  # ... and nothing has stung him yet
     state.stash = [] # the boat's hold; survives dying, not a new career
+    reset_gear      # nothing bought yet — the ladders all start at the bottom
     reset_log       # the dive log starts empty each round
     reset_items     # scatter fresh treasures, empty the pack
     reset_film      # a fresh roll, nothing exposed
@@ -251,7 +256,7 @@ class Game
     state.active_world_index = nil
     state.island_sectors = roll_island_sectors # a new round hides them somewhere else
     state.dark_shark = { x: -300, y: 300 }
-    state.oxygen = OXYGEN_MAX
+    state.oxygen = air_capacity
     state.suit = SUIT_MAX
     state.death_cause = nil
     state.sprinting = false
@@ -828,7 +833,7 @@ class Game
   # otherwise it drains; running out drowns you.
   def update_oxygen
     if breathing?
-      state.oxygen = [state.oxygen + OXYGEN_REFILL, OXYGEN_MAX].min
+      state.oxygen = [state.oxygen + OXYGEN_REFILL, air_capacity].min
     else
       state.oxygen -= oxygen_drain
       if state.oxygen <= 0
@@ -850,7 +855,7 @@ class Game
     return repair_suit if at_the_boat?
     return unless too_deep?
 
-    state.suit -= SUIT_DRAIN * (current_depth - SUIT_DEPTH_LIMIT)
+    state.suit -= SUIT_DRAIN * (current_depth - suit_limit)
     return if state.suit > 0
 
     state.suit = 0
@@ -923,14 +928,14 @@ class Game
     state.day += 1
     state.energy = ENERGY_MAX
     state.suit = SUIT_MAX
-    state.oxygen = OXYGEN_MAX
+    state.oxygen = air_capacity
     reset_day_tally
     save_book # a day ended is worth remembering
     resume_scene
   end
 
   def too_deep?
-    current_depth > SUIT_DEPTH_LIMIT
+    current_depth > suit_limit
   end
 
   # Back at the boat, up in the air beside it — the one place with tools aboard.
@@ -1085,7 +1090,10 @@ class Game
                                           day_earned: state.day_earned,
                                           day_species: state.day_species,
                                           day_deepest: state.day_deepest,
-                                          day_sold: state.day_sold))
+                                          day_sold: state.day_sold,
+                                          gear_film: gear_level(:film),
+                                          gear_air: gear_level(:air),
+                                          gear_suit: gear_level(:suit)))
   end
 
   # Carry the saved book on: same diver, same pages, same sea, straight into the
@@ -1112,6 +1120,9 @@ class Game
     state.day_species = book[:day_species] || 0
     state.day_deepest = book[:day_deepest] || 0
     state.day_sold = book[:day_sold] || 0
+    # What he has bought, before reset_game refills the tank and the roll from it.
+    state.gear = { film: book[:gear_film] || 0, air: book[:gear_air] || 0,
+                   suit: book[:gear_suit] || 0 }
     state.world_seed = book[:seed] || new_world_seed
     reset_game # rebuild the world from that seed before he is put in it
     state.stash = book[:stash] || [] # ... and the hold as he left it, after reset_items
@@ -1134,6 +1145,7 @@ class Game
     state.log_earned = 0
     state.day = 1
     state.energy = ENERGY_MAX
+    reset_gear # a new diver owns nothing
     reset_day_tally
     state.stash = [] # a new career comes with an empty hold
     state.world_seed = new_world_seed

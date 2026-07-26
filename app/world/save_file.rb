@@ -26,8 +26,12 @@ class SaveFile
   # Counters that are simply written as "key n" and read back the same way, all
   # of them optional. Listed once so adding another is a word in a list rather
   # than three edits that have to agree.
+  # Kit is career, so it travels with the book. Levels rather than values: a
+  # ladder that grows a rung later still reads an old save correctly, and a
+  # level nobody has bought is simply absent (COUNTERS only writes what is > 0).
   COUNTERS = ["credits", "dives", "best", "sold", "earned", "day", "energy",
-              "day_earned", "day_species", "day_deepest", "day_sold"]
+              "day_earned", "day_species", "day_deepest", "day_sold",
+              "gear_film", "gear_air", "gear_suit"]
 
   def self.encode(name:, album:, sighted:, seed: nil, stash: [], **counters)
     lines = []

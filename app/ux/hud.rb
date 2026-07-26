@@ -110,7 +110,7 @@ class Game
   def render_film_gauge
     outputs.labels << {
       x: GAUGE_X, y: gauges_bottom + 12,
-      text: "Film  #{state.film_left} / #{FILM_MAX}", size_enum: 1,
+      text: "Film  #{state.film_left} / #{film_capacity}", size_enum: 1,
       r: state.film_left.zero? ? 235 : FILM_INK[0],
       g: state.film_left.zero? ? 150 : FILM_INK[1],
       b: state.film_left.zero? ? 150 : FILM_INK[2],
@@ -349,7 +349,7 @@ class Game
   # stay down, how deep you can go, and how much day is left. Anything that has
   # to sit under them asks gauges_bottom rather than counting them itself.
   def gauge_rows
-    [["Sauerstoff", state.oxygen / OXYGEN_MAX, OXYGEN_COLOR],
+    [["Sauerstoff", state.oxygen / air_capacity.to_f, OXYGEN_COLOR],
      [suit_label, state.suit / SUIT_MAX, SUIT_COLOR],
      [energy_label, state.energy / ENERGY_MAX.to_f, ENERGY_COLOR]]
   end

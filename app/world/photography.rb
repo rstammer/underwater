@@ -23,7 +23,7 @@ class Game
   # A fresh film and an empty roll. The album is *not* here: it survives dying,
   # which is the whole point of having to bring the film home.
   def reset_film
-    state.film_left = FILM_MAX
+    state.film_left = film_capacity
     state.film_roll = []
     state.shot_at = nil
     state.shot_note = nil
@@ -221,7 +221,7 @@ class Game
     state.day_earned += earned
     developed = state.film_roll.length
     state.film_roll = []
-    state.film_left = FILM_MAX
+    state.film_left = film_capacity
     save_book # the book has changed, so the book on disk changes with it
     developed
   end
