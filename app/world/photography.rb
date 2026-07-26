@@ -145,11 +145,18 @@ class Game
     state.sprinting ? blurred(quality) : quality
   end
 
-  def blurred(quality)
+  # One rung down the ladder. It has two callers that mean different things —
+  # a shot taken at sprint speed is blurred, a group with a stray in it is
+  # merely a worse picture — so the movement has its own name and the blur keeps
+  # the one that says what happened.
+  def demote(quality)
     return :gut if quality == :perfekt
-    return :unscharf if quality == :gut
 
     :unscharf
+  end
+
+  def blurred(quality)
+    demote(quality)
   end
 
   # Take the picture, if there is film, something to shoot, and the shot would

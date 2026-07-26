@@ -115,11 +115,50 @@ class Game
 
     # The biggest thing in the picture is what the picture is of.
     subject = inside.max_by { |body| body[:rect][:w] * body[:rect][:h] }
+    # ... and its own kind, whole in the frame, are the picture with it. Whole is
+    # part of the definition rather than a check afterwards: a school with one
+    # animal sliced by the edge is a school of one fewer, and counting it would
+    # let you be paid for fish you did not fit in.
+    kin = inside.select do |body|
+      body[:species].key == subject[:species].key && whole_in?(body[:rect], rect)
+    end
+    box = bounding_box(kin)
     { species: subject[:species],
       fill: frame_fill(subject[:rect], rect),
       whole: whole_in?(subject[:rect], rect),
       centred: frame_centring(subject[:rect], rect),
-      company: inside.length - 1 }
+      company: inside.length - 1,
+      flock: kin.length,
+      strays: inside.count { |body| body[:species].key != subject[:species].key },
+      flock_fill: box ? frame_span(box, rect) : 0.0,
+      flock_centred: box ? frame_centring(box, rect) : 1.0 }
+  end
+
+  def bounding_box(bodies)
+    return nil if bodies.empty?
+
+    rects = bodies.map { |body| body[:rect] }
+    x = rects.map { |rect| rect[:x] }.min
+    y = rects.map { |rect| rect[:y] }.min
+    { x: x, y: y,
+      w: rects.map { |rect| rect[:x] + rect[:w] }.max - x,
+      h: rects.map { |rect| rect[:y] + rect[:h] }.max - y }
+  end
+
+  # How much of the frame the group spans, on whichever axis runs out first. 1.0
+  # is a frame closed exactly onto them.
+  #
+  # Deliberately *not* the area fraction the single animal is judged by, and the
+  # reason is arithmetic rather than taste: a rank of fish is mostly the water
+  # between them, so the most area a group can ever fill falls as the group grows
+  # — measured, 0.78 for a pair against 0.42 for six. One threshold on area would
+  # therefore make a big school ungradeable while a pair walked it. A span reads
+  # the same for two fish and for nine, and it says the thing a photographer
+  # would say: fill the frame with them.
+  def frame_span(body, rect)
+    across = body[:w] / rect[:w].to_f
+    down = body[:h] / rect[:h].to_f
+    across > down ? across : down
   end
 
   def frame_fill(body, rect)
@@ -157,23 +196,69 @@ class Game
   FILL_GOOD = 0.03
   CENTRED_ENOUGH = 0.45
 
-  # For a species shot: large, whole, centred and alone. Every one of those is a
-  # thing a photographer would say, which is the test of whether the rule is the
-  # right shape — and every one is a number a later assignment can ask for
-  # differently ("a group of three" wants company, not solitude).
+  FLOCK_MIN = 2      # two of a kind, both whole, and it is a picture of a group
+  GROUP_TIGHT = 0.50 # how much of the frame they must span to be a good one ...
+  GROUP_LOOSE = 0.28 # ... and to be worth anything at all
+
+  # Both measured rather than guessed, and the first guess was wrong in a way
+  # worth writing down. At 0.72 a pair had a seven-tick window between "tight
+  # enough" and "clipped" — an eighth of a second, which is a quick-time event,
+  # the one thing this mechanic is built not to be. The window is
+  # frame_w ∈ [span, span / GROUP_TIGHT], so its length in *ticks* grows with the
+  # group while the threshold stays a ratio: a pair gets 19 ticks at 0.50, a
+  # school of six gets 62. That ordering is right. Two fish are the easiest group
+  # to come across and the fiddliest to compose; six are hard to catch lined up
+  # and forgiving once they are. Measured against the portrait's own window of
+  # 21 ticks, so the two kinds of picture ask for the same steadiness.
+
+  # What kind of picture this is, which has to be settled before it can be
+  # graded: a portrait wants one animal alone and large, a group wants several of
+  # a kind and all of them in. Grading a group by the portrait's rules would call
+  # every school a spoiled single, which is what it did until now — a second fish
+  # was a blemish, when to a wildlife photographer it is the better photograph.
+  def frame_kind(report)
+    return nil unless report
+
+    report[:flock] >= FLOCK_MIN ? :gruppe : :portrait
+  end
+
+  # Both kinds are asked the same four questions — how much of the frame it
+  # fills, whether it is whole, how centred, and what else got in — only "it" is
+  # one animal in the one case and the whole school in the other. Every one of
+  # those is a thing a photographer would say, which is the test of whether the
+  # rule is the right shape; and every one stays a number in the report, so an
+  # assignment can read it its own way round.
   def frame_quality(report)
     return :unscharf unless report
     return :unscharf unless report[:whole] # clipped is a bad photograph
 
+    quality = frame_kind(report) == :gruppe ? group_quality(report) : portrait_quality(report)
+    state.sprinting ? demote(quality) : quality
+  end
+
+  def portrait_quality(report)
+    if report[:fill] >= FILL_PERFECT && report[:centred] <= CENTRED_ENOUGH &&
+       report[:company].zero?
+      :perfekt
+    elsif report[:fill] >= FILL_GOOD
+      :gut
+    else
+      :unscharf
+    end
+  end
+
+  # A stray costs a step rather than the picture, the same way company costs a
+  # portrait its top grade — a school of herring with a bass in the corner is a
+  # worse photograph, not a ruined one.
+  def group_quality(report)
     quality =
-      if report[:fill] >= FILL_PERFECT && report[:centred] <= CENTRED_ENOUGH &&
-         report[:company].zero?
+      if report[:flock_fill] >= GROUP_TIGHT && report[:flock_centred] <= CENTRED_ENOUGH
         :perfekt
-      elsif report[:fill] >= FILL_GOOD
+      elsif report[:flock_fill] >= GROUP_LOOSE
         :gut
       else
         :unscharf
       end
-    state.sprinting ? blurred(quality) : quality
+    report[:strays].zero? ? quality : demote(quality)
   end
 end
