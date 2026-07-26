@@ -719,6 +719,11 @@ Screen-Positionen und werden nicht direkt gesetzt.
   - **Springen (Leertaste, `update_jump`)**: nur an Land und nur vom Boden
     (`state.airborne`). Technisch ist es dieselbe Kurve wie das Fallen, rückwärts
     gelesen — `state.fall` startet negativ. Gemessen: **33 px hoch, 0,33 s**.
+    Am Handy ist es der **Sprung-Knopf** (`diving_layout`, `id: :jump`), der
+    **nur an Land** erscheint — dort fängt er an, etwas zu bedeuten, und unter
+    Wasser ist dieselbe Taste der Sprint, den ohnehin der Joystick macht. Ohne
+    ihn kam man am Telefon **gar nicht** an Land: die halbe Insel-Hälfte des
+    Spiels hing an einer Taste, die ein Telefon nicht hat.
   - **Der Sprung ist an die Felswand gekoppelt.** Er erhöht, wie hoch er greifen
     kann (Schritt 48 + Sprung 33 = 81 px), also ist `IslandWorld::CLIFF_MIN`=128
     **dagegen** bemessen (+16 px, die die Krone wegrastet → Wand ≥112). **Wer die

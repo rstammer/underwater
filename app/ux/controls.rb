@@ -26,8 +26,7 @@ class Game
   def control_layout
     case control_context
     when :diving
-      [{ id: :photo, label: "F", x: SCREEN_WIDTH - 184, y: 44, w: 140, h: 140 },
-       { id: :pause, label: "II", x: SCREEN_WIDTH - 108, y: SCREEN_HEIGHT - 150, w: 88, h: 88 }]
+      diving_layout
     when :name
       [{ id: :start, label: name_start_label, x: (SCREEN_WIDTH - 360) / 2, y: 208, w: 360, h: 64 }]
     when :pause
@@ -37,6 +36,24 @@ class Game
     else
       []
     end
+  end
+
+  # The shutter and the pause, and — once he is standing on rock — the hop.
+  #
+  # Walking ashore is half the game: beaches, crabs to photograph, a way over an
+  # island. On a phone it was unreachable, because the hop is on the space bar
+  # and a phone has not got one. You could wade up to the first terrace and no
+  # further. It appears only on land, so the button turns up exactly when it
+  # starts meaning something — and underwater that key is the sprint, which is
+  # held rather than tapped and is the joystick's job already.
+  def diving_layout
+    buttons = [{ id: :photo, label: "F", x: SCREEN_WIDTH - 184, y: 44, w: 140, h: 140 },
+               { id: :pause, label: "II", x: SCREEN_WIDTH - 108, y: SCREEN_HEIGHT - 150, w: 88, h: 88 }]
+    return buttons unless on_land?
+
+    buttons << { id: :jump, label: "SPRUNG", size: 3,
+                 x: SCREEN_WIDTH - 344, y: 44, w: 140, h: 140 }
+    buttons
   end
 
   # The title only has buttons when there is a choice to make. Without a book to
@@ -246,9 +263,11 @@ class Game
       outputs.sprites << { x: button[:x], y: button[:y] + button[:h] - 4, w: button[:w], h: 4,
                            r: STICK_INK[0], g: STICK_INK[1], b: STICK_INK[2],
                            a: pressed ? 255 : 150, path: :solid }
+      # A word needs smaller type than a letter does; the button says how big it
+      # wants to be read, rather than the renderer assuming every label is "F".
       outputs.labels << { x: button[:x] + button[:w] / 2, y: button[:y] + button[:h] / 2,
-                          text: button[:label], size_enum: 6, alignment_enum: 1,
-                          vertical_alignment_enum: 1,
+                          text: button[:label], size_enum: button[:size] || 6,
+                          alignment_enum: 1, vertical_alignment_enum: 1,
                           r: BUTTON_INK[0], g: BUTTON_INK[1], b: BUTTON_INK[2] }
     end
   end

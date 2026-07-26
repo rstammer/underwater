@@ -573,6 +573,10 @@ class Game
     floor, ceiling = rock_span_at(state.diver_global_x, state.depth_y, SOLID_STEP_UP)
     bottom = floor + Diver::HEIGHT
     top = depth_ceiling(ceiling, state.diver_global_x, floor)
+    # Whether he is *coming off rock*, read before the new ground overwrites it.
+    # This is the whole difference between a fall and the surface clamp, and it
+    # is a fact about where he was, not about where he is going to land.
+    dropping = on_land? || state.airborne
     # Everything that behaves differently up on an island hangs off this: the
     # rock under him holds him higher than he would ever float.
     state.on_land = bottom > WATERLINE_Y - SURFACE_FLOAT_DEPTH
@@ -582,10 +586,16 @@ class Game
       state.fall = 0
       state.airborne = false
     elsif state.depth_y > top
-      # Above where he belongs. Between one terrace and the next that is a fall;
-      # anywhere the ground below him is sea it stays the snap it has always
-      # been, because water is the thing that catches you.
-      on_land? ? fall_toward(top) : state.depth_y = top
+      # Above where he belongs. Off rock — one terrace to the next, or a cliff
+      # over open sea — that is a fall. This used to ask whether the ground he
+      # was heading *for* was land, and the sea is not, so walking off a cliff
+      # covered the whole drop in a single frame. Water still catches him; it
+      # just no longer reaches up and yanks him down.
+      #
+      # Under the surface it stays a snap, because there the clamp is buoyancy
+      # rather than gravity: a diver stroking upwards must be held at the
+      # waterline every tick, not handed an accelerating arc.
+      dropping ? fall_toward(top) : state.depth_y = top
     else
       state.fall = 0
       state.airborne = false
@@ -629,7 +639,7 @@ class Game
   end
 
   def wants_jump?
-    inputs.keyboard.key_down.space || inputs.controller_one.key_down.a
+    inputs.keyboard.key_down.space || inputs.controller_one.key_down.a || tapped?(:jump)
   end
 
   # As high as he can rise here. He floats at whatever water surface is above
