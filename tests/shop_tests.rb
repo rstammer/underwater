@@ -182,7 +182,7 @@ class ShopTests
   # 150 m it would lure a diver in a 250 m suit into water that cannot hurt him
   # — the deep would go harmless exactly when it gets interesting.
   def test_the_kraken_hangs_below_your_own_suit(args, assert)
-    game = at_the_door(args)
+    game = at_the_door(args, credits: 5000) # enough for the whole ladder
 
     assert.equal! game.kraken_depth, 150, "at the starting suit, the old number"
 
