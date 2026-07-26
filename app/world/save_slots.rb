@@ -83,11 +83,6 @@ class Game
   def load_slots
     state.slots = (1..SAVE_SLOTS).map { |slot| read_slot(slot) }
     adopt_legacy_book
-    # A bridge while the title is still a single-book screen: it reads
-    # state.saved_book, so slot one stands in for "the book". The picker that
-    # lets you choose among the five is the next job, and when it lands this
-    # goes and open_slot is called with whatever row you pointed at.
-    state.saved_book = slot_book(1) || SaveFile.blank
     state.slots
   end
 
@@ -103,6 +98,10 @@ class Game
   # old file is *left where it is*. Deleting it would make the fix that stops
   # books being lost the occasion of one more book being lost.
   def adopt_legacy_book
+    # Never while the suite runs. It would pull whoever's real career is sitting
+    # in artenbuch.txt onto the test shelf, and then every test that asks "what
+    # happens with no saves?" is quietly answering a different question.
+    return if under_test?
     return unless state.slots.compact.empty?
 
     text = $gtk.read_file(SaveFile::PATH)
@@ -112,16 +111,30 @@ class Game
     state.slots[0] = SaveFile.decode(text)
   end
 
+  # A single book handed in with no shelf behind it *is* slot one. That is the
+  # shape a test sets up — one career, then press on at the title — and it is
+  # what the game itself looked like before there were five of them. In a real
+  # run the shelf is always loaded and state.saved_book is nil, so this never
+  # fires; it exists so "one book" stays a sentence the game understands.
   def slot_book(slot)
-    (state.slots || [])[slot - 1]
+    slots = state.slots || []
+    if slot == 1 && slots.compact.empty? &&
+       state.saved_book && !SaveFile.empty?(state.saved_book)
+      return state.saved_book
+    end
+
+    slots[slot - 1]
   end
 
   def slot_used?(slot)
     !slot_book(slot).nil?
   end
 
+  # Through slot_book, like everything else — asking state.slots directly walked
+  # straight past the "a lone book is slot one" rule and answered no to a shelf
+  # that plainly had a career on it.
   def any_slot_used?
-    (state.slots || []).any? { |book| !book.nil? }
+    (1..SAVE_SLOTS).any? { |slot| !slot_book(slot).nil? }
   end
 
   # What a row on the title says about itself. A plain method returning plain

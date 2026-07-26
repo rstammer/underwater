@@ -56,33 +56,47 @@ class TitleTests
 
   # --- the choice ------------------------------------------------------------
 
-  def test_a_book_makes_it_a_choice_of_two(args, assert)
+  # One row per slot, always — the choice is which career you are opening, not
+  # whether to keep the one book or throw it away.
+  def test_the_shelf_has_a_row_for_every_slot(args, assert)
     game = with_a_book(args)
 
     ids = game.title_layout.map { |button| button[:id] }
 
-    assert.equal! ids, [:carry_on, :start_over]
+    assert.equal! ids.length, Game::SAVE_SLOTS
+    assert.equal! ids.first, :slot_1
   end
 
   # Said out loud rather than left to whatever the runner's book file happens to
   # hold: initialize_game loads one off disk, and a leftover from an earlier run
   # would quietly turn this into the two-button case.
-  def test_without_a_book_there_is_only_the_way_in(args, assert)
+  def test_an_untouched_shelf_is_all_empty_slots(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     args.state.saved_book = SaveFile.blank
+    args.state.slots = Array.new(Game::SAVE_SLOTS)
 
-    assert.equal! game.title_layout.length, 1, "nothing to choose between"
+    assert.true! game.title_rows.all? { |row| row[:summary].nil? }
+    assert.false! game.saved_book?, "nothing on this machine yet"
   end
 
-  def test_the_card_names_the_diver_and_counts_the_book(args, assert)
+  # A row has to say whose career it is and how far along, or opening one is a
+  # leap of faith.
+  def test_a_row_names_the_diver_and_counts_the_book(args, assert)
     game = with_a_book(args)
+    row = game.title_rows.first
 
-    text = game.title_labels.map { |l| l[:text] }.join("  ")
+    assert.equal! row[:title], "Kins", "whose book"
+    assert.true! row[:detail].include?("1 von 2"), "how far along: #{row[:detail]}"
+    assert.true! row[:detail].include?("Tag 4")
+  end
 
-    assert.true! text.include?("Kins"), "whose book: #{text}"
-    assert.true! text.include?("1 von 2"), "and how far along it is"
-    assert.true! text.include?("Tag 4")
+  def test_an_empty_row_says_so(args, assert)
+    game = with_a_book(args)
+    row = game.title_rows.last
+
+    assert.equal! row[:summary], nil
+    assert.true! row[:title].length > 0, "it still says something"
   end
 
   # A button you can see is a button you can press: both come off title_layout,

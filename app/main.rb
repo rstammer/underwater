@@ -1131,10 +1131,6 @@ class Game
     state.game_scene = "name"
   end
 
-  def saved_book?
-    !SaveFile.empty?(state.saved_book)
-  end
-
   def render_diver
     outputs.sprites << state.diver.to_h
     render_fog

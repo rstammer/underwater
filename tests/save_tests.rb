@@ -237,6 +237,7 @@ class SaveTests
     args.inputs.keyboard.key_down.space = true
     game.title_tick
     assert.equal! args.state.game_scene, "recap", "by way of where he left off"
+    assert.equal! args.state.book_slot, 1, "and it is that slot that is open"
     game.recap_tick # ... and the same held key carries him on through it
 
     assert.equal! args.state.game_scene, "area1", "into the water"
@@ -248,7 +249,8 @@ class SaveTests
   def test_starting_over_asks_for_a_name_and_empties_the_book(args, assert)
     game = with_saved_book(args, a_book)
 
-    args.inputs.keyboard.key_down.n = true
+    game.move_title_row(1) # off the career and onto an empty slot
+    args.inputs.keyboard.key_down.space = true
     game.title_tick
 
     assert.equal! args.state.game_scene, "name", "it asks who is going down there"
@@ -261,7 +263,8 @@ class SaveTests
   # the file isn't touched until somebody actually takes it over.
   def test_backing_out_of_starting_over_leaves_the_saved_book_alone(args, assert)
     game = with_saved_book(args, a_book)
-    args.inputs.keyboard.key_down.n = true
+    game.move_title_row(1)
+    args.inputs.keyboard.key_down.space = true
     game.title_tick
 
     game.abandon_name
@@ -275,12 +278,10 @@ class SaveTests
   # is a leap of faith.
   def test_the_title_says_what_it_is_offering(args, assert)
     game = with_saved_book(args, a_book)
+    row = game.title_rows.first
 
-    game.title_tick
-    text = args.outputs.labels.flatten.map { |label| label[:text] }.join("  ")
-
-    assert.true! text.include?("Kins Klausky"), "whose book it is"
-    assert.true! text.include?("2 von 3"), "and how far along: #{game.saved_book_summary}"
+    assert.equal! row[:title], "Kins Klausky", "whose book it is"
+    assert.true! row[:detail].include?("2 von 3"), "and how far along: #{row[:detail]}"
   end
 
   # On a phone there is no space bar, so the choice has to be two buttons.
@@ -289,12 +290,15 @@ class SaveTests
     args.state.touch_seen = true
 
     ids = game.control_layout.map { |b| b[:id] }
-    assert.true! ids.include?(:carry_on), "a button to carry on"
-    assert.true! ids.include?(:start_over), "and one to start over"
+    assert.true! ids.include?(:slot_1), "a button per career"
+    assert.equal! ids.length, Game::SAVE_SLOTS
 
-    args.state.touch_tapped = [:start_over]
+    # Tapping an empty row starts a career there — and never over the one in
+    # slot one, which is the whole reason the shelf exists.
+    args.state.touch_tapped = [:slot_3]
     game.title_tick
-    assert.equal! args.state.game_scene, "name", "and tapping it starts over"
+    assert.equal! args.state.game_scene, "name", "tapping an empty slot starts there"
+    assert.equal! args.state.book_slot, 3
   end
 
   # Without a book there is nothing to choose *between*, so the title offers the
@@ -305,10 +309,10 @@ class SaveTests
     game = with_saved_book(args, SaveFile.blank)
     args.state.touch_seen = true
 
-    assert.equal! game.control_layout.length, 1, "one way in, and it is not a choice"
+    assert.equal! game.control_layout.length, Game::SAVE_SLOTS, "a row per slot"
 
-    args.state.touch_began = true
+    args.state.touch_tapped = [:slot_1]
     game.title_tick
-    assert.equal! args.state.game_scene, "name", "and a tap anywhere takes it"
+    assert.equal! args.state.game_scene, "name", "and tapping one starts there"
   end
 end

@@ -91,7 +91,8 @@ class RecapTests
   def test_a_new_diver_never_sees_it(args, assert)
     game = at_the_title_with_a_book(args)
 
-    args.inputs.keyboard.key_down.n = true
+    game.move_title_row(1) # onto an empty slot
+    args.inputs.keyboard.key_down.space = true
     game.title_tick
 
     assert.equal! args.state.game_scene, "name", "a fresh career starts at the name"

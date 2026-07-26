@@ -1,29 +1,20 @@
-# The title. Reopens Game.
+# The title, and the shelf of careers on it. Reopens Game.
 #
-# It used to be a picture of its own — a flat blue gradient, four vertical shafts
-# of light, a seabed of evenly spaced weed, twenty bubbles on random paths and a
-# small diver bobbing in the middle — with the wordmark, the diver's name, the
-# book's tally, the controls and two key prompts all stacked down the centre. The
-# background was not this game's sea, and the bottom third was five lines of type
-# printing over each other.
+# It used to be a doorway with one book behind it: carry that book on, or put it
+# down and start over. "Start over" wrote the new diver straight over the old,
+# which is how a career got lost — so the choice is no longer one book against
+# nothing, it is which of five you are opening.
 #
-# So it is built the way every other screen outside the water is now: the game's
-# own sea, drawn by the game's own renderer and parked beside the boat
-# (render_boat_horizon), with everything written left-aligned in one column that
-# hangs off the horizon. Fewer, bigger things: a wordmark with a bar beside it, a
-# panel whose top edge *is* the waterline, and the choice as two solid buttons
-# rather than as two lines of prompt text.
-#
-# The buttons are drawn from the same list the hit-test reads (title_layout), and
-# now they are drawn for everybody: a keyboard player sees the key written on the
-# button they would press, so there is one thing on the screen instead of a
-# button for phones and a sentence for desktops.
+# The screen itself is built on the game's own sea (render_boat_horizon), left
+# aligned in one column, with the panel's top edge on the waterline. What sits
+# in the panel is the shelf: five rows, each either a diver or an empty slot,
+# and pressing on opens the one you are pointing at. Nothing is ever written
+# over without you saying so, and deleting takes a second press.
 class Game
   TITLE_LEFT = 92
-  TITLE_CARD_W = 560
-  TITLE_CARD_PAD = 26
-  TITLE_BUTTON_H = 62
-  TITLE_BUTTON_GAP = 12
+  TITLE_CARD_W = 680
+  TITLE_CARD_PAD = 24
+  TITLE_ROW_H = 56
   TITLE_WORDMARK = "Underwater"
   TITLE_WORDMARK_SIZE = 22
   TITLE_TAGLINE = "Tauche ein und erkunde die Unterwasserwelt"
@@ -32,22 +23,22 @@ class Game
   TITLE_GOLD = [255, 244, 205]
   # The head sits on the *sky*, which is the brightest thing in the game. Light
   # type on it was a whisper; dark type on it is a poster. Same navy as the panel
-  # below, so the wordmark up in the air and the card down in the water read as
+  # below, so the wordmark up in the air and the shelf down in the water read as
   # one piece of furniture rather than two designs.
   TITLE_HEAD_INK = [8, 34, 58]
   TITLE_HEAD_DIM = [24, 68, 100]
 
   # Fish drifting across the water half: real species off the roster, so the
   # title shows the things you are going to be photographing. One to a lane and
-  # slow — they are the movement on an otherwise still screen, and a shoal of
-  # them darting about was noise. Every y is under HORIZON, because that is where
-  # the water is.
-  # dir +1 swims right, -1 swims left (sprite flipped).
+  # slow — they are the movement on an otherwise still screen. Every y is under
+  # HORIZON, because that is where the water is.
   TITLE_FISH = [
     { key: "hornhering", y: 372, speed: 0.55, size: 3, dir: 1 },
     { key: "burgunder",  y: 286, speed: 0.40, size: 3, dir: -1 },
     { key: "rabauke",    y: 190, speed: 0.62, size: 3, dir: 1 },
-    { key: "scalarus",   y: 104, speed: 0.34, size: 2, dir: -1 },
+    # Under the hint line, not through it: the shelf takes most of the water
+    # now, and at y 104 this one swam straight across "[ Leertaste ] öffnen".
+    { key: "scalarus",   y: 40, speed: 0.34, size: 2, dir: -1 },
   ]
 
   def title_tick
@@ -57,50 +48,112 @@ class Game
     outputs.sprites << title_fish
     render_title_head
     render_title_card
-    render_title_buttons
+    render_title_shelf
     outputs.labels << title_labels
   end
 
-  # With a book on disk the title is a choice rather than a doorway: carry it on,
-  # or put it down and start over. Without one there is nothing to choose, so a
-  # key — or a tap anywhere, on a phone — just goes.
+  # --- the shelf --------------------------------------------------------------
+
+  def title_row
+    row = state.title_row || 0
+    row = 0 if row < 0 || row >= SAVE_SLOTS
+    state.title_row = row
+    row
+  end
+
+  def title_slot
+    title_row + 1
+  end
+
+  def move_title_row(by)
+    state.title_row = (title_row + by) % SAVE_SLOTS
+    state.title_confirm = nil # pointing somewhere else calls the deletion off
+  end
+
+  # Space opens whatever the cursor is on: a diver you carry on, an empty slot
+  # you start in. There is no way to land on a career you did not point at.
+  def open_title_slot
+    slot = title_slot
+    slot_used?(slot) ? continue_round(slot) : fresh_round(slot)
+  end
+
+  # Deleting takes two presses, and the first one says which career it means.
+  # This is the one action on the screen that destroys something.
+  def ask_to_delete
+    return unless slot_used?(title_slot)
+
+    state.title_confirm = title_slot
+  end
+
+  def confirming_delete?
+    state.title_confirm == title_slot
+  end
+
   def read_title_input
-    return title_choice if saved_book?
-    return unless fire_input? || touch_began?
+    move_title_row(-1) if inputs.keyboard.key_down.down
+    move_title_row(1) if inputs.keyboard.key_down.up
+    return read_delete_input if state.title_confirm
 
-    state.game_scene = "name"
+    if inputs.keyboard.key_down.delete || inputs.keyboard.key_down.backspace ||
+       inputs.keyboard.key_down.x
+      return ask_to_delete
+    end
+
+    # A tap opens the row it landed on, not the row the cursor happens to be on:
+    # on a phone the finger *is* the cursor.
+    tapped = (1..SAVE_SLOTS).find { |slot| tapped?(:"slot_#{slot}") }
+    if tapped
+      state.title_row = tapped - 1
+      return open_title_slot
+    end
+
+    open_title_slot if fire_input?
   end
 
-  def title_choice
-    return continue_round if fire_input? || tapped?(:carry_on)
+  def read_delete_input
+    if inputs.keyboard.key_down.escape || fire_input?
+      return state.title_confirm = nil
+    end
 
-    fresh_round if inputs.keyboard.key_down.n || tapped?(:start_over)
+    return unless inputs.keyboard.key_down.delete || inputs.keyboard.key_down.backspace ||
+                  inputs.keyboard.key_down.x
+
+    delete_slot(state.title_confirm)
+    state.title_confirm = nil
   end
 
-  # --- what there is to choose ----------------------------------------------
-  #
-  # The actions as data, without any geometry: the card's height is worked out
-  # from how many there are, and the geometry is worked out from the height, so
-  # the two cannot be asked for in a circle.
-
-  def title_actions
-    return [[:carry_on, "Weitertauchen", "Leertaste"],
-            [:start_over, "Neu anfangen", "N"]] if saved_book?
-
-    [[:begin, "Tauchgang beginnen", "Leertaste"]]
-  end
-
-  def title_layout
-    x = TITLE_LEFT + TITLE_CARD_PAD
-    w = TITLE_CARD_W - TITLE_CARD_PAD * 2
-    top = title_card_top - TITLE_CARD_PAD - title_card_head_h
-    title_actions.each_with_index.map do |action, i|
-      { id: action[0], label: action[1], key: action[2], x: x, w: w, h: TITLE_BUTTON_H,
-        y: top - (i + 1) * TITLE_BUTTON_H - i * TITLE_BUTTON_GAP }
+  # One row per slot, as data: what it says is testable without drawing it.
+  def title_rows
+    (1..SAVE_SLOTS).map do |slot|
+      summary = slot_summary(slot)
+      { slot: slot, summary: summary,
+        title: summary ? summary[:name] : "— leerer Platz —",
+        detail: summary ? title_row_detail(summary) : "hier eine neue Laufbahn anfangen" }
     end
   end
 
-  # --- the layout ------------------------------------------------------------
+  def title_row_detail(summary)
+    "Tag #{summary[:day]}   ·   #{summary[:documented]} von #{summary[:sighted]} Arten" \
+      "   ·   #{summary[:credits]} Cr"
+  end
+
+  # --- what there is to press -------------------------------------------------
+
+  # A row is a button, so a thumb can pick a career the same way the arrows do.
+  def title_layout
+    x = TITLE_LEFT + TITLE_CARD_PAD
+    w = TITLE_CARD_W - TITLE_CARD_PAD * 2
+    (1..SAVE_SLOTS).map do |slot|
+      { id: :"slot_#{slot}", label: "Platz #{slot}", w: w, h: TITLE_ROW_H - 6,
+        x: x, y: title_row_y(slot - 1) }
+    end
+  end
+
+  def title_row_y(index)
+    title_card_top - TITLE_CARD_PAD - (index + 1) * TITLE_ROW_H + 3
+  end
+
+  # --- the layout -------------------------------------------------------------
 
   # The panel's top edge is the waterline. Not a coincidence to be maintained by
   # hand: both read HORIZON, so the sea and the type are laid out against the
@@ -109,14 +162,8 @@ class Game
     HORIZON
   end
 
-  def title_card_head_h
-    saved_book? ? 96 : 52
-  end
-
   def title_card_h
-    count = title_actions.length
-    TITLE_CARD_PAD * 2 + title_card_head_h +
-      count * TITLE_BUTTON_H + (count - 1) * TITLE_BUTTON_GAP
+    TITLE_CARD_PAD * 2 + SAVE_SLOTS * TITLE_ROW_H
   end
 
   def title_card_bottom
@@ -151,34 +198,38 @@ class Game
                          r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2], path: :solid }
   end
 
-  # The first action is the one you came for, so it is the solid one. The key is
-  # written on the button it belongs to; on a phone there is no key to write, and
-  # the label is the whole of it.
-  def render_title_buttons
-    title_layout.each_with_index do |button, i|
-      primary = i.zero?
+  def render_title_shelf
+    title_rows.each_with_index do |row, i|
+      here = title_row == i
+      button = title_layout[i]
       pressed = (state.touch_pressed || []).include?(button[:id])
-      fill = primary ? MENU_ACCENT : MENU_PANEL
+      used = !row[:summary].nil?
+
       outputs.sprites << { x: button[:x], y: button[:y], w: button[:w], h: button[:h],
-                           r: fill[0], g: fill[1], b: fill[2],
-                           a: pressed ? 255 : (primary ? 235 : 200), path: :solid }
-      unless primary
-        outputs.sprites << { x: button[:x], y: button[:y], w: button[:w], h: 2,
-                             r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2],
-                             a: 150, path: :solid }
-      end
+                           r: MENU_PANEL[0], g: MENU_PANEL[1], b: MENU_PANEL[2],
+                           a: here ? (pressed ? 255 : 235) : 90, path: :solid }
+      outputs.sprites << { x: button[:x], y: button[:y], w: 4, h: button[:h],
+                           r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2],
+                           a: here ? 255 : 0, path: :solid }
 
-      ink = primary ? [10, 28, 44] : TITLE_INK
-      outputs.labels << { x: button[:x] + 24, y: button[:y] + button[:h] / 2 + 1,
-                          text: button[:label], size_enum: 3, vertical_alignment_enum: 1,
+      outputs.labels << { x: button[:x] + 18, y: button[:y] + button[:h] - 12,
+                          text: "#{row[:slot]}", size_enum: 1, vertical_alignment_enum: 2,
+                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+
+      ink = used ? (here ? TITLE_GOLD : TITLE_INK) : MENU_DIM_INK
+      outputs.labels << { x: button[:x] + 44, y: button[:y] + button[:h] - 10,
+                          text: row[:title], size_enum: 2, vertical_alignment_enum: 2,
                           r: ink[0], g: ink[1], b: ink[2] }
-      next if state.touch_seen
-
-      outputs.labels << { x: button[:x] + button[:w] - 24, y: button[:y] + button[:h] / 2 + 1,
-                          text: button[:key], size_enum: 1, alignment_enum: 2,
-                          vertical_alignment_enum: 1, r: ink[0], g: ink[1], b: ink[2],
-                          a: primary && Kernel.tick_count.idiv(30).even? ? 255 : 170 }
+      detail = here && state.title_confirm == row[:slot] ? title_delete_warning : row[:detail]
+      colour = here && state.title_confirm == row[:slot] ? MENU_WARN : MENU_DIM_INK
+      outputs.labels << { x: button[:x] + 44, y: button[:y] + button[:h] - 34,
+                          text: detail, size_enum: 0, vertical_alignment_enum: 2,
+                          r: colour[0], g: colour[1], b: colour[2] }
     end
+  end
+
+  def title_delete_warning
+    "Wirklich löschen?   [ Entf ] ja   ·   [ Leertaste ] nein"
   end
 
   def title_fish
@@ -203,14 +254,8 @@ class Game
     end
   end
 
-  # How much there is to carry on with, said in the terms the book itself uses.
-  def saved_book_summary
-    book = state.saved_book
-    "#{book[:album].length} von #{book[:sighted].length} gesichteten Arten   ·   Tag #{book[:day] || 1}"
-  end
-
-  # Everything written on the screen apart from the buttons, which carry their
-  # own type. One method so a test can read the screen without drawing it.
+  # Everything written on the screen apart from the shelf, which carries its own
+  # type. One method so a test can read the screen without drawing it.
   def title_labels
     wordmark_h = text_height(TITLE_WORDMARK, TITLE_WORDMARK_SIZE)
     labels = [
@@ -221,34 +266,23 @@ class Game
         size_enum: 3, vertical_alignment_enum: 2,
         r: TITLE_HEAD_DIM[0], g: TITLE_HEAD_DIM[1], b: TITLE_HEAD_DIM[2] },
     ]
-    title_card_labels(labels)
     return labels if state.touch_seen # a phone has no keys to list
 
-    labels << { x: grid.w / 2, y: 68, text: "Pfeile / WASD  bewegen      Leertaste  sprinten      ESC  Pause",
-                size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
-                r: 188, g: 214, b: 236, a: 210 }
+    labels << { x: TITLE_LEFT, y: title_card_bottom - 22, text: title_hint,
+                size_enum: 1, vertical_alignment_enum: 2,
+                r: 188, g: 214, b: 236, a: 220 }
     labels
   end
 
-  # The head of the card. The name it was kept under goes first: what is being
-  # offered is *that diver's* book, not a save slot.
-  def title_card_labels(labels)
-    x = TITLE_LEFT + TITLE_CARD_PAD
-    y = title_card_top - TITLE_CARD_PAD
-    unless saved_book?
-      labels << { x: x, y: y, text: "Ein neues Artenbuch, ein leeres Meer.", size_enum: 1,
-                  vertical_alignment_enum: 2,
-                  r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
-      return labels
-    end
+  def title_hint
+    return "[ Entf ] löschen wirklich   ·   [ Leertaste ] abbrechen" if state.title_confirm
 
-    name = state.saved_book[:name]
-    name = DIVER_NAME if name.nil? || name.empty?
-    labels << { x: x, y: y, text: name, size_enum: 5, vertical_alignment_enum: 2,
-                r: TITLE_GOLD[0], g: TITLE_GOLD[1], b: TITLE_GOLD[2] }
-    labels << { x: x, y: y - 46, text: saved_book_summary, size_enum: 1,
-                vertical_alignment_enum: 2,
-                r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
-    labels
+    "↑ ↓ wählen   ·   [ Leertaste ] öffnen   ·   [ Entf ] löschen"
+  end
+
+  # Still asked by the touch layout and by anything that wants to know whether
+  # there is a career on this machine at all.
+  def saved_book?
+    any_slot_used?
   end
 end
