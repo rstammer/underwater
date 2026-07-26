@@ -327,13 +327,14 @@ class Game
     shark = state.dark_shark
     shark.dir = 1 if shark.dir.nil?
 
-    if shark.x > SCREEN_WIDTH || shark.x < -300
-      shark.x = shark.dir > 0 ? -300 : SCREEN_WIDTH
-      shark.y = shark_patrol_y
+    if shark_off_segment?(shark) || shark_stuck?(shark)
+      shark_come_round_again(shark)
     elsif shark_blocked?(shark)
       shark.dir = -shark.dir
+      shark.turns = shark.turns.to_i + 1
     else
       shark.x += DarkShark::SPEED * shark.dir
+      shark.turns = 0
     end
 
     if Kernel.tick_count % 30 == 0
@@ -358,20 +359,103 @@ class Game
     shark_span_solid?(shark_nose_x(shark) + shark.dir * DarkShark::SPEED, shark.y)
   end
 
-  # The shark is as tall as its body, so check rock across its whole height, not
-  # just one point — it must turn before any part of it slides into a slab
-  # (free-standing skerries are thin enough that a single sample can miss them).
-  def shark_span_solid?(world_x, y)
-    solid_at?(world_x, y - DarkShark::HEIGHT) ||
-      solid_at?(world_x, y) ||
-      solid_at?(world_x, y + DarkShark::HEIGHT)
+  def shark_off_segment?(shark)
+    shark.x > SCREEN_WIDTH || shark.x < -300
   end
 
-  # A depth to prowl at: near the diver, give or take, but never out of the water
-  # or inside the sand.
-  def shark_patrol_y
-    in_water(state.depth_y + rand(2 * SHARK_PATROL_SPREAD) - SHARK_PATROL_SPREAD,
-             shark_nose_x(state.dark_shark))
+  # Where the animal actually is, from belly to back.
+  #
+  # Its position is the bottom-left corner of its *sprite square*, and the fish
+  # is drawn HITBOX_Y up from there — so probing y, y - HEIGHT and y + HEIGHT
+  # (which is what this did) put two of the three samples below the animal and
+  # never touched its back. A ceiling forty pixels over its belly was invisible,
+  # which is half of how it ended up inside an island.
+  def shark_body_ys(y)
+    belly = y + DarkShark::HITBOX_Y
+    back = belly + DarkShark::HITBOX_H
+    [belly, (belly + back).idiv(2), back]
+  end
+
+  # Rock anywhere across its body, not just at one point — a free-standing
+  # skerry is thin enough for a single sample to miss.
+  def shark_span_solid?(world_x, y)
+    shark_body_ys(y).any? { |body_y| solid_at?(world_x, body_y) }
+  end
+
+  # Does the animal fit here — both ends of it, because it is longer than most
+  # of the gaps it can get itself into?
+  #
+  # One predicate, asked by everything: where it may come in, and whether it is
+  # stuck. They were two different questions once — the way in checked only the
+  # nose, being stuck checked nose and tail — so it would place itself somewhere
+  # it immediately judged unfit, and hop between the same two spots for ever.
+  def shark_fits?(nose, dir, y)
+    tail = nose - dir * DarkShark::WIDTH * DarkShark::SCALE_FACTOR
+    !shark_span_solid?(nose, y) && !shark_span_solid?(tail, y)
+  end
+
+  def shark_in_rock?(shark)
+    !shark_fits?(shark_nose_x(shark), shark.dir, shark.y)
+  end
+
+  # Two ways to be lost: standing in rock, or turning round on the spot for so
+  # long that it is plainly not getting anywhere. Both used to be permanent — in
+  # rock, shark_blocked? reversed it every single tick, so it shivered in the
+  # wall for the rest of the round. A shark you can watch not moving is worse
+  # than no shark.
+  SHARK_STUCK_TURNS = 20
+
+  def shark_stuck?(shark)
+    shark.turns.to_i >= SHARK_STUCK_TURNS || shark_in_rock?(shark)
+  end
+
+  # Out of sight and round for another pass — but only where there is a way in.
+  #
+  # The entry point was never looked at, only the depth: it came in at the edge
+  # of the diver's own segment, which is a *neighbouring* segment in world terms
+  # and can be solid island from the sand to well above the waterline (measured:
+  # a slab from -1801 to 784 across the whole column). Straight into the rock,
+  # every pass, and then the shivering.
+  #
+  # So both approaches are sounded out, and if neither has room it waits outside
+  # instead of forcing its way in. Waiting is off-segment, so this runs again
+  # next tick, and by then the diver has moved and the way in is elsewhere. A
+  # shark that cannot reach you should be absent, not embedded.
+  def shark_come_round_again(shark)
+    [shark.dir, -shark.dir].each do |dir|
+      x = dir > 0 ? -300 : SCREEN_WIDTH
+      y = shark_patrol_y(shark_entry_nose_x(x, dir), dir)
+      next unless y
+
+      shark.dir = dir
+      shark.x = x
+      shark.y = y
+      shark.turns = 0
+      return
+    end
+
+    shark.x = shark.dir > 0 ? -301 : SCREEN_WIDTH + 1
+    shark.turns = 0
+  end
+
+  # Where the leading end would be if it came in at this edge, in world x.
+  def shark_entry_nose_x(x, dir)
+    nose = dir > 0 ? DarkShark::WIDTH * DarkShark::SCALE_FACTOR : 0
+    world_index * SCREEN_WIDTH + x + nose
+  end
+
+  SHARK_PATROL_TRIES = 12 # depths it will sound out before giving up on a way in
+
+  # A depth to prowl at: near the diver, give or take — and one the animal
+  # actually fits in. `nil` means this stretch of water is walled off, which is
+  # a thing the caller has to be able to hear; it used to clamp against the sand
+  # and the waterline only, which are the two things an island is not.
+  def shark_patrol_y(nose = shark_nose_x(state.dark_shark), dir = state.dark_shark.dir)
+    SHARK_PATROL_TRIES.times do
+      y = in_water(state.depth_y + rand(2 * SHARK_PATROL_SPREAD) - SHARK_PATROL_SPREAD, nose)
+      return y if shark_fits?(nose, dir, y)
+    end
+    nil
   end
 
   # Keep a world y inside the water column at a world x.

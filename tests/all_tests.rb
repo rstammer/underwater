@@ -36,4 +36,5 @@ require "tests/energy_tests.rb"
 require "tests/night_tests.rb"
 require "tests/recap_tests.rb"
 require "tests/darkroom_tests.rb"
+require "tests/shark_tests.rb"
 
