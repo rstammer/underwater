@@ -29,19 +29,20 @@ class Game
       "Wildlife-Fotografie, freiberuflich. Spezialisiert auf alles,",
       "was unter Wasser lebt. Festanstellung war noch nie deins.",
       "",
-      "Du arbeitest für eine Reihe von Magazinen und Online-Plattformen",
-      "sowie einige maritime Forschungsprojekte. Du wirst bezahlt für",
-      "Bilder, die sonst keiner hat — Kuriositäten unter Wasser und",
-      "neue Arten, die bisher niemand vor die Linse bekommen hat.",
+      "Du arbeitest für Magazine und ein paar Forschungsprojekte.",
+      "Bezahlt wirst du für Bilder, die sonst keiner hat.",
       "",
-      "Dafür die Kamera an deinem Gurt: Jede Art einmal scharf im Bild,",
-      "und sie steht in deinem Artenbuch. Entwickelt wird an Bord deines",
-      "Schiffs, und dort wird auch abgerechnet. Ein entwickeltes Foto",
-      "bringt dir Geld. Was du sonst noch vom Grund holst, kannst du",
-      "vom Boot aus online verkaufen.",
+      "Dafür die Kamera an deinem Gurt. Ein Foto ist ein Ausschnitt,",
+      "kein Schnappschuss: Auslöser halten, der Rahmen zieht sich zu,",
+      "im richtigen Moment loslassen. Jede Art einmal sauber im Kasten,",
+      "und sie steht im Artenbuch. Mehrere Tiere derselben Art auf",
+      "einem Bild zahlen die Magazine extra.",
       "",
-      "Achtung: Dein Tauchanzug hält hundert Meter aus, die Luft ein",
-      "paar Minuten. Alles andere ist Neugier.",
+      "Entwickelt wird an Bord — ein entwickeltes Foto ist dein Geld.",
+      "Was du sonst vom Grund holst, verkaufst du vom Boot aus online.",
+      "",
+      "Achtung: Dein Anzug hält hundert Meter aus, die Luft ein paar",
+      "Minuten. Alles andere ist Neugier.",
     ]
   end
 
@@ -58,12 +59,21 @@ class Game
   DIVE_HINT_METRES = 20 # how far down he has to get before the card is in the way
   DIVE_HINT_TICKS = 1800 # backstop for someone who reads it while hovering
 
+  # Five lines in the order you do them: press, watch, let go — then what makes
+  # a picture good, and what it costs. The old card described a camera that no
+  # longer exists ("je näher dran, desto schärfer"), which was worse than saying
+  # nothing: it taught swimming up and pressing, and the game then graded a crop.
+  #
+  # It says what the corners mean rather than what the numbers are. The
+  # viewfinder is on the screen the whole time you are composing and it already
+  # answers "is this one any good" — this only has to say that it is answering.
   def dive_hint_lines
     [
-      "[ F ]  fotografiert, was vor dir ist",
-      "Je näher dran, desto schärfer — Sprinten verwackelt",
-      "Der Film reicht für #{film_capacity} Aufnahmen",
-      "Entwickelt wird am Boot. Was du nicht heimbringst, ist weg.",
+      "[ F ] halten — der Rahmen zieht sich langsam zu",
+      "Loslassen ist die Aufnahme. Die Ecken sagen, was sie taugt",
+      "Groß im Bild, ganz drin, mittig — Sprinten verwackelt",
+      "Mehrere derselben Art im Bild: ein Schwarmbild, bringt mehr",
+      "#{film_capacity} Aufnahmen. Entwickelt wird am Boot, sonst ist der Film weg",
     ]
   end
 

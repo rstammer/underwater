@@ -239,9 +239,25 @@ class IntroTests
 
     text = game.dive_hint_lines.join(" ")
     assert.true! text.include?("[ F ]"), "it says which key"
+    assert.true! text.include?("halten"), "that the shutter is held rather than tapped"
+    assert.true! text.include?("Loslassen"), "and that letting go is the picture"
     assert.true! text.include?("Sprinten"), "what spoils a shot"
     assert.true! text.include?("#{Game::FILM_MAX}"), "how much film there is"
     assert.true! text.include?("Boot"), "and where it gets developed"
+  end
+
+  # The card has no idea how to wrap, so every line has to fit the width it is
+  # drawn at — the same measurement the opening screen already gets, and the same
+  # reason: prose grows when the game does, quietly, until it runs off the edge.
+  def test_the_camera_card_fits_its_box(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    room = Game::HINT_W - 40 # the box, less a little air at each end
+
+    game.dive_hint_lines.each do |line|
+      width = args.gtk.calcstringbox(line, 0)[0]
+      assert.true! width <= room, "\"#{line}\" runs #{width.to_i} px, the card holds #{room}"
+    end
   end
 
   # The thing that actually puts it away: swimming on down. You read it hanging
