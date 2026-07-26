@@ -24,11 +24,17 @@
 # on at full size.
 class Game
   # Each rank: [how much wider, how much taller, how far shifted, colour, alpha].
+  #
+  # Kept close to the island's own width. At 2.9 the range ran most of a screen
+  # past the coast on both sides — the island's underwater flanks are long, and
+  # stretching them put hills over open water where there is plainly no land.
+  # Taller instead: height is what reads as distance, width is what gives it
+  # away.
   # The nearer rank is the darker one — haze drains colour with distance, and a
   # pale ridge in front of a dark one reads as fog rather than as land.
   BACKDROP_RANKS = [
-    [2.9, 1.55, -240, [154, 190, 210], 255],
-    [1.9, 1.25, 130, [112, 152, 178], 255],
+    [1.75, 1.95, -190, [154, 190, 210], 255],
+    [1.35, 1.55, 110, [112, 152, 178], 255],
   ].freeze
   BACKDROP_STEP = 12 # px per drawn column: pixel-art ridges, not curves
   BACKDROP_ON = true
@@ -106,7 +112,12 @@ class Game
   # A few birds over the range, in its haze rather than in their own colours —
   # anything that far off is the colour of the air between you and it. They
   # circle rather than travel, so they never arrive anywhere or leave.
-  BACKDROP_BIRDS = [[-620, 250, 210.0], [-180, 330, 170.0], [420, 285, 240.0]].freeze
+  # Higher than the ranges and spread across them, or the island simply stands
+  # in front of them — they are drawn with the backdrop, so anything below a
+  # crown is behind rock. Drawn at 4x as well: at 2x a gull is twenty-four
+  # pixels of pale grey against a pale sky, which is nothing at all.
+  BACKDROP_BIRDS = [[-560, 470, 210.0], [-140, 545, 170.0],
+                    [330, 500, 240.0], [700, 580, 300.0]].freeze
   BACKDROP_BIRD_INK = [176, 204, 220].freeze
 
   def backdrop_birds(sector)
@@ -119,7 +130,7 @@ class Game
       { x: x,
         y: WATERLINE_Y + height - state.camera_y +
            Math.sin(Kernel.tick_count / (period / 2.6)) * 12,
-        w: sprite[:w] * 2, h: sprite[:h] * 2, path: sprite[:path],
+        w: sprite[:w] * 4, h: sprite[:h] * 4, path: sprite[:path],
         r: BACKDROP_BIRD_INK[0], g: BACKDROP_BIRD_INK[1], b: BACKDROP_BIRD_INK[2],
         a: 190, anchor_x: 0.5, anchor_y: 0.5 }
     end.compact
