@@ -51,18 +51,35 @@ class Game
   # Which creatures those are depends on which side of the surface his head is
   # on (see creatures_in_view) — out in open water with his head up there is
   # nothing but sky, but beside an island there is a beach.
+  # Reach is per animal, not per camera. Thirty metres of whale cannot be judged
+  # by the distances that suit a hand-sized fish: at the range where a burgunder
+  # is "perfekt" you are looking at one flank. photo_span scales the whole
+  # ladder, so the rule stands — near is sharp — and only what counts as near
+  # changes, which is a fact about the animal rather than about the lens.
+  def photo_reach(species)
+    PHOTO_REACH * species.photo_span
+  end
+
   def photo_subject
     best = nil
     photo_candidates.each do |species, world_x, y|
       next unless in_front?(world_x)
 
       distance = photo_distance(world_x, y)
-      next if distance > PHOTO_REACH
-      next if best && best[:distance] <= distance
+      next if distance > photo_reach(species)
+      # Compared as a *fraction* of each animal's own reach, or the whale two
+      # screens off would always beat the fish in front of your mask.
+      score = distance / photo_span_of(species)
+      next if best && best[:score] <= score
 
-      best = { species: species, distance: distance }
+      best = { species: species, distance: distance, score: score }
     end
     best
+  end
+
+  def photo_span_of(species)
+    span = species.photo_span
+    span < 1 ? 1.0 : span.to_f
   end
 
   # Everything photographable right now, in world coordinates: whatever is on
@@ -79,6 +96,8 @@ class Game
     # The kraken reads as a subject too — that's the whole lure. It already lives
     # in world coordinates.
     list << [Species::KRAKEN, state.kraken.x, state.kraken.y] if kraken_present?
+    # ... and so does the whale, which lives out there as well.
+    list << [whale_species, state.whale.x, state.whale.y] if whale_present? && whale_species
     list
   end
 
@@ -96,10 +115,13 @@ class Game
   end
 
   # Close is sharp; thrashing along at sprint speed blurs whatever you got.
-  def photo_quality(distance)
+  # Scaled by the animal, the same way the reach is: three hundred px from a
+  # whale is close, and three hundred px from a crab is a speck.
+  def photo_quality(distance, species = nil)
+    span = species ? photo_span_of(species) : 1.0
     quality =
-      if distance <= PHOTO_CLOSE then :perfekt
-      elsif distance <= PHOTO_MID then :gut
+      if distance <= PHOTO_CLOSE * span then :perfekt
+      elsif distance <= PHOTO_MID * span then :gut
       else :unscharf
       end
     state.sprinting ? blurred(quality) : quality
@@ -124,7 +146,7 @@ class Game
 
     species = subject[:species]
     return attempt_kraken_photo if species.key == "kraken" # the shot that never lands
-    quality = photo_quality(subject[:distance])
+    quality = photo_quality(subject[:distance], species)
     return unless improves?(species.key, quality)
 
     state.film_left -= 1

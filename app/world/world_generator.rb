@@ -161,12 +161,37 @@ class WorldGenerator
 
   private
 
-  # A separate seed keeps the biome choice stable even if floor/decor generation
-  # changes later.
+  # Which theme this stretch of sea has — and it is the *ground* that decides,
+  # not the dice alone.
+  #
+  # It used to be a flat roll over every biome, so the deep sea could sit on a
+  # sandbank in twenty metres of water and a reef could hang over a trench. The
+  # floor is a function of the world position (floor_y_at), so a segment can be
+  # asked how deep it is before anything else about it exists — and where it has
+  # fallen away, only the abyssal biomes are on the table.
+  #
+  # This is what makes Blauwasser and Quallenfeld findable rather than random:
+  # swim out over a trench and you are somewhere else.
+  DEEP_BIOME_METRES = 105 # a floor this far down is no longer a shelf
+
   def pick_biome
     r = Rng.new(@index * 2_654_435_761 + 17) # Knuth mix so neighbours decorrelate
     r.next_u32                               # warm past the seeded state
-    Biome::ALL[r.int(Biome::ALL.length)]
+    pool = deep_segment? ? Biome::ABYSSAL : Biome::SHALLOW
+    pool[r.int(pool.length)]
+  end
+
+  # The segment's own depth, read off the terrain function at a few points
+  # across it. The deepest sample rather than the average: a segment with a
+  # trench cut through one end of it is a deep place, and the whole reason to be
+  # there is that end.
+  BIOME_SAMPLES = 9
+
+  def deep_segment?
+    origin = @index * SCREEN_WIDTH
+    step = SCREEN_WIDTH / BIOME_SAMPLES
+    deepest = (0...BIOME_SAMPLES).map { |i| self.class.floor_y_at(origin + i * step) }.min
+    (WATERLINE_Y - deepest) / PIXELS_PER_METRE >= DEEP_BIOME_METRES
   end
 
   # One sample of the global terrain function per column of this segment.

@@ -218,7 +218,7 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
 - **`Noise`** — deterministisches 1-D-Value-Noise über der **Welt-x-Achse**:
   `Noise.value(x, wavelength, seed)` (smoothstep-interpoliert, 0..1) und
   `Noise.jitter(cell, seed)` (roh, **nicht** interpoliert → gezackt).
-- **`Biome`** — Themen (Sandbank/Kelpwald/Riff/Tiefsee): Wasserpalette, `fog`-Stärke,
+- **`Biome`** — Themen (Sandbank/Kelpwald/Riff/Tiefsee/**Blauwasser**/**Quallenfeld**): Wasserpalette, `fog`-Stärke,
   Boden-Farben, Deko-Dichte, Fauna (`fish_count`, `shark`). **Welche** Arten, sagt
   das Biom nicht mehr — das steht im Arten-Register.
 - **`Species`** (`app/world/species.rb`) — das Arten-Register, und damit der Inhalt
@@ -260,6 +260,21 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   (`crown_y_at`) — also ein **Strand**. Sie **huschen in Schüben** (`DASH`/`REST`)
   statt gleichmäßig zu kriechen; das liest sich als Krebs und macht sie nebenbei zu
   Motiven, an die man sich heranschleichen kann.
+- **Der Boden entscheidet das Biom, nicht der Würfel** (`WorldGenerator#pick_biome`,
+  `deep_segment?`, `DEEP_BIOME_METRES`=105). Vorher wurde flach über alle Biome
+  gewürfelt — die Tiefsee konnte auf einer Sandbank in 20 m Wasser liegen. Jetzt
+  wird das Segment gefragt, **wie tief sein Grund ist** (`floor_y_at` ist eine
+  Funktion der Welt-x, also vor allem anderen beantwortbar), und darunter stehen
+  zwei getrennte Töpfe: `Biome::SHALLOW` und `Biome::ABYSSAL`. Damit sind
+  **Blauwasser** und **Quallenfeld** *findbar* statt zufällig: raus über einen
+  Graben, und man ist woanders. Gemessen über 241 Segmente: flache Biome
+  30–104 m, tiefe 106–306 m, etwa halbe-halbe.
+  - **Blauwasser** ist bewusst das **klarste Wasser im Spiel** (`fog: 0.05`) —
+    das ist keine Deko, sondern die Bedingung dafür, dass man 30 m Wal am Stück
+    sieht. In der Trübe trifft man eine Flanke und erfährt nie, wozu sie gehört.
+  - **Gotcha:** ein neues Biom braucht **Bewohner**, sonst ist die Wassersäule
+    leer und `Species.pick` gibt `nil` (Tests fangen das). Und der **Strand**
+    braucht seine Krabbe: eine Insel kann in jedem Biom liegen, auch im tiefen.
 - **`WorldGenerator.floor_y_at(world_x)`** — **die eine Wahrheit über den
   Meeresgrund.** Kein Würfeln pro Segment, sondern eine Funktion der Welt-`x`,
   geschichtet aus mehreren Noise-Oktaven: `shelf` (sehr breit — ganze Regionen
@@ -810,6 +825,30 @@ Screen-Positionen und werden nicht direkt gesetzt.
   prüft die **ganze Körperhöhe** (`shark_span_solid?`, drei y-Punkte), und die
   vertikale Drift lehnt Ziel-`y` ab, die im Fels läge — sonst schlüpfte er in einen
   dünnen freistehenden Skerry.
+- **Wal — das Gegenstück zum Kraken (`app/world/whale.rb`).** Nicht gefährlich,
+  versteckt sich nicht, und **nimmt keine Notiz von dir**. Er zieht durchs
+  Blauwasser, sonst nirgends (`Species.giant_for`), und das Einzige, was er von
+  dir verlangt, ist hinterherzukommen.
+  - **Drei Sachen machen ihn riesig, keine davon ist das Sprite allein:**
+    `WHALE_SCALE`=4 setzt 448 px Tier gegen einen 32-px-Taucher (Maßstab ist nur
+    glaubhaft neben etwas Bekanntem); `WHALE_SPEED`=0,45 ist unter einem Viertel
+    der Tauchergeschwindigkeit, und die Körperwelle im Sheet ist noch langsamer
+    (`WHALE_FRAME_HOLD`=22 statt der 16 aller anderen); und **`shy: 0`** — ein
+    Fisch, der flieht, hält dich für seinesgleichen.
+  - **Er lebt in Welt-Koordinaten**, nicht im Chunk: er ist länger als ein
+    Drittel Bildschirm und würde an der Segmentgrenze sichtbar springen. Die
+    einzige Fauna, für die die Chunk-Bindung nicht reicht.
+  - **`whale_track_y` wird geeast** (`WHALE_EASE`=0.02). Der Clamp liest den
+    Meeresboden, und der ist terrassiert — direkt gefolgt ruckelte der Wal
+    **2 px pro Tick**, das Vierfache seiner eigenen Geschwindigkeit. Durch die
+    Ease wird eine Bodenstufe zu einem Hundertstel Pixel.
+  - **`photo_span`** (an `Species`) skaliert `PHOTO_REACH`/`CLOSE`/`MID` pro Art:
+    30 m Tier lassen sich nicht mit den Abständen eines handgroßen Fisches
+    beurteilen. Die Regel bleibt (nah = scharf), nur *was nah heißt* ist eine
+    Eigenschaft des Tieres. Motive werden als **Bruchteil der eigenen Reichweite**
+    verglichen, sonst schlüge der Wal zwei Bildschirme weiter den Fisch vor der
+    Maske. **Gotcha:** HUD-Sucher und Auslöser müssen `photo_quality` **mit** der
+    Art fragen — sonst sagt die Anzeige „unscharf" über ein perfektes Bild.
 - **Kraken — die Legende der Tiefe (`app/world/kraken.rb`).** Kein Jäger wie der Hai,
   sondern ein **Köder**: es hängt ab `KRAKEN_DEPTH`=150 m am Fog-Rand, `KRAKEN_GAP`=230 px
   voraus (innerhalb `PHOTO_REACH`, damit die Kamera es als Motiv liest) und

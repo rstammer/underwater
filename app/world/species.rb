@@ -23,10 +23,11 @@ class Species
   SCALAR = "sprites/animals/scalar_32_16/"
   BASS = "sprites/animals/bass1_32_16/"
   SHELLS = "sprites/animals/crustaceans/"
+  JELLIES = "sprites/animals/jellies/"
 
   attr_reader :key, :name, :latin, :sheet, :frame_w, :frame_h, :frames_per_row,
               :biomes, :shallowest, :deepest, :rarity, :fee, :habitat, :tease, :shy,
-              :size_cm
+              :size_cm, :photo_span
 
   # habitat says *where in the water* a species lives, and so which of the sea's
   # populations it belongs to: :water is the swarm in the column, :floor walks on
@@ -49,9 +50,14 @@ class Species
   # a developed print read as a field note rather than a receipt, and it is the
   # first describable property a species has: an assignment like "photograph
   # something over a metre" needs a number to ask about.
+  # photo_span multiplies the camera's reach for this animal. A thirty-metre
+  # whale cannot be judged by the same distances as a hand-sized fish: at the
+  # range where a burgunder is "perfekt" you are looking at one flank and no
+  # more. It scales the whole ladder, so the *rule* is untouched — near is still
+  # sharp — but what counts as near is a fact about the animal.
   def initialize(key:, name:, latin:, sheet:, biomes:, shallowest:, deepest:,
                  rarity:, fee:, tease:, size_cm: 0, frame_w: 32, frame_h: 16,
-                 frames_per_row: 8, habitat: :water, shy: 0)
+                 frames_per_row: 8, habitat: :water, shy: 0, photo_span: 1)
     @key = key
     @name = name
     @latin = latin
@@ -68,6 +74,7 @@ class Species
     @tease = tease
     @shy = shy
     @size_cm = size_cm
+    @photo_span = photo_span
   end
 
   def lives_at?(biome_name, depth)
@@ -132,13 +139,13 @@ class Species
         fee: 22),
 
     new(key: "truebfisch", name: "Tiefblauer Trübfisch", latin: "Obscurus caeruleus",
-        sheet: BASS + "blue.png", biomes: ["Tiefsee"],
+        sheet: BASS + "blue.png", biomes: ["Tiefsee", "Blauwasser", "Quallenfeld"],
         shallowest: 60, deepest: 200, rarity: :common, tease: "blau, wirkt bedrückt",
         shy: 130, size_cm: 47,
         fee: 18),
 
     new(key: "laternentraeger", name: "Fahler Laternenträger", latin: "Lucerna abyssi",
-        sheet: SCALAR + "purple.png", biomes: ["Tiefsee"],
+        sheet: SCALAR + "purple.png", biomes: ["Tiefsee", "Quallenfeld"],
         shallowest: 95, deepest: 260, rarity: :rare, tease: "blass, leuchtet vor sich hin",
         shy: 200, size_cm: 38,
         fee: 45),
@@ -183,7 +190,7 @@ class Species
 
     new(key: "schlickkrebs", name: "Grauer Schlickkrebs", latin: "Cancer limosus",
         sheet: SHELLS + "schlickkrebs.png", frame_w: 20, frame_h: 12, habitat: :floor,
-        biomes: ["Tiefsee", "Kelpwald"],
+        biomes: ["Tiefsee", "Kelpwald", "Quallenfeld", "Blauwasser"],
         shallowest: 50, deepest: 165, rarity: :common, tease: "grau, staubt beim Laufen",
         size_cm: 12,
         fee: 12),
@@ -206,7 +213,7 @@ class Species
     # chapter costs the same kind of nerve the Laternenträger does.
     new(key: "abgrundkrabbe", name: "Blasse Abgrundkrabbe", latin: "Macrocheira abyssi",
         sheet: SHELLS + "abgrundkrabbe.png", frame_w: 20, frame_h: 12, habitat: :floor,
-        biomes: ["Tiefsee"],
+        biomes: ["Tiefsee", "Blauwasser"],
         shallowest: 105, deepest: 280, rarity: :rare, tease: "blass, viel zu lange Beine",
         size_cm: 260,
         fee: 55),
@@ -218,10 +225,53 @@ class Species
     # this one is at home on all of them.
     new(key: "strandkrabbe", name: "Flinke Strandkrabbe", latin: "Carcinus litoralis",
         sheet: SHELLS + "strandkrabbe.png", frame_w: 20, frame_h: 12, habitat: :shore,
-        biomes: ["Sandbank", "Kelpwald", "Riff", "Tiefsee"],
+        biomes: ["Sandbank", "Kelpwald", "Riff", "Tiefsee", "Blauwasser", "Quallenfeld"],
         shallowest: 0, deepest: 5, rarity: :common, tease: "flink, immer im Trockenen",
         size_cm: 6,
         fee: 14),
+
+    # --- the open blue -------------------------------------------------------
+    # habitat :open — not part of any swarm. One animal, crossing the whole sea
+    # on its own, placed by app/world/whale.rb rather than scattered into a
+    # segment. The roster still carries it, because it is a page in the
+    # Artenbuch like everything else, and because the camera needs to know what
+    # it is looking at.
+    #
+    # photo_span is here for it: thirty metres of animal cannot be judged by the
+    # same reach as a hand-sized fish. See Game#photo_subject.
+    new(key: "blauwal", name: "Grosser Blauwal", latin: "Balaenoptera maxima",
+        sheet: "sprites/animals/whales/blauwal.png",
+        frame_w: 112, frame_h: 38, frames_per_row: 8, habitat: :open,
+        biomes: ["Blauwasser"],
+        shallowest: 10, deepest: 260, rarity: :rare, tease: "etwas sehr Grosses",
+        size_cm: 3200, photo_span: 4,
+        fee: 140),
+
+    # --- what drifts ---------------------------------------------------------
+    # habitat :drift — jellyfish, spawned as a *field* rather than one at a time
+    # (see Game#spawn_jellies). They do not swim and they do not flee; a field is
+    # something you steer around, which is a kind of obstacle the sea has not had
+    # before.
+    new(key: "mondqualle", name: "Bleiche Mondqualle", latin: "Aurelia pallida",
+        sheet: JELLIES + "mondqualle.png", frame_w: 24, frame_h: 30, habitat: :drift,
+        biomes: ["Quallenfeld", "Blauwasser"],
+        shallowest: 20, deepest: 170, rarity: :common, tease: "durchsichtig, schwebt einfach",
+        size_cm: 35,
+        fee: 12),
+
+    new(key: "feuerqualle", name: "Rote Feuerqualle", latin: "Cyanea ignis",
+        sheet: JELLIES + "feuerqualle.png", frame_w: 24, frame_h: 30, habitat: :drift,
+        biomes: ["Quallenfeld"],
+        shallowest: 35, deepest: 210, rarity: :uncommon, tease: "rot, und sie brennt",
+        size_cm: 62,
+        fee: 24),
+
+    new(key: "laternenqualle", name: "Leuchtende Laternenqualle", latin: "Lucerna gelida",
+        sheet: JELLIES + "laternenqualle.png", frame_w: 24, frame_h: 30, habitat: :drift,
+        biomes: ["Quallenfeld"],
+        shallowest: 95, deepest: 290, rarity: :rare, tease: "leuchtet von innen",
+        size_cm: 46,
+        fee: 52),
   ]
 
   # The legend of the deep. Deliberately NOT in ALL: it never joins the roster or
@@ -264,8 +314,24 @@ class Species
     weighted(ALL.select { |s| s.habitat == :shore && s.biomes.include?(biome.name) })
   end
 
+  # What drifts in this water: the jellyfish of a field. Like the sea floor's
+  # roll and unlike the swarm's, there is no fallback — water that suits no
+  # jellyfish simply has none, which is what keeps a field somewhere you *find*.
+  def self.pick_drift(biome, depth)
+    weighted(ALL.select { |s| s.habitat == :drift && s.lives_at?(biome.name, depth) })
+  end
+
+  # The one that crosses the open blue on its own. Not weighted and not rolled
+  # against a pool: there is one animal this big, and either this water is its
+  # water or it is not.
+  def self.giant_for(biome)
+    ALL.find { |s| s.habitat == :open && s.biomes.include?(biome.name) }
+  end
+
   # Everything in the water column. The shark is excluded because it is placed
-  # by the biome itself, not spawned into the swarm.
+  # by the biome itself, not spawned into the swarm; :open and :drift are their
+  # own populations, placed by their own code, and would otherwise turn up as
+  # ordinary fish — a thirty-metre whale patrolling a rock crevice.
   def self.swimmers
     ALL.select { |s| s.habitat == :water && s.key != "schattenhai" }
   end

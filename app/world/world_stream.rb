@@ -128,8 +128,14 @@ class Game
   # only ever tested the *neighbours* of the spawn column, never the column
   # itself — so a fish that drew a solid one started life inside it and stayed
   # there, penned between a from_x and a to_x that were the same wall.
+  # Tries hard rather than a few times: over a trench most columns are wall, and
+  # a fish that runs out of attempts is simply missing from the swarm. Measured
+  # across 81 segments it was one fish in a hundred — invisible in the sea, but
+  # enough to make "the segment holds its biome's count" a coin toss.
+  SPAWN_TRIES = 24
+
   def spawn_one_fish(world, biome)
-    8.times do
+    SPAWN_TRIES.times do
       fish = try_fish(world, biome, rand(world.columns))
       return fish if fish
     end
@@ -275,6 +281,11 @@ class Game
     if shark_present?
       mark_sighted("schattenhai", world_index * SCREEN_WIDTH + state.dark_shark.x, state.dark_shark.y)
     end
+    # You can hardly miss it, so it counts as seen from much further off — the
+    # sighting range is written for something a hand's width across.
+    return unless whale_present? && whale_species
+
+    mark_sighted(whale_species.key, state.whale.x, state.whale.y)
   end
 
   # Only the *first* sighting of a species writes anything: after that this is a

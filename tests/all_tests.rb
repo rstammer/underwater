@@ -39,4 +39,5 @@ require "tests/darkroom_tests.rb"
 require "tests/shark_tests.rb"
 require "tests/jump_tests.rb"
 require "tests/cliff_tests.rb"
+require "tests/whale_tests.rb"
 

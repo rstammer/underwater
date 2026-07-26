@@ -15,6 +15,7 @@ class Game
     # surface — like the island they are scuttling about on.
     outputs.sprites << shore_creatures.map { |c| place_in_current_chunk(c.to_h) }
     outputs.sprites << place_in_current_chunk(state.shark.to_h) if shark_present?
+    render_whale  # the big one, in world space — it is longer than a chunk
     render_kraken # the legend, drawn before the fog so the dark keeps it a suggestion
   end
 end

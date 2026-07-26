@@ -62,5 +62,43 @@ class Biome
     fish_count: 4, crab_count: 2, shark: true,
   )
 
-  ALL = [SANDBANK, KELP, REEF, DEEP]
+  # --- the deep biomes ------------------------------------------------------
+  #
+  # These two are not rolled anywhere; they only happen where the sea floor has
+  # genuinely fallen away (see WorldGenerator#pick_biome). That is the whole
+  # point of them: they are the reward for swimming out over a trench rather
+  # than a theme that might turn up on a sandbank.
+
+  # The open blue: a water column with nothing much in it and a floor a long way
+  # down. Deliberately the *clearest* water in the game — the low fog is not
+  # decoration, it is what lets you see all thirty metres of a whale at once.
+  # In the murk you would meet a flank and never learn what it belonged to.
+  BLUE = new(
+    name: "Blauwasser",
+    water_top: [46, 122, 186], water_bottom: [10, 40, 92],
+    floor_colors: [[70, 84, 110], [58, 70, 94], [46, 56, 78]],
+    fog: 0.05,
+    seaweed: 1, coral: 0, starfish: 1,
+    fish_count: 3, crab_count: 1, shark: false,
+  )
+
+  # A drifting field of jellyfish, hanging in still, dim, green-lit water.
+  # Nothing hunts here; what makes it dangerous is that it is *in the way*.
+  JELLY = new(
+    name: "Quallenfeld",
+    water_top: [32, 96, 122], water_bottom: [8, 34, 60],
+    floor_colors: [[64, 78, 82], [52, 64, 70], [42, 52, 58]],
+    fog: 0.52,
+    seaweed: 2, coral: 1, starfish: 1,
+    fish_count: 3, crab_count: 2, shark: false,
+  )
+
+  # What may turn up over an ordinary sea floor ...
+  SHALLOW = [SANDBANK, KELP, REEF]
+  # ... and what only happens where it has dropped away. The deep sea moved in
+  # here too: it used to be rolled anywhere, so a shark biome could sit on a
+  # sandbank in twenty metres of water.
+  ABYSSAL = [DEEP, BLUE, JELLY]
+
+  ALL = SHALLOW + ABYSSAL
 end

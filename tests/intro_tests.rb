@@ -11,6 +11,10 @@ class IntroTests
   def test_the_title_asks_for_a_name(args, assert)
     game = build_game(args)
     game.initialize_game(0)
+    # Said out loud, the way the other title tests do. initialize_game loads a
+    # book off disk, and any earlier test that laid eyes on a species leaves one
+    # behind — with a book the title is a choice and this goes to the recap.
+    args.state.saved_book = SaveFile.blank
 
     args.inputs.keyboard.key_down.space = true
     game.tick

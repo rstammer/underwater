@@ -5,13 +5,22 @@ class GameOverTests
     game
   end
 
+  # Which segment has a shark in it is a fact about the sea floor now, not about
+  # the index — the deep biomes only happen where the ground has fallen away. So
+  # the tests go and find one instead of assuming segment 1 is the deep sea.
+  def a_shark_segment(game)
+    (0..80).find { |i| game.world_for(i).biome.shark }
+  end
+
   def test_shark_collision_ends_game_as_eaten(args, assert)
     game = build_game(args)
     game.initialize_game(0)
     args.state.game_scene = "area2"   # un-paused, underwater
-    args.state.diver_global_x = 1500  # a shark biome (Tiefsee), world x 1500
-    args.state.depth_y = 100           # collide in world space at this depth
-    # Shark local x 220 in segment 1 -> world x 1280 + 220 = 1500, overlapping the diver.
+    sector = a_shark_segment(game)
+    args.state.diver_global_x = sector * SCREEN_WIDTH + 220
+    args.state.depth_y = 100          # collide in world space at this depth
+    # The shark's x is local to the diver's segment, so the same 220 puts the
+    # two of them on top of each other.
     args.state.dark_shark = { x: 220, y: 100 }
 
     game.update_characters(0)
@@ -21,13 +30,16 @@ class GameOverTests
   end
 
   # In a shark biome, under water, with the shark placed by hand.
-  def hunted(args, shark_x:, shark_y:)
+  def hunted(args, gap_x:, shark_y:)
     game = build_game(args)
     game.initialize_game(0)
     args.state.game_scene = "area2"
-    args.state.diver_global_x = 1500 # Tiefsee, world x 1500
+    sector = a_shark_segment(game)
+    args.state.diver_global_x = sector * SCREEN_WIDTH + 220
     args.state.depth_y = 100
-    args.state.dark_shark = { x: shark_x - SCREEN_WIDTH, y: shark_y } # local x in segment 1
+    # gap_x is how far the shark sits from him, in world px; its own x is local
+    # to the segment he is in.
+    args.state.dark_shark = { x: 220 + gap_x, y: shark_y }
     game.update_characters(0)
     game
   end
@@ -37,21 +49,21 @@ class GameOverTests
   # centre — so the shark ate you from most of a body-length away, with clear
   # water still showing between you.
   def test_the_shark_does_not_eat_you_across_clear_water(args, assert)
-    hunted(args, shark_x: 1500 + 60, shark_y: 100)
+    hunted(args, gap_x: 60, shark_y: 100)
 
     assert.equal! args.state.game_scene, "area2", "60 px of open water is not a bite"
     assert.equal! args.state.death_cause, nil
   end
 
   def test_nor_from_a_body_length_above(args, assert)
-    hunted(args, shark_x: 1500, shark_y: 100 + 70)
+    hunted(args, gap_x: 0, shark_y: 100 + 70)
 
     assert.equal! args.state.game_scene, "area2", "a shark cruising overhead is not a bite"
   end
 
   # ... but it still bites when it really is on you.
   def test_the_shark_does_eat_you_when_it_is_on_you(args, assert)
-    hunted(args, shark_x: 1500 - 20, shark_y: 100 - 30)
+    hunted(args, gap_x: -20, shark_y: 100 - 30)
 
     assert.equal! args.state.game_scene, "game_over"
     assert.equal! args.state.death_cause, :eaten

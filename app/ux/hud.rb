@@ -140,7 +140,11 @@ class Game
     return nil unless subject
 
     species = subject[:species]
-    quality = photo_quality(subject[:distance])
+    # With the species, the same as the shutter reads it. Without it the
+    # viewfinder judged a whale by a sardine's distances and said "unscharf"
+    # over a frame that would have come out perfect — and, worse, ran improves?
+    # on that wrong grade, so it could talk you out of a shot worth taking.
+    quality = photo_quality(subject[:distance], species)
     text =
       if state.film_left.zero?
         "Kein Film mehr — am Boot entwickeln"

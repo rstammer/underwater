@@ -35,6 +35,7 @@ require "app/world/world_renderer.rb"
 require "app/world/items.rb"
 require "app/world/photography.rb"
 require "app/world/kraken.rb"
+require "app/world/whale.rb"
 require "app/world/save_file.rb"
 
 SCREEN_WIDTH = 1280
@@ -118,6 +119,7 @@ class Game
       update_energy
       update_dive_hint # ... and the camera's rules come up, once the water closes
       update_kraken # deep down, the legend hangs at the edge of the dark
+      update_whale  # ... and out in the blue, something very large goes past
       update_sightings # note which species you've now laid eyes on
       track_log # quietly record how deep you got and what you've seen
     end
@@ -180,6 +182,7 @@ class Game
     # because carrying a book on is a choice and so is putting it down.
     state.saved_book = SaveFile.decode(read_book_file)
     state.kraken = nil # the legend only shows up when you go too deep
+    state.whale = nil  # ... and nothing is crossing the blue yet
     state.diver = Diver.new(args, sprite_index)
     state.shark = DarkShark.new(args, sprite_index)
     state.fish = []       # a per-world swarm, (re)spawned when a world loads (spawn_fauna)
@@ -249,6 +252,7 @@ class Game
     state.sprinting = false
     state.speed = Diver::SPEED
     state.kraken = nil # a new round, the legend waits in the deep again
+    state.whale = nil  # ... and the blue is empty again too
     reset_log        # a new round, a fresh log
     reset_items      # ... and a fresh scatter of treasures
     reset_film       # ... and a fresh film: whatever was on the old roll is lost
