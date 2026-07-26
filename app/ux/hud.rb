@@ -13,6 +13,7 @@ class Game
     render_daytime
     render_inventory
     render_dive_hint
+    render_viewfinder # the frame, while the shutter is down
     render_flash    # the shutter going off, over the whole picture
     render_messages # ... and everything the game says to you in passing, down at the foot
     render_touch_controls # the joystick and buttons, once a finger has touched
@@ -67,6 +68,31 @@ class Game
     outputs.labels << { x: cx, y: y, text: line[:text], size_enum: line[:size] || 2,
                         alignment_enum: 1, vertical_alignment_enum: 1,
                         r: line[:color][0], g: line[:color][1], b: line[:color][2] }
+  end
+
+  VIEWFINDER_INK = [255, 244, 205]
+  VIEWFINDER_CORNER = 22 # px of each corner drawn — a frame, not a box
+
+  # The crop, while you hold the shutter. Corners rather than a full rectangle:
+  # a closed box over the sea reads as a window you are looking *through*, and
+  # what matters is where the edges are, not that they join up.
+  def render_viewfinder
+    return unless framing?
+
+    rect = frame_rect
+    x = rect[:x] - state.camera_x
+    y = rect[:y] - state.camera_y
+    w = rect[:w]
+    h = rect[:h]
+    c = VIEWFINDER_CORNER
+    [[x, y, c, 2], [x, y, 2, c],                       # bottom left
+     [x + w - c, y, c, 2], [x + w - 2, y, 2, c],       # bottom right
+     [x, y + h - 2, c, 2], [x, y + h - c, 2, c],       # top left
+     [x + w - c, y + h - 2, c, 2], [x + w - 2, y + h - c, 2, c]].each do |bx, by, bw, bh|
+      outputs.sprites << { x: bx, y: by, w: bw, h: bh, path: :solid,
+                           r: VIEWFINDER_INK[0], g: VIEWFINDER_INK[1], b: VIEWFINDER_INK[2],
+                           a: 220 }
+    end
   end
 
   HINT_W = 660

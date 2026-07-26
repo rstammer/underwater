@@ -326,6 +326,7 @@ class IntroTests
 
     game.current_world
     args.state.fish = [Creature.new(args, 0, species: Species["burgunder"], x: 640, y: -400)]
+    args.state.frame_w = 140 # composed, the way the shutter leaves it
     game.take_photo
 
     assert.false! game.dive_hint_visible?, "he has got it"

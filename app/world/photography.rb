@@ -32,10 +32,17 @@ class Game
   # F: the shutter down in the water, the darkroom up at the boat. One key for
   # both because beside the boat you are at the surface, where there is never a
   # fish to photograph.
+  # At the boat F is the darkroom, a single press. Down in the water it is the
+  # shutter, and the shutter is *held* — see app/world/framing.rb.
   def update_camera
-    return unless inputs.keyboard.key_down.f || tapped?(:photo)
+    if at_the_boat?
+      cancel_framing if framing?
+      return develop_at_the_boat if inputs.keyboard.key_down.f || tapped?(:photo)
 
-    at_the_boat? ? develop_at_the_boat : take_photo
+      return
+    end
+
+    update_framing
   end
 
   # Developing is a moment, so it stops the game and shows what came out. The
@@ -85,6 +92,17 @@ class Game
   # Everything photographable right now, in world coordinates: whatever is on
   # this side of the surface, plus the shark if it is about. Fish and crabs alike
   # carry a local chunk x.
+  # It lives in world coordinates already, so it is asked about directly rather
+  # than through the bodies list — it has no sprite rect worth speaking of.
+  def kraken_in_frame?
+    return false unless kraken_present?
+
+    rect = frame_rect
+    x = state.kraken.x
+    y = state.kraken.y
+    x >= rect[:x] && x <= rect[:x] + rect[:w] && y >= rect[:y] && y <= rect[:y] + rect[:h]
+  end
+
   def photo_candidates
     list = creatures_in_view.map do |creature|
       [creature.species, world_index * SCREEN_WIDTH + creature.x, creature.y]
@@ -138,15 +156,18 @@ class Game
   # actually be worth anything. Standing in front of the same fish must not be a
   # way to burn the roll — a shot no better than one he already has costs
   # nothing and does nothing.
+  # Whatever was inside the frame when you let go. The kraken is still the shot
+  # that never lands — it reads as a subject and comes back empty, which is the
+  # whole of the lure.
   def take_photo
     return if state.film_left <= 0
+    return attempt_kraken_photo if kraken_in_frame?
 
-    subject = photo_subject
-    return unless subject
+    report = frame_report
+    return unless report
 
-    species = subject[:species]
-    return attempt_kraken_photo if species.key == "kraken" # the shot that never lands
-    quality = photo_quality(subject[:distance], species)
+    species = report[:species]
+    quality = frame_quality(report)
     return unless improves?(species.key, quality)
 
     state.film_left -= 1

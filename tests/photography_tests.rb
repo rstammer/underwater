@@ -8,7 +8,18 @@ class PhotographyTests
   end
 
   # Down in the water at a known spot, with one fish right in front of him.
-  def diving_with_a_fish(args, species_key: "burgunder", away: 60, facing: :right)
+  # Hold the shutter until the frame has closed, then let go. That release is
+  # the photograph now — see app/world/framing.rb.
+  # 114 ticks brings the frame from 620 px down to about 140, which is where a
+  # 64x32 fish fills it properly without being clipped (measured).
+  def shoot(game, args, ticks: 114)
+    args.inputs.keyboard.key_held.f = true
+    ticks.times { game.update_camera }
+    args.inputs.keyboard.key_held.f = false
+    game.update_camera
+  end
+
+  def diving_with_a_fish(args, species_key: "burgunder", away: Game::FRAME_AHEAD, facing: :right)
     game = build_game(args)
     game.initialize_game(0)
     args.state.game_scene = "area1"
@@ -16,9 +27,12 @@ class PhotographyTests
     args.state.depth_y = -400 # well under the surface, so the fauna is out
     args.state.direction = facing
     game.current_world # load the segment *first* — loading it stocks it with life
+    # Size given rather than rolled: the frame grades by how much of the picture
+    # the animal fills, so a random size would be a random grade.
     args.state.fish = [Creature.new(args, 0, species: Species[species_key],
-                                    x: 600 + away, y: -400)]
+                                    x: 600 + away, y: -400, size: 2)]
     args.state.crawlers = [] # ... and the crabs it stocked the floor with go too,
+    args.state.jellies = []  #     so the one fish is the only thing in the picture
     game                     #     so the one fish is the only subject in the water
   end
 
@@ -75,15 +89,15 @@ class PhotographyTests
   end
 
   def test_taking_a_photo_spends_film_and_fills_the_roll(args, assert)
-    game = diving_with_a_fish(args, species_key: "scalarus", away: 40)
+    game = diving_with_a_fish(args, species_key: "scalarus")
     before = args.state.film_left
 
-    game.take_photo
+    shoot(game, args)
 
     assert.equal! args.state.film_left, before - 1, "one frame gone"
     assert.equal! args.state.film_roll.length, 1
     assert.equal! args.state.film_roll[0][:key], "scalarus"
-    assert.equal! args.state.film_roll[0][:quality], :perfekt, "he was right on top of it"
+    assert.equal! args.state.film_roll[0][:quality], :perfekt, "well composed: large, whole and centred"
     assert.equal! args.state.album.length, 0, "and it is not in the book until it's developed"
   end
 
@@ -91,39 +105,39 @@ class PhotographyTests
     game = diving_with_a_fish(args)
     args.state.film_left = 0
 
-    game.take_photo
+    shoot(game, args)
 
     assert.equal! args.state.film_roll.length, 0, "no film, no photo"
   end
 
   # Standing in front of the same fish must not be a way to fill the roll.
   def test_the_same_shot_twice_costs_no_film(args, assert)
-    game = diving_with_a_fish(args, away: 40)
-    game.take_photo
+    game = diving_with_a_fish(args)
+    shoot(game, args)
     before = args.state.film_left
 
-    game.take_photo
+    shoot(game, args)
 
     assert.equal! args.state.film_left, before, "nothing spent on a shot he already has"
     assert.equal! args.state.film_roll.length, 1
   end
 
-  # A better shot of the same fish does replace the one on the roll.
+  # A better shot of the same fish replaces the one on the roll. "Better" is a
+  # matter of composition now: let go early and the frame is still wide, so the
+  # fish is a speck in the middle of it.
   def test_a_better_shot_replaces_the_one_on_the_roll(args, assert)
-    game = diving_with_a_fish(args, away: Game::PHOTO_MID + 20) # far off: blurry
-    game.take_photo
-    assert.equal! args.state.film_roll[0][:quality], :unscharf
+    game = diving_with_a_fish(args)
+    shoot(game, args, ticks: 30)
+    assert.equal! args.state.film_roll[0][:quality], :unscharf, "a speck in a wide frame"
 
-    args.state.fish[0] = Creature.new(args, 0, species: Species["burgunder"], x: 640, y: -400)
-    game.take_photo
-
+    shoot(game, args) # ... and this time hold until it fits
     assert.equal! args.state.film_roll.length, 1, "still one photo of that fish"
-    assert.equal! args.state.film_roll[0][:quality], :perfekt, "the good one"
+    assert.equal! args.state.film_roll[0][:quality], :perfekt, "the composed one"
   end
 
   def test_developing_at_the_boat_fills_the_book_and_reloads(args, assert)
-    game = diving_with_a_fish(args, away: 40)
-    game.take_photo
+    game = diving_with_a_fish(args)
+    shoot(game, args)
     game.spawn_at_surface # home to the boat
     assert.true! game.at_the_boat?
 
@@ -163,8 +177,8 @@ class PhotographyTests
 
   # The whole point of the hard rule: what you have not brought home, you lose.
   def test_dying_costs_the_roll_but_never_the_book(args, assert)
-    game = diving_with_a_fish(args, away: 40)
-    game.take_photo
+    game = diving_with_a_fish(args)
+    shoot(game, args)
     args.state.album = { "hornhering" => :gut }
 
     game.reset_game
@@ -177,11 +191,10 @@ class PhotographyTests
   # F is the shutter under water and the darkroom at the boat — the same key,
   # because at the surface beside the boat there is never a fish to shoot.
   def test_f_shoots_below_and_develops_at_the_boat(args, assert)
-    game = diving_with_a_fish(args, away: 40)
+    game = diving_with_a_fish(args)
 
-    args.inputs.keyboard.key_down.f = true
-    game.update_camera
-    assert.equal! args.state.film_roll.length, 1, "under water it takes the picture"
+    shoot(game, args)
+    assert.equal! args.state.film_roll.length, 1, "under water it composes and shoots"
 
     game.spawn_at_surface
     args.inputs.keyboard.key_down.f = true
@@ -367,8 +380,8 @@ class PhotographyTests
   end
 
   def test_the_hud_draws_the_camera_without_error(args, assert)
-    game = diving_with_a_fish(args, away: 40)
-    game.take_photo
+    game = diving_with_a_fish(args)
+    shoot(game, args)
 
     game.render_film_gauge
     game.render_flash
@@ -386,7 +399,7 @@ class PhotographyTests
   # over the water you are actually looking at. Everything the game says to you
   # in passing lives along the bottom edge now.
   def test_the_running_messages_sit_along_the_bottom_edge(args, assert)
-    game = diving_with_a_fish(args, away: 40)
+    game = diving_with_a_fish(args)
     game.take_photo # so the shot note is up as well as the lens prompt
 
     game.render_messages
@@ -444,7 +457,7 @@ class PhotographyTests
     game = diving_with_a_fish(args, species_key: "burgunder", away: 40)
     args.state.album = {}
 
-    game.take_photo
+    shoot(game, args)
 
     assert.true! args.state.shot_note[:name].include?(Species["burgunder"].tease),
                  "exposed film, not a discovery"

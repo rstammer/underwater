@@ -131,17 +131,28 @@ class ControlsTests
     assert.false! game.will_right?, "the joystick is off in a menu"
   end
 
-  def test_a_tapped_photo_takes_the_picture(args, assert)
+  # Held and let go, not tapped: the shutter composes while it is down. A thumb
+  # on the button is exactly a finger on F, so the same act has to work.
+  def test_holding_the_photo_button_composes_and_releasing_shoots(args, assert)
     game = diving(args)
     args.state.diver_global_x = 600
     args.state.direction = :right
     game.current_world
-    args.state.fish = [Creature.new(args, 0, species: Species["burgunder"], x: 640, y: -400)]
-    args.state.touch_tapped = [:photo] # as if the F button was just pressed
+    args.state.fish = [Creature.new(args, 0, species: Species["burgunder"],
+                                    x: 600 + Game::FRAME_AHEAD, y: -400, size: 2)]
+    args.state.crawlers = []
+    args.state.jellies = []
 
+    args.state.touch_pressed = [:photo]
+    114.times { game.update_camera }
+    assert.true! game.framing?, "the viewfinder is open while the thumb is down"
+    assert.equal! args.state.film_roll.length, 0, "and nothing is spent yet"
+
+    args.state.touch_pressed = []
     game.update_camera
 
-    assert.equal! args.state.film_roll.length, 1, "the shutter fired from the button"
+    assert.equal! args.state.film_roll.length, 1, "letting go is the shutter"
+    assert.equal! args.state.film_roll[0][:quality], :perfekt, "and it was composed"
   end
 
   # --- getting past the paused screens on a phone ---------------------------

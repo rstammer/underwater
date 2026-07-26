@@ -37,6 +37,7 @@ require "app/world/world_renderer.rb"
 require "app/world/backdrop.rb"
 require "app/world/items.rb"
 require "app/world/photography.rb"
+require "app/world/framing.rb"
 require "app/world/kraken.rb"
 require "app/world/whale.rb"
 require "app/world/sting.rb"
@@ -211,6 +212,7 @@ class Game
     reset_log       # the dive log starts empty each round
     reset_items     # scatter fresh treasures, empty the pack
     reset_film      # a fresh roll, nothing exposed
+    reset_framing   # ... and the viewfinder shut
     state.developed_roll = [] # ... and nothing pinned up in the darkroom
     center_camera   # frame the diver right away instead of gliding in on the first ticks
   end
@@ -1011,7 +1013,13 @@ class Game
     when "recap" then quit_to_title if escape # nothing is lost: the book is on disk
     when "name" then abandon_name if escape
     when "pause" then resume_scene if escape # ESC also closes the pause menu
-    when "area1", "area2" then open_pause if escape || tapped?(:pause)
+    when "area1", "area2"
+      # ESC out of a half-composed shot rather than into the pause menu: the
+      # frame is the thing in front of you, so it is what a cancel means.
+      next_action = framing? ? :cancel : :pause
+      if escape || tapped?(:pause)
+        next_action == :cancel ? cancel_framing : open_pause
+      end
     end
   end
 
