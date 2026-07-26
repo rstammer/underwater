@@ -15,8 +15,13 @@
 # It appears only when you are already deep enough to be in trouble, which the
 # rated suit forbids — so meeting it at all means you have gone too far.
 class Game
-  KRAKEN_DEPTH = 150      # m: it shows once you are this deep ...
-  KRAKEN_FADE = 120       # ... and sinks away once you climb back above this
+  # It hangs below what your *own* suit can take, not below a fixed depth. The
+  # kraken kills by drawing you past your rating — so once the shop sells a suit
+  # rated for 250 m, a legend fixed at 150 would be luring you into water that
+  # cannot hurt you, and the deep would lose its teeth exactly when it gets
+  # interesting. At the starting suit these come out as the old 150 and 120.
+  KRAKEN_RATIO = 1.5      # it shows this far past what the suit is rated for ...
+  KRAKEN_FADE_RATIO = 1.2 # ... and sinks away once you climb back inside this
   KRAKEN_GAP = 230        # px it keeps ahead — inside the camera's reach, so it tempts
   KRAKEN_DROP = 130       # px it keeps below you — the pull is always downward
   KRAKEN_EASE = 0.05      # how slowly it glides to its mark: an eerie drift
@@ -28,6 +33,14 @@ class Game
     "Der Sucher blieb leer.",
     "Weg. War da überhaupt etwas?",
   ]
+
+  def kraken_depth
+    (suit_limit * KRAKEN_RATIO).to_i
+  end
+
+  def kraken_fade_depth
+    (suit_limit * KRAKEN_FADE_RATIO).to_i
+  end
 
   def kraken_present?
     !state.kraken.nil?
@@ -51,7 +64,7 @@ class Game
   def kraken_should_lurk?
     return false unless submerged_visible?
 
-    current_depth >= (state.kraken ? KRAKEN_FADE : KRAKEN_DEPTH)
+    current_depth >= (state.kraken ? kraken_fade_depth : kraken_depth)
   end
 
   # It appears on the side you're facing, and keeps that side — so turning to flee

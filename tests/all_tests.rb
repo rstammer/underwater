@@ -42,4 +42,5 @@ require "tests/cliff_tests.rb"
 require "tests/whale_tests.rb"
 require "tests/jelly_tests.rb"
 require "tests/gear_tests.rb"
+require "tests/shop_tests.rb"
 

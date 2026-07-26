@@ -40,6 +40,7 @@ class Game
     "flag"       => { path: "sprites/decor/flag.png",       w: 12, h: 10 },
     "rock"       => { path: "sprites/decor/rock.png",       w: 14, h: 10 },
     "fern"       => { path: "sprites/decor/fern.png",       w: 14, h: 9 },
+    "shop"       => { path: "sprites/decor/shop.png",       w: 34, h: 26 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up
@@ -91,6 +92,7 @@ class Game
       outputs.sprites << world_air(world, dx) if submerged_visible?
       outputs.sprites << world_decorations(world, dx)
     end
+    render_shop_hut
     if home_visible?
       outputs.sprites << home_boat
       # Not while the boat screen is up: labels always draw over sprites in
@@ -116,6 +118,53 @@ class Game
     state.camera_x = SURFACE_BOAT_X - CAMERA_ANCHOR_X + BOAT_VIEW_X
     state.camera_y = WATERLINE_Y - HORIZON
     render_world
+  end
+
+  SHOP_SCALE = 3
+  SHOP_REACH = 150 # how close to the door counts as being in the shop
+
+  # Where the hut stands, in world coordinates. Read off the island that is
+  # actually stamped there rather than off the island's own maths: if the two
+  # ever disagreed the shop would hang in the air or sit buried, and the world
+  # is the one that is true.
+  def shop_x
+    IslandWorld.centre_x(IslandWorld::SHOP_SECTOR)
+  end
+
+  def shop_ground_y
+    world = world_at(shop_x.idiv(SCREEN_WIDTH))
+    slabs = world.slabs_at(shop_x % SCREEN_WIDTH)
+    return nil if slabs.empty?
+
+    slabs.map { |slab| slab[:crown] }.max
+  end
+
+  # On the island, on foot, near the door. On foot matters: you cannot shop by
+  # treading water underneath it.
+  def at_the_shop?
+    return false unless on_land?
+
+    ground = shop_ground_y
+    return false unless ground
+
+    (state.diver_global_x - shop_x).abs <= SHOP_REACH
+  end
+
+  def shop_hut_visible?
+    visible_world_indices.include?(shop_x.idiv(SCREEN_WIDTH))
+  end
+
+  def render_shop_hut
+    return unless shop_hut_visible?
+
+    ground = shop_ground_y
+    return unless ground
+
+    sprite = DECOR_SPRITES["shop"]
+    outputs.sprites << { x: shop_x - state.camera_x - sprite[:w] * SHOP_SCALE / 2,
+                         y: ground - state.camera_y,
+                         w: sprite[:w] * SHOP_SCALE, h: sprite[:h] * SHOP_SCALE,
+                         path: sprite[:path] }
   end
 
   # Daylight sky above the waterline, filling whatever the camera reveals once

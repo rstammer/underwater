@@ -43,6 +43,13 @@ class IslandWorld
   # — no log, no developing, no patching the suit. -2 ends at x -1004, a good
   # screen's swim out and clear of home.
   HOME_SECTOR = -2
+  # Where the shop stands. Fixed for every round and every save, because a shop
+  # you have to search for is not somewhere you pop back to — and because the
+  # sea floor is a pure function of the world position, so this stretch of coast
+  # is the same in everybody's game. Measured there: the ground runs 61-164 m,
+  # and the swim out is along the surface, where you are breathing, so getting
+  # to it costs no air whatever your bottle is.
+  SHOP_SECTOR = 3
   TUNNEL_MIN = 130     # tightest the corridor ever squeezes ...
   TUNNEL_MAX = 300     # ... and the widest it opens out
   TUNNEL_WAVE = 260    # px over which its height changes
@@ -124,7 +131,10 @@ class IslandWorld
     }.tap do |shape|
       # Overridden after the rolls, never instead of one: the draws have to stay
       # in their order or every island in the sea changes.
-      shape[:shore] = :through if sector == HOME_SECTOR
+      # Both of these are places the game *sends* you, so neither may roll a
+      # shore you cannot climb: the island next door is where a round starts,
+      # and the shop is no use behind a cliff face.
+      shape[:shore] = :through if sector == HOME_SECTOR || sector == SHOP_SECTOR
     end
   end
 

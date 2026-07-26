@@ -9,6 +9,7 @@ require "app/scenes/intro.rb"
 require "app/scenes/recap.rb"
 require "app/scenes/night.rb"
 require "app/scenes/darkroom.rb"
+require "app/scenes/shop.rb"
 require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
 require "app/scenes/area2.rb"
@@ -105,6 +106,8 @@ class Game
 
     update_scene
     update_controls # touch: read the on-screen joystick and buttons into intents
+    update_shop      # L at the island shop opens Marlene's, and closes it again
+    update_shop_input # ... and inside it the arrows and E work the shelf
     update_home_menu # L at the boat opens the boat screen and closes it again
     update_exchange  # and while it's open, the arrows and E sort pack against hold
     update_boat_page # ... and Tab turns to the Artenbuch and back
@@ -212,7 +215,7 @@ class Game
   # to come ashore. The rest are rolled and scattered, for exploring.
   def roll_island_sectors
     rng = world_rng(1)
-    sectors = [IslandWorld::HOME_SECTOR]
+    sectors = [IslandWorld::HOME_SECTOR, IslandWorld::SHOP_SECTOR]
     sectors << roll_island_sector(rng) until sectors.uniq.length == ISLAND_COUNT
     sectors.uniq
   end
@@ -963,7 +966,7 @@ class Game
   end
 
   def game_paused?
-    ["title", "name", "intro", "recap", "night", "darkroom",
+    ["title", "name", "intro", "recap", "night", "darkroom", "shop",
      "game_over", "home_menu", "pause"].include?(state.game_scene)
   end
 
@@ -977,7 +980,7 @@ class Game
   def toggle_home_menu(open_or_close)
     if state.game_scene == "home_menu"
       resume_scene if open_or_close
-    elsif !game_paused? && at_the_boat? && open_or_close
+    elsif !game_paused? && at_the_boat? && !at_the_shop? && open_or_close
       state.game_scene = "home_menu"
       reset_exchange # every visit starts on the first thing you brought up
     end
