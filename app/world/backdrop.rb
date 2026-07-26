@@ -21,8 +21,8 @@ class Game
   # a dark one reads as fog rather than as land.
   BACKDROP_RANKS = [
     # [how far off (parallax divisor), height in px, colour, alpha]
-    [6.0, 260, [158, 194, 212], 255],
-    [3.4, 420, [104, 146, 172], 255],
+    [6.0, 420, [158, 194, 212], 255],
+    [3.4, 620, [104, 146, 172], 255],
   ].freeze
   # Short enough that a screen holds two or three summits. At 1700 you saw one
   # slope at a time and it read as a grey slab rather than as hills.
@@ -31,7 +31,7 @@ class Game
   # replace.
   BACKDROP_WAVELENGTH = 300
   BACKDROP_SEED = 90_210
-  BACKDROP_STEP = 16         # px per drawn column: pixel-art ridges, not curves
+  BACKDROP_STEP = 12         # px per drawn column: pixel-art ridges, not curves
   # How far below the waterline the ranks are rooted. They sit *in* the sea by a
   # margin rather than exactly on it, so no rank ever shows a gap of sky under
   # its own feet when the camera rises.
@@ -62,9 +62,21 @@ class Game
     end
   end
 
+  # Whether *this island* is on the screen, not whether its segment is. covers?
+  # reaches a long way past the land itself (it has to: the skerries stand off
+  # the coast), so a range kept showing over open water with the island a
+  # screen and a half away.
+  # A method, not a constant: this file is required from the top of main.rb and
+  # SCREEN_WIDTH is defined below those requires. Third time that has caught me
+  # today, so it is written on the wall in three files now.
+  def backdrop_sight
+    SCREEN_WIDTH # an island still counts while its middle is this near the view's
+  end
+
   def visible_islands
+    middle = state.camera_x + SCREEN_WIDTH / 2
     (state.island_sectors || []).select do |sector|
-      visible_world_indices.any? { |index| IslandWorld.covers?(sector, index) }
+      (IslandWorld.centre_x(sector) - middle).abs <= backdrop_sight
     end
   end
 
@@ -76,17 +88,26 @@ class Game
   # Parallax pulls the far ranks *towards* that centre as you walk past — near
   # the middle they sit still and the flanks compress, which is what a solid
   # thing seen from a moving point does.
-  BACKDROP_SPREAD = 1500 # px each side of the island's centre the mass reaches
+  # Not much wider than the island under it: at 1500 the range stood well out
+  # over open water on both sides and read as weather rather than as land.
+  BACKDROP_SPREAD = 1000
 
   def backdrop_ridge(sector, distance, height, colour, alpha, rank)
     base = WATERLINE_Y - state.camera_y - BACKDROP_FOOT
     centre = IslandWorld.centre_x(sector)
     columns = (SCREEN_WIDTH / BACKDROP_STEP) + 2
 
+    # Parallax as a *lag*, not as a division of the distance from the island.
+    # Dividing shrank how far away everything was, so the ridge kept its full
+    # height however far you swam — a mountain that followed you across open
+    # water with no island in sight. Lagging keeps the range its own width and
+    # simply lets it slide behind: level with the island it sits on it, and by
+    # the time the island is off-screen so is the range.
+    lag = (state.camera_x - centre) * (1.0 - 1.0 / distance)
+
     (0...columns).map do |i|
       x = i * BACKDROP_STEP
-      # Screen x back to world x, then pulled toward the island by the parallax.
-      world_x = centre + ((state.camera_x + x) - centre) / distance
+      world_x = state.camera_x + x - lag
       lift = backdrop_height(world_x, centre, height, rank)
       next nil if lift <= 0
 
@@ -114,7 +135,10 @@ class Game
     seed = BACKDROP_SEED + rank * 977
     ridge = 1.0 - (2.0 * Noise.value(world_x, BACKDROP_WAVELENGTH, seed) - 1.0).abs
     detail = 1.0 - (2.0 * Noise.value(world_x, BACKDROP_WAVELENGTH / 3, seed + 41) - 1.0).abs
-    peaks = ridge * 0.75 + detail * 0.25
+    grain = 1.0 - (2.0 * Noise.value(world_x, BACKDROP_WAVELENGTH / 9, seed + 83) - 1.0).abs
+    # Three octaves: summits, shoulders and the nicks along a ridgeline. Two
+    # gave clean triangles, which read as a pattern rather than as rock.
+    peaks = ridge * 0.6 + detail * 0.27 + grain * 0.13
     # Steep: cubed peaks give sharp summits with real saddles between them
     # instead of a rolling line that reads as one mass.
     ((envelope * (0.12 + 0.88 * peaks * peaks * peaks) * height) / BACKDROP_STEP).floor * BACKDROP_STEP

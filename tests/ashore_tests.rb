@@ -165,6 +165,44 @@ class AshoreTests
   # Counted on the islands themselves rather than on the rolls: the fitting takes
   # blocked islands away when they are too low to carry a wall, so this is the
   # test that would notice if it took nearly all of them.
+  # --- the hills behind an island ---------------------------------------------
+
+  # Land you can see and never reach is a promise the game cannot keep, so the
+  # range only stands where its island does. It used to follow you across open
+  # water: the parallax divided the distance from the island rather than lagging
+  # behind it, which shrank how far away everything was and kept the mountain at
+  # full height a sector and a half out.
+  def test_the_hills_only_stand_where_their_island_does(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.island_sectors = [3]
+    args.state.world_cache = {}
+    args.state.game_scene = "area1"
+
+    seen = (0..6).map do |sector|
+      args.state.diver_global_x = sector * SCREEN_WIDTH + 640
+      args.state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH
+      game.center_camera
+      game.visible_islands
+    end
+
+    assert.equal! seen[0], [], "nothing over open water three sectors away"
+    assert.equal! seen[6], [], "nor three the other side"
+    assert.equal! seen[3], [3], "and the island's own water has them"
+  end
+
+  # The framing screens park the camera at the boat *for* a clean horizon, and
+  # the island next door is near enough that its hills came along and spoiled it.
+  def test_no_hills_behind_the_boat_on_a_menu_screen(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.game_scene = "title"
+
+    game.render_backdrop
+
+    assert.equal! args.outputs.sprites.flatten.length, 0, "the horizon stays clean"
+  end
+
   # --- the island next door --------------------------------------------------
   #
   # One walkable island always lies just off home, so a round never starts with a
