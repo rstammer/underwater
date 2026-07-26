@@ -100,6 +100,24 @@ class Game
     end
   end
 
+  # The view every screen outside the water is built on: the game's own sea, its
+  # own renderer, parked beside the boat and high enough to hold the horizon.
+  #
+  # It is the reason those screens look like the game rather than like title
+  # cards — an abstract gradient behind a menu is somebody else's picture. Only
+  # the camera moves; the diver is floating at the surface, so submerged_visible?
+  # is false and the sea floor stays out of it, which is the clean horizon this
+  # wants. HORIZON is where the waterline lands on screen, and menus hang their
+  # own layout off it.
+  HORIZON = 470
+  BOAT_VIEW_X = 380 # how far right of the boat the camera looks, so it sits left
+
+  def render_boat_horizon
+    state.camera_x = SURFACE_BOAT_X - CAMERA_ANCHOR_X + BOAT_VIEW_X
+    state.camera_y = WATERLINE_Y - HORIZON
+    render_world
+  end
+
   # Daylight sky above the waterline, filling whatever the camera reveals once
   # the diver rises. Empty (nothing to draw) while he's deep and the camera rests.
   def sky_fill

@@ -46,7 +46,8 @@ Singleton delegieren; `boot` initialisiert `args.state = {}` (kein nil-Auto-
 Init). Aller Spiel-State liegt in `args.state` (kein bare Top-Level-`@ivar`).
 
 - `app/main.rb` — `class Game` (Loop + Helfer) + `boot`/`tick`/`reset`
-- `app/scenes/` — `title`/`name`/`area1`/`area2`/`game_over`/`pause`, **reopenen `class Game`**
+- `app/scenes/` — `title`/`name`/`intro`/`recap`/`area1`/`area2`/`darkroom`/`night`/
+  `game_over`/`home_menu`/`pause`, **reopenen `class Game`**
   und definieren `<scene>_tick`; Dispatch via `send("#{state.game_scene}_tick")`.
   `area1`/`area2` rendern dieselbe kontinuierliche, durchscrollende Welt
   (`render_underwater`) und sind nur noch Sektor-Labels; eine eigene „surface"-
@@ -138,8 +139,12 @@ sind eine durchgehende Kamerafahrt (s. Kamera). `game_scene` steuert nur noch da
    area1 ⇄ area2   (diver_global_x < 1281 → area1, sonst area2; nur ein Label —
                     beide rendern dieselbe kontinuierliche, durchscrollende Welt)
 
-   title ──[Leertaste/z/j/A]──► name ──[Enter]──► area1 (start_round, atmend)
-                                name ──[ESC]──► title
+   title ──[Leertaste/z/j/A]──► name ──[Enter]──► intro ──[Leertaste]──► area1
+                                name ──[ESC]──► title      (start_round, atmend)
+   title ──[Leertaste, mit Buch]──► recap ──[Leertaste]──► area1 (start_round(told:))
+                                    recap ──[ESC]──► title
+   <am Boot, Film drauf> ──[F]──► darkroom ──[Leertaste/F/ESC]──► area1/area2
+   <am Boot> ──[S]──► night ──[Leertaste]──► area1/area2 (wake_up)
    <überall> ──[Hai / O2 leer]──► game_over ──[Leertaste]──► area1 (reset_game,
                                   **ohne** name/Story — ein Retry klickt nichts weg)
    <am Boot> ──[L]──► home_menu ──[L/ESC]──► area1/area2 (resume_scene)
@@ -148,7 +153,8 @@ sind eine durchgehende Kamerafahrt (s. Kamera). `game_scene` steuert nur noch da
                                         pause ──[Q / Beenden]──► title
 ```
 
-`title`, `name`, `game_over`, `home_menu` und `pause` sind **pausiert** (`game_paused?`):
+`title`, `name`, `intro`, `recap`, `night`, `darkroom`, `game_over`, `home_menu`
+und `pause` sind **pausiert** (`game_paused?`):
 kein O2-/Anzug-Drain, kein HUD, **und Bewegung + Kamera stehen still** (die Welt friert
 ein, statt dass der Taucher hinter dem Menü davondriftet). Der Menü-Umschalter
 `toggle_home_menu(open_or_close)` ist von der Tastenabfrage getrennt, damit er ohne
@@ -224,6 +230,12 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
   häufig *sein*, sonst fühlt sich nichts wie ein Fund an; findet sich für eine Tiefe
   nichts, fällt es auf „irgendwas aus diesem Biom" zurück, damit kein Meeresabschnitt
   leer bleibt. Eine Art hinzufügen = **eine Zeile in `ALL`**, sonst nichts.
+  - **`size_cm` sagt, wie groß das Tier wirklich ist** — das kann das Sprite nicht:
+    Krebs und Hai sind beide eine Handvoll Pixel. Es macht aus einem Abzug in der
+    Dunkelkammer eine Feldnotiz statt einer Quittung, und es ist die **erste
+    beschreibbare Eigenschaft** einer Art: ein Auftrag „fotografiere etwas über
+    einem Meter" braucht eine Zahl zum Fragen. `size_label` schreibt unter 100 cm
+    Zentimeter, darüber Meter mit Komma (`3,8 m` ist ein Hai, `380 cm` ist Rechnen).
   - **`habitat` sagt, wo in der Wassersäule eine Art lebt** — und damit, zu welcher
     Bevölkerung sie gehört: `:water` = Schwarm, `:floor` = läuft auf dem Sand,
     `:shore` = läuft **über** der Wasserlinie am Strand. Die drei werden **getrennt
@@ -455,6 +467,8 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `sighted` | `{species_key => true}` — welche Arten gesichtet wurden; steuert, was im Buch überhaupt auftaucht. Überlebt den Tod wie `album` |
 | `film_left` / `film_roll` | Aufnahmen übrig bzw. belichtete, noch nicht entwickelte Fotos `{key:, quality:}` — beides pro Runde |
 | `shot_at` / `shot_note` | Tick der letzten Aufnahme und was drauf ist, für Blitz und Einblender |
+| `developed_roll` | die Abzüge der letzten Entwicklung `{species:, quality:, fee:, day:, fresh:}` — was die Dunkelkammer zeigt |
+| `developed_at` / `darkroom_page` | Tick, in dem der Tank aufging (damit derselbe Druck ihn nicht gleich schließt), und welches Blatt offen ist |
 | `boat_page` | `:hold` oder `:book` — welche Seite des Boot-Screens offen ist |
 | `story_told` | ob die Eröffnung am Boot durch ist — `false` nur ab `start_round`, wird beim ersten Abtauchen `true` |
 | `exchange_side` / `exchange_index` | Cursor im Boot-Screen: welche Spalte (`"pack"`/`"hold"`) und welche Zeile darin — nur dort relevant, `reset_exchange` beim Öffnen |
@@ -512,6 +526,44 @@ Screen-Positionen und werden nicht direkt gesetzt.
   jemanden, der dort schwebt und zweimal liest; ein Foto räumt sie ebenfalls weg
   (`dismiss_dive_hint` in `take_photo`). Einmal pro Runde **vom Titel**
   (`start_round`), nicht nach jedem Neustart.
+- **Der Horizont am Boot (`render_boat_horizon`, `HORIZON` = 470).** Jeder Screen
+  außerhalb des Wassers — `title`, `name`, `intro`, `recap`, `night` — steht auf
+  **derselben Ansicht**: die echte Welt, vom echten Renderer, Kamera neben dem
+  Boot und hoch genug für die Wasserlinie. Deshalb sehen sie nach *diesem* Spiel
+  aus statt nach Titelkarten. Funktioniert nur, solange der Taucher an der
+  Oberfläche treibt (`submerged_visible?`) — sonst schiebt sich der Meeresgrund
+  ins Bild; darum setzt `quit_to_title` ihn per `spawn_at_surface` zurück.
+  `HORIZON` ist zugleich die Linie, an der die Menüs ihr Layout aufhängen (die
+  Oberkante der Titel-Karte *ist* die Wasserlinie).
+- **Startbildschirm (`app/scenes/title.rb`).** Eine linke Spalte: Wortmarke mit
+  Balken oben im Himmel (dunkle Type auf hellem Himmel — hell auf hell war ein
+  Flüstern), darunter eine Karte auf dem Wasser mit Name + Buchstand, und die
+  Wahl als **zwei feste Knöpfe**. Die Knöpfe kommen aus `title_layout` — dieselbe
+  Liste, die der Touch-Hit-Test liest — und werden **für alle** gezeichnet, mit
+  der Taste auf dem Knopf. Vorher gab es einen Knopf fürs Handy *und* einen Satz
+  für die Tastatur, und unten stapelten sich fünf Zeilen Text übereinander.
+  `title_actions` (Daten) → `title_card_h` (Höhe) → `title_layout` (Geometrie),
+  in der Reihenfolge, damit sich Höhe und Geometrie nicht zirkulär fragen.
+- **Wiedereinstieg (`app/scenes/recap.rb`).** Ein Buch weiterspielen setzte einen
+  wortlos ins Wasser: nachmittags an einem Tag, an den man keine Erinnerung hat,
+  mit einem Kontostand, den man erst am Boot nachschlagen musste. `continue_round`
+  lädt jetzt nur noch das Buch und geht auf `recap`; **erst das Weiterdrücken ist
+  der Tauchgang** (`start_round(told: true)`, zählt `log_dives`). Zeilen liefert
+  `recap_rows` (rein → testbar), die Tageszeit kommt wie überall aus der Energie.
+- **Dunkelkammer (`app/scenes/darkroom.rb`).** Entwickeln war ein Tastendruck, der
+  still Zahlen verschob. Jetzt legt der Tank **Abzüge** aus: das Tier groß im
+  Bild, Name, Latein, **wie groß es wirklich ist** (`Species#size_label`), der
+  **Tag der Aufnahme** und das Honorar; `NEU` markiert, was vorher niemand hatte.
+  - `develop_film` **rechnet und bucht**, `develop_at_the_boat` **zeigt** — die
+    Trennung ist Absicht: ein Test, der einen Film entwickelt, soll nicht in
+    einer anderen Szene landen. Das Ergebnis liegt in `state.developed_roll`.
+  - **Das Datum gehört aufs Negativ, nicht in den Tank** (`store_shot` schreibt
+    `day:`): man kann auf einem belichteten Film schlafen, und ein Abzug mit dem
+    Entwicklungstag wäre eine Lüge darüber, wo man war.
+  - Gleicher Tick-Fallstrick wie beim Pausenmenü: **der Druck, der öffnet, darf
+    nicht schließen** — `state.developed_at` merkt sich den Tick, `read_darkroom_input`
+    ignoriert ihn. Am Handy blättert ein Tipp weiter und schließt auf dem letzten
+    Blatt (`darkroom_last_page?`), weil es dort keine Pfeiltasten gibt.
 - **Fotografieren (`app/world/photography.rb`) — das Ziel des Spiels.** Jede Art,
   die man zum ersten Mal ablichtet, ist eine Seite im **Artenbuch**; `album_score`
   liest die Punkte aus dem Buch (kein mitgeführter Zähler, der aus dem Tritt geraten

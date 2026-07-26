@@ -6,6 +6,7 @@ require "app/ux/story.rb"
 require "app/scenes/title.rb"
 require "app/scenes/name.rb"
 require "app/scenes/intro.rb"
+require "app/scenes/recap.rb"
 require "app/scenes/night.rb"
 require "app/scenes/darkroom.rb"
 require "app/scenes/game_over.rb"
@@ -853,7 +854,7 @@ class Game
   end
 
   def game_paused?
-    ["title", "name", "intro", "night", "darkroom",
+    ["title", "name", "intro", "recap", "night", "darkroom",
      "game_over", "home_menu", "pause"].include?(state.game_scene)
   end
 
@@ -881,6 +882,7 @@ class Game
     case state.game_scene
     when "home_menu" then resume_scene if escape
     when "darkroom" then close_darkroom if escape
+    when "recap" then quit_to_title if escape # nothing is lost: the book is on disk
     when "name" then abandon_name if escape
     when "pause" then resume_scene if escape # ESC also closes the pause menu
     when "area1", "area2" then open_pause if escape || tapped?(:pause)
@@ -898,6 +900,11 @@ class Game
   # begins. Not a hard quit — on the web that would just freeze a dead tab.
   def quit_to_title
     state.game_scene = "title"
+    # Put him back at the surface on the way out. The title draws the real sea
+    # (render_boat_horizon), and that only comes out as a clean horizon while the
+    # diver is up in the air — left three hundred metres down, the title would
+    # open on a wall of sand.
+    spawn_at_surface
   end
 
   def menu_key?
@@ -1004,7 +1011,9 @@ class Game
     state.world_seed = book[:seed] || new_world_seed
     reset_game # rebuild the world from that seed before he is put in it
     state.stash = book[:stash] || [] # ... and the hold as he left it, after reset_items
-    start_round(told: true)
+    # Not straight into the water: he gets told where he left off first, and
+    # pressing on there is what starts the dive (recap_tick -> start_round).
+    state.game_scene = "recap"
   end
 
   # Put it down and start over: a new diver, an empty book, and a sea nobody has

@@ -35,9 +35,7 @@ class Game
   # at the surface from initialize_game, so submerged_visible? is false and the
   # sea floor stays out of it — which is exactly the clean horizon this wants.
   def render_intro_sea
-    state.camera_x = SURFACE_BOAT_X - CAMERA_ANCHOR_X + 380
-    state.camera_y = WATERLINE_Y - 470
-    render_world
+    render_boat_horizon
     outputs.sprites << intro_gulls
   end
 

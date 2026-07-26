@@ -34,9 +34,7 @@ class Game
   # the day taken out of it. One flat wash rather than a recoloured world,
   # because the world is drawn from a hundred places and this is one sprite.
   def render_night_sea
-    state.camera_x = SURFACE_BOAT_X - CAMERA_ANCHOR_X + 380
-    state.camera_y = WATERLINE_Y - 470
-    render_world
+    render_boat_horizon
     outputs.sprites << { x: 0, y: 0, w: grid.w, h: grid.h,
                          r: 4, g: 10, b: 32, a: 176, path: :solid }
     outputs.sprites << night_moon

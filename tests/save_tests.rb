@@ -213,14 +213,18 @@ class SaveTests
     assert.equal! args.state.game_scene, "name", "so it goes straight to the name"
   end
 
+  # Straight past the name and the opening story — but by way of the recap, which
+  # says where he left off before putting him back in the water.
   def test_carrying_the_book_on_skips_the_introductions(args, assert)
     game = with_saved_book(args, a_book)
     assert.true! game.saved_book?, "there is a book to carry on"
 
     args.inputs.keyboard.key_down.space = true
     game.title_tick
+    assert.equal! args.state.game_scene, "recap", "by way of where he left off"
+    game.recap_tick # ... and the same held key carries him on through it
 
-    assert.equal! args.state.game_scene, "area1", "straight into the water"
+    assert.equal! args.state.game_scene, "area1", "into the water"
     assert.equal! args.state.player_name, "Kins Klausky", "as the diver it belongs to"
     assert.equal! args.state.album["burgunder"], :perfekt, "with his book"
     assert.false! args.state.dive_hint_pending, "and nothing explained — he has been here"
@@ -278,10 +282,18 @@ class SaveTests
     assert.equal! args.state.game_scene, "name", "and tapping it starts over"
   end
 
-  def test_with_no_book_the_title_has_no_buttons_in_the_way(args, assert)
+  # Without a book there is nothing to choose *between*, so the title offers the
+  # one way in — as a button, because the screen is built out of buttons now. A
+  # tap anywhere still goes; the button is there to say where the game starts,
+  # not to be the only place it can be started from.
+  def test_with_no_book_the_title_offers_the_one_way_in(args, assert)
     game = with_saved_book(args, SaveFile.blank)
     args.state.touch_seen = true
 
-    assert.equal! game.control_layout.length, 0, "a tap anywhere goes, so nothing to press"
+    assert.equal! game.control_layout.length, 1, "one way in, and it is not a choice"
+
+    args.state.touch_began = true
+    game.title_tick
+    assert.equal! args.state.game_scene, "name", "and a tap anywhere takes it"
   end
 end

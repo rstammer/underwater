@@ -20,10 +20,8 @@ class Game
     read_name_input
     touch_start_name if tapped?(:start) # the phone's way in: tap "Los geht's"
 
-    outputs.sprites << title_background
-    outputs.sprites << title_light_rays
-    outputs.sprites << title_bubbles
-    outputs.sprites << { x: 0, y: 0, w: grid.w, h: grid.h, r: 4, g: 12, b: 22, a: 120, path: :solid }
+    render_boat_horizon # the same sea the title and the opening are on
+    outputs.sprites << { x: 0, y: 0, w: grid.w, h: grid.h, r: 4, g: 12, b: 22, a: 150, path: :solid }
     render_name_card
   end
 

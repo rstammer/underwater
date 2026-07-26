@@ -34,5 +34,6 @@ require "tests/money_tests.rb"
 require "tests/fauna_fit_tests.rb"
 require "tests/energy_tests.rb"
 require "tests/night_tests.rb"
+require "tests/recap_tests.rb"
 require "tests/darkroom_tests.rb"
 
