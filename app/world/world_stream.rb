@@ -180,13 +180,28 @@ class Game
   # deep trench has its own fish down there instead of an empty void.
   FAUNA_CLEARANCE = 10 # water kept between an animal and the rock or the surface
 
+  # The swarm is drawn as *schools* rather than as individuals. Rolled one fish
+  # per column, two of a kind close enough to share a frame was pure luck — and
+  # a photograph is a crop now, so "two fish at once" has to be something you can
+  # go and look for rather than something you happen upon.
+  #
+  # The biome's count is still exactly what a segment holds; what changed is that
+  # the fish arrive in groups. Each draw is asked for no more than the room that
+  # is left, so clustering can never quietly multiply the population.
   def spawn_swarm(world)
     biome = world.biome
-    state.fish = biome.fish_count.times.map { spawn_one_fish(world, biome) }.compact
+    fish = []
+    biome.fish_count.times do
+      room = biome.fish_count - fish.length
+      break if room <= 0
+
+      fish.concat(spawn_one_school(world, biome, room))
+    end
+    state.fish = fish
   end
 
-  # One fish, or nothing if the column it drew has no water for it. The span walk
-  # only ever tested the *neighbours* of the spawn column, never the column
+  # One school, or nothing if the columns it drew have no water for it. The span
+  # walk only ever tested the *neighbours* of the spawn column, never the column
   # itself — so a fish that drew a solid one started life inside it and stayed
   # there, penned between a from_x and a to_x that were the same wall.
   # Tries hard rather than a few times: over a trench most columns are wall, and
@@ -195,15 +210,15 @@ class Game
   # enough to make "the segment holds its biome's count" a coin toss.
   SPAWN_TRIES = 24
 
-  def spawn_one_fish(world, biome)
+  def spawn_one_school(world, biome, room)
     SPAWN_TRIES.times do
-      fish = try_fish(world, biome, rand(world.columns))
-      return fish if fish
+      school = try_fish(world, biome, rand(world.columns), room)
+      return school if school
     end
-    nil
+    []
   end
 
-  def try_fish(world, biome, col)
+  def try_fish(world, biome, col, room = 1)
     floor_y = world.floor[col]
     slabs = world.roof ? (world.roof[col] || []) : []
     # Under rock they stay in the passage they spawned in: the lowest slab over
@@ -237,9 +252,52 @@ class Game
     return nil unless open_water?(world, col, low, high, fish_w, fish_h)
 
     from_x, to_x = open_water_span(world, col, low, high, fish_w, fish_h)
-    Creature.new(args, 0, species: species, size: size,
-                 x: col * World::COLUMN_WIDTH, y: low + rand(high - low + 1),
-                 from_x: from_x, to_x: to_x, low: low, high: high)
+    count = school_size(species, room)
+    shoal_of(species, size, count, x: col * World::COLUMN_WIDTH,
+                                   y: low + rand(high - low + 1),
+                                   from_x: from_x, to_x: to_x, low: low, high: high)
+  end
+
+  # Two at the least, never more than the species keeps company with or the
+  # segment has room for. Rolled rather than always full, so a school is a thing
+  # of a *size* — coming across nine herring should not feel like the same event
+  # as coming across two.
+  def school_size(species, room)
+    most = species.shoal < room ? species.shoal : room
+    return 1 if most < 2
+
+    2 + rand(most - 1)
+  end
+
+  SHOAL_GAP = 46      # px between neighbours in a school ...
+  SHOAL_STAGGER = 26  # ... and how far the rank behind sits above or below
+
+  # A school, placed as a formation: strung out along the water it was given,
+  # staggered so they read as a crowd rather than a queue, and every one of them
+  # inside the water the leader was checked into — which is why they are clamped
+  # to the span rather than trusted to the offset.
+  #
+  # They are laid around the middle rather than out from the first one, so the
+  # place the sea picked is the place the school *is*.
+  def shoal_of(species, size, count, x:, y:, from_x:, to_x:, low:, high:)
+    count = 1 if count < 1
+    count = 1 unless species.shoals? # met alone, whatever the swarm asked for
+    speed = Creature::SPEEDS.sample  # one pace for all of them — see Creature
+    count.times.map do |i|
+      offset = (i - (count - 1) / 2.0) * SHOAL_GAP
+      fish_y = y + (i.even? ? SHOAL_STAGGER : -SHOAL_STAGGER) * (i.idiv(2) % 2 + 1) / 2
+      Creature.new(args, 0, species: species, size: size, speed: speed,
+                   x: clamp(x + offset, from_x, to_x),
+                   y: clamp(fish_y, low, high),
+                   from_x: from_x, to_x: to_x, low: low, high: high)
+    end
+  end
+
+  def clamp(value, low, high)
+    return low if value < low
+    return high if value > high
+
+    value
   end
 
   # What walks on this segment's sand. Depth is read from the floor itself, so a

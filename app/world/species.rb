@@ -27,7 +27,7 @@ class Species
 
   attr_reader :key, :name, :latin, :sheet, :frame_w, :frame_h, :frames_per_row,
               :biomes, :shallowest, :deepest, :rarity, :fee, :habitat, :tease, :shy,
-              :size_cm, :photo_span
+              :size_cm, :photo_span, :shoal
 
   # habitat says *where in the water* a species lives, and so which of the sea's
   # populations it belongs to: :water is the swarm in the column, :floor walks on
@@ -55,9 +55,17 @@ class Species
   # range where a burgunder is "perfekt" you are looking at one flank and no
   # more. It scales the whole ladder, so the *rule* is untouched — near is still
   # sharp — but what counts as near is a fact about the animal.
+  #
+  # shoal is how many of a kind swim together, 1 for anything met alone. It
+  # exists because a photograph is a *crop* now: a frame can hold more than one
+  # animal, and asking for "two fish at once" is only a fair thing to ask if the
+  # sea puts two fish together in the first place. It is loosely the opposite of
+  # rarity — herring come in numbers, the lanternbearer does not, and the shark
+  # least of all — so it doubles as a difficulty curve for group shots.
   def initialize(key:, name:, latin:, sheet:, biomes:, shallowest:, deepest:,
                  rarity:, fee:, tease:, size_cm: 0, frame_w: 32, frame_h: 16,
-                 frames_per_row: 8, habitat: :water, shy: 0, photo_span: 1)
+                 frames_per_row: 8, habitat: :water, shy: 0, photo_span: 1,
+                 shoal: 1)
     @key = key
     @name = name
     @latin = latin
@@ -75,6 +83,11 @@ class Species
     @shy = shy
     @size_cm = size_cm
     @photo_span = photo_span
+    @shoal = shoal
+  end
+
+  def shoals?
+    shoal > 1
   end
 
   def lives_at?(biome_name, depth)
@@ -99,49 +112,49 @@ class Species
     new(key: "burgunder", name: "Blauer Burgunder", latin: "Vinum caeruleum",
         sheet: SCALAR + "blue.png", biomes: ["Sandbank", "Riff"],
         shallowest: 0, deepest: 55, rarity: :common, tease: "etwas Blaues, sehr Gemütliches",
-        shy: 110, size_cm: 22,
+        shy: 110, shoal: 5, size_cm: 22,
         fee: 5),
 
     new(key: "hornhering", name: "Gemeiner Hornhering", latin: "Clupea cornuta",
         sheet: BASS + "grey.png", biomes: ["Sandbank", "Kelpwald"],
         shallowest: 0, deepest: 70, rarity: :common, tease: "grau, mit Hörnchen am Kopf",
-        shy: 110, size_cm: 28,
+        shy: 110, shoal: 6, size_cm: 28,
         fee: 5),
 
     new(key: "scalarus", name: "Scalarus Coloris", latin: "Scalarus coloris",
         sheet: SCALAR + "orange.png", biomes: ["Riff", "Sandbank"],
         shallowest: 0, deepest: 60, rarity: :common, tease: "bunt und auffällig flach",
-        shy: 120, size_cm: 18,
+        shy: 120, shoal: 5, size_cm: 18,
         fee: 6),
 
     new(key: "zottelmaul", name: "Grünes Zottelmaul", latin: "Barbatus vorax",
         sheet: SCALAR + "green.png", biomes: ["Kelpwald"],
         shallowest: 0, deepest: 80, rarity: :common, tease: "grün und ziemlich zottelig",
-        shy: 130, size_cm: 34,
+        shy: 130, shoal: 4, size_cm: 34,
         fee: 8),
 
     new(key: "doktor", name: "Dicker Doktor", latin: "Medicus obesus",
         sheet: BASS + "orange.png", biomes: ["Kelpwald", "Riff"],
         shallowest: 10, deepest: 75, rarity: :uncommon, tease: "auffällig gut genährt",
-        shy: 150, size_cm: 41,
+        shy: 150, shoal: 2, size_cm: 41,
         fee: 14),
 
     new(key: "rabauke", name: "Roter Rabaukenbarsch", latin: "Perca turbulenta",
         sheet: BASS + "red.png", biomes: ["Riff"],
         shallowest: 5, deepest: 65, rarity: :uncommon, tease: "rot und schlecht gelaunt",
-        shy: 150, size_cm: 33,
+        shy: 150, shoal: 3, size_cm: 33,
         fee: 16),
 
     new(key: "prunkflosser", name: "Purpurner Prunkflosser", latin: "Pompa purpurea",
         sheet: SCALAR + "purple.png", biomes: ["Riff", "Tiefsee"],
         shallowest: 40, deepest: 120, rarity: :uncommon, tease: "lila, hält sich für was",
-        shy: 170, size_cm: 26,
+        shy: 170, shoal: 2, size_cm: 26,
         fee: 22),
 
     new(key: "truebfisch", name: "Tiefblauer Trübfisch", latin: "Obscurus caeruleus",
         sheet: BASS + "blue.png", biomes: ["Tiefsee", "Blauwasser", "Quallenfeld"],
         shallowest: 60, deepest: 200, rarity: :common, tease: "blau, wirkt bedrückt",
-        shy: 130, size_cm: 47,
+        shy: 130, shoal: 4, size_cm: 47,
         fee: 18),
 
     new(key: "laternentraeger", name: "Fahler Laternenträger", latin: "Lucerna abyssi",

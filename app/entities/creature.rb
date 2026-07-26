@@ -21,8 +21,16 @@ class Creature
   #
   # size comes from outside now: the sea has to know how big the animal will be
   # before it can work out which water it fits in.
+  #
+  # speed likewise, and for a sharper reason: a school is only a school for as
+  # long as it stays together. Left to roll their own out of SPEEDS, six herring
+  # spawned side by side are strung out across the segment inside ten seconds and
+  # the group photograph is gone. Handed one pace, they hold formation — and the
+  # two behaviours that already override the patrol, bolting and coming to look,
+  # both run at a fixed speed, so the whole school does those together too.
   def initialize(current_args, sprite_index, species:, x: 10, y: 200,
-                 from_x: 0, to_x: SCREEN_WIDTH, low: nil, high: nil, size: nil)
+                 from_x: 0, to_x: SCREEN_WIDTH, low: nil, high: nil, size: nil,
+                 speed: nil)
     @sprite_index = sprite_index
     @current_args = current_args
     @species = species
@@ -35,7 +43,7 @@ class Creature
     @low = low || y - DRIFT
     @high = high || y + DRIFT
     @heading = 1
-    @speed = SPEEDS.sample
+    @speed = speed || SPEEDS.sample
     @bolting = 0
   end
 
