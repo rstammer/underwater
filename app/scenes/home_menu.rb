@@ -29,6 +29,7 @@ class Game
     { id: :hold, title: "Lager", icon: "sprites/items/jewel.png" },
     { id: :book, title: "Artenbuch", icon: "sprites/animals/scalar_32_16/blue.png" },
     { id: :log,  title: "Logbuch", icon: "sprites/decor/boat.png" },
+    { id: :kit,  title: "Ausrüstung", icon: "sprites/items/jewel.png" },
   ]
 
   def home_menu_tick
@@ -59,6 +60,10 @@ class Game
 
   def log_page?
     state.boat_page == :log
+  end
+
+  def kit_page?
+    state.boat_page == :kit
   end
 
   # --- the frame ------------------------------------------------------------
@@ -101,6 +106,7 @@ class Game
     case state.boat_page
     when :book then render_artenbuch_page
     when :log then render_logbook_page
+    when :kit then render_kit_page
     else render_hold_page
     end
     render_menu_foot
@@ -184,7 +190,7 @@ class Game
     hint =
       if book_page?
         artenbuch_pages > 1 ? "← → blättern   ·   L / ESC zurück ins Wasser" : "L / ESC zurück ins Wasser"
-      elsif log_page?
+      elsif log_page? || kit_page?
         "L / ESC zurück ins Wasser"
       else
         "Pfeiltasten wählen   ·   [ E ] verschieben   ·   [ V ] verkaufen   ·   L / ESC zurück ins Wasser"
@@ -256,6 +262,52 @@ class Game
 
     render_tally(menu_left + MENU_PAD + 18, top - 84, half - 36, logbook_rows)
     render_tally(menu_left + MENU_PAD + half + 38, top - 84, half - 36, career_rows)
+  end
+
+  # What you are actually wearing, by name. The shop sells rungs on a ladder;
+  # this is the only place that says what the rung you are standing on is
+  # *called* — and a diver talks about their kit by its name, not its number.
+  #
+  # Every piece is listed, including the ones you have never upgraded: "what
+  # have I got?" is a question about all of it, and a page that only showed
+  # purchases would answer a different one.
+  def kit_rows
+    GEAR.map do |item|
+      key = item[:key]
+      { name: item[:name], title: gear_title(key),
+        value: "#{gear_value(key)} #{item[:unit]}",
+        top: gear_top?(key) }
+    end
+  end
+
+  KIT_ROW_H = 74
+
+  def render_kit_page
+    top = body_top
+    render_box(menu_left + MENU_PAD, body_bottom + 10,
+               menu_width - MENU_PAD * 2, top - body_bottom - 10,
+               "Was du trägst")
+
+    x = menu_left + MENU_PAD + 24
+    right = menu_right - MENU_PAD - 24
+    y = top - 84
+    kit_rows.each do |row|
+      outputs.labels << { x: x, y: y, text: row[:name], size_enum: 0,
+                          vertical_alignment_enum: 2,
+                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+      outputs.labels << { x: x, y: y - 24, text: row[:title], size_enum: 3,
+                          vertical_alignment_enum: 2,
+                          r: MENU_INK[0], g: MENU_INK[1], b: MENU_INK[2] }
+      outputs.labels << { x: right, y: y - 20, text: row[:value], size_enum: 2,
+                          alignment_enum: 2, vertical_alignment_enum: 2,
+                          r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
+      if row[:top]
+        outputs.labels << { x: right, y: y - 48, text: "das Beste, was Insa hat",
+                            size_enum: 0, alignment_enum: 2, vertical_alignment_enum: 2,
+                            r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+      end
+      y -= KIT_ROW_H
+    end
   end
 
   def render_tally(x, y, width, rows)

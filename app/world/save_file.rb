@@ -44,7 +44,8 @@ class SaveFile
   # level nobody has bought is simply absent (COUNTERS only writes what is > 0).
   COUNTERS = ["credits", "dives", "best", "sold", "earned", "day", "energy",
               "day_earned", "day_species", "day_deepest", "day_sold",
-              "gear_film", "gear_air", "gear_suit", "shop_met"]
+              "gear_film", "gear_air", "gear_suit", "gear_mask", "gear_fins",
+              "shop_met"]
 
   def self.encode(name:, album:, sighted:, seed: nil, stash: [], **counters)
     lines = []

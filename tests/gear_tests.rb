@@ -105,6 +105,64 @@ class GearTests
     assert.equal! args.state.film_left, game.film_capacity
   end
 
+  # --- what you are wearing, by name -----------------------------------------
+
+  def test_every_rung_has_a_name(args, assert)
+    Game::GEAR.each do |item|
+      assert.equal! item[:titles].length, item[:steps].length,
+                    "#{item[:name]} names every rung it sells"
+      assert.true! item[:titles].all? { |t| t.length > 0 }
+    end
+  end
+
+  def test_the_kit_page_lists_everything_you_wear(args, assert)
+    game = a_diver(args)
+    rows = game.kit_rows
+
+    assert.equal! rows.length, Game::GEAR.length, "including what you never upgraded"
+    assert.true! rows.all? { |row| row[:title].length > 0 }
+  end
+
+  def test_buying_changes_what_your_kit_is_called(args, assert)
+    game = a_diver(args, credits: 5000)
+    was = game.gear_title(:fins)
+
+    game.buy_gear(:fins)
+
+    assert.false! game.gear_title(:fins) == was, "new fins, new name"
+  end
+
+  # --- the mask and the fins do something -------------------------------------
+
+  def test_a_better_mask_sees_further(args, assert)
+    game = a_diver(args, credits: 5000)
+    bare = game.fog_radius(Biome::DEEP)
+
+    game.buy_gear(:mask)
+
+    assert.true! game.fog_radius(Biome::DEEP) > bare, "the dark backs off a little"
+  end
+
+  def test_better_fins_swim_faster(args, assert)
+    game = a_diver(args, credits: 5000)
+    args.state.sprinting = false
+    args.state.on_land = false
+    bare = game.current_speed
+
+    game.buy_gear(:fins)
+
+    assert.true! game.current_speed > bare
+  end
+
+  # Bare kit has to leave the game exactly as it was, or every number tuned
+  # before the shop existed is quietly wrong.
+  def test_unbought_mask_and_fins_change_nothing(args, assert)
+    game = a_diver(args)
+
+    assert.equal! game.sight_factor, 1.0
+    assert.equal! game.swim_factor, 1.0
+  end
+
   # --- and it is career, so it survives ---------------------------------------
 
   def test_the_suit_you_bought_is_the_suit_the_pressure_reads(args, assert)
@@ -115,14 +173,32 @@ class GearTests
     assert.false! game.too_deep?, "a hundred and twenty metres is nothing to this one"
   end
 
+  # Every ladder, not the three that existed first. A mask you bought and lost
+  # on the next boot is the bug we had just finished fixing.
   def test_gear_travels_with_the_book(args, assert)
     text = SaveFile.encode(name: "Kins", album: {}, sighted: {},
-                           gear_film: 1, gear_air: 2, gear_suit: 1)
+                           gear_film: 1, gear_air: 2, gear_suit: 1,
+                           gear_mask: 2, gear_fins: 1)
     back = SaveFile.decode(text)
 
     assert.equal! back[:gear_film], 1
     assert.equal! back[:gear_air], 2
     assert.equal! back[:gear_suit], 1
+    assert.equal! back[:gear_mask], 2
+    assert.equal! back[:gear_fins], 1
+  end
+
+  # Through the game's own encoder, so a ladder added later cannot be left out
+  # of the writing side while the format happily supports it.
+  def test_everything_the_shop_sells_is_written_down(args, assert)
+    game = a_diver(args, credits: 100_000)
+    Game::GEAR.each { |item| game.buy_gear(item[:key]) }
+
+    back = SaveFile.decode(game.encode_book)
+
+    Game::GEAR.each do |item|
+      assert.equal! back[:"gear_#{item[:key]}"], 1, "#{item[:name]} is in the book"
+    end
   end
 
   def test_carrying_a_book_on_carries_the_kit(args, assert)

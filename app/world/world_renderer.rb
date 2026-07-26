@@ -65,7 +65,8 @@ class Game
   # Brighter biomes (low fog) let the diver see farther; the dark deep closes in.
   # Depth tightens it further: the deeper you go, the less you see coming.
   def fog_radius(biome)
-    ((120 + 290 * (1.0 - biome.fog)) * (0.55 + 0.45 * light_at(state.depth_y))).to_i
+    bare = (120 + 290 * (1.0 - biome.fog)) * (0.55 + 0.45 * light_at(state.depth_y))
+    (bare * sight_factor).to_i # ... and a better mask sees through more of it
   end
 
   # Tint the fog with the biome's deep water so it blends instead of a flat blue,
@@ -121,7 +122,12 @@ class Game
     render_world
   end
 
-  SHOP_SCALE = 3 # the art carries the detail now, so it needs less blowing up
+  # Two, not three. At three the stall stood three and a bit divers high: the
+  # counter came up over his head, the trestle table with it, and the woman
+  # behind it read as twice his size. It is a market stall on a beach, not a
+  # civic building — the whole thing was simply drawn too big for the world,
+  # which is one number rather than three details to nudge.
+  SHOP_SCALE = 2
   SHOP_REACH = 220 # how close counts as being at the stalls — it is a row of
                    # them now, so the reach covers its whole width
 

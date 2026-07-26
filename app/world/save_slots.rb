@@ -73,6 +73,8 @@ class Game
                     gear_film: gear_level(:film),
                     gear_air: gear_level(:air),
                     gear_suit: gear_level(:suit),
+                    gear_mask: gear_level(:mask),
+                    gear_fins: gear_level(:fins),
                     shop_met: state.shop_met.to_i)
   end
 

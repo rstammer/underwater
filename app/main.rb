@@ -839,6 +839,7 @@ class Game
     speed = state.sprinting ? Diver::SPEED * SPRINT_MULTIPLIER : Diver::SPEED
     speed *= LAND_SPEED if on_land?
     speed *= TIRED_SPEED if exhausted? # a day gone is a long swim home
+    speed *= swim_factor               # ... and better fins push harder
     speed
   end
 
@@ -1102,7 +1103,8 @@ class Game
     state.day_sold = book[:day_sold] || 0
     # What he has bought, before reset_game refills the tank and the roll from it.
     state.gear = { film: book[:gear_film] || 0, air: book[:gear_air] || 0,
-                   suit: book[:gear_suit] || 0 }
+                   suit: book[:gear_suit] || 0, mask: book[:gear_mask] || 0,
+                   fins: book[:gear_fins] || 0 }
     state.shop_met = book[:shop_met] || 0 # whether she has introduced herself
     state.world_seed = book[:seed] || new_world_seed
     reset_game # rebuild the world from that seed before he is put in it

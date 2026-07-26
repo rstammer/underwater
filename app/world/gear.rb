@@ -26,23 +26,52 @@ class Game
   AIR_STEPS = [100, 166, 233].freeze
   # Metres the suit is rated for (SUIT_DEPTH_LIMIT) before the pressure starts working on it.
   SUIT_STEPS = [100, 170, 250].freeze
+  # How far you see, as a multiplier on the fog. A mask is the one piece of kit
+  # you look *through*, so it buys the thing the deep takes away first.
+  MASK_STEPS = [100, 130, 165].freeze
+  # And how fast you swim, in percent. Fins are the difference between the sea
+  # being big and the sea being far.
+  FINS_STEPS = [100, 118, 140].freeze
 
   # The shop's stock, as data: what it is, what it does, what each rung costs.
   # One list, read by the shelf, the prices and the tests alike.
+  # Every rung has a name, because "Stufe 2" tells you nothing and a diver talks
+  # about their kit by what it is called. They are also the only place in the
+  # game allowed to be silly.
   GEAR = [
     { key: :film, name: "Filmrolle", steps: FILM_STEPS, prices: [nil, 150, 420],
       unit: "Aufnahmen",
+      titles: ["Zwölfer-Rolle", "Zwanziger-Rolle", "Dreißiger-Grossbild"],
       blurb: "Mehr Bilder pro Tauchgang. Nichts ärgert so wie ein leerer Film über einer neuen Art." },
     { key: :air, name: "Sauerstoffflasche", steps: AIR_STEPS, prices: [nil, 220, 560],
       unit: "Luft",
+      titles: ["Rostige Pressluftpulle", "Solide Doppelflasche", "Tiefsee-Zwilling XL"],
       blurb: "Länger unten bleiben. Rechne trotzdem immer den Rückweg mit." },
     { key: :suit, name: "Tauchanzug", steps: SUIT_STEPS, prices: [nil, 380, 950],
       unit: "m Druck",
+      titles: ["Dünner Leih-Neopren", "Verstärkter Zweiteiler", "Abgrund-Montur"],
       blurb: "Tiefer runter, ohne dass die Nähte arbeiten. Da unten wohnt, was sonst niemand fotografiert." },
+
+    { key: :mask, name: "Tauchmaske", steps: MASK_STEPS, prices: [nil, 190, 480],
+      unit: "% Sicht",
+      titles: ["Beschlagene Leihmaske", "Klarsicht Panorama", "Weitwinkel Adlerauge"],
+      blurb: "Du siehst weiter. Was du früher siehst, kannst du früher fotografieren." },
+
+    { key: :fins, name: "Flossen", steps: FINS_STEPS, prices: [nil, 160, 430],
+      unit: "% Tempo",
+      titles: ["Ausgelatschte Gummifüße", "Schnelle Schwimmhäute", "Turbo-Delfinflossen"],
+      blurb: "Schneller unterwegs. Das Meer wird nicht kleiner, aber die Wege werden kürzer." },
   ].freeze
 
   def reset_gear
-    state.gear = { film: 0, air: 0, suit: 0 }
+    state.gear = { film: 0, air: 0, suit: 0, mask: 0, fins: 0 }
+  end
+
+  # What this rung is called. The shop and the boat's kit page both say it, so a
+  # diver names their gear rather than reciting its number.
+  def gear_title(key)
+    item = gear_item(key)
+    item[:titles][gear_level(key)] || item[:titles].last
   end
 
   # Defaulted rather than trusted: a book written before there was any gear
@@ -90,6 +119,16 @@ class Game
 
   def suit_limit
     gear_value(:suit)
+  end
+
+  # Both are percentages of the bare-kit value, so an unbought pair of fins and
+  # an unbought mask leave the game exactly as it was.
+  def sight_factor
+    gear_value(:mask) / 100.0
+  end
+
+  def swim_factor
+    gear_value(:fins) / 100.0
   end
 
   # --- buying it -------------------------------------------------------------
