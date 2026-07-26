@@ -535,7 +535,24 @@ class IslandWorld
     crown_y_at(world_x(col))
   end
 
+  # How much level ground the shop's island keeps around its middle, and how
+  # high that terrace sits. A market row is 336 px of stall; standing it on a
+  # terrace narrower than itself left the far end hanging over the drop, and
+  # anchoring the sprite to the lowest rock under it only turned the overhang
+  # into a building dug into a step. The ground is the thing that should give.
+  # (A method, not a constant: this file is required from the top of main.rb and
+  # WATERLINE_Y is defined below those requires — reaching for it here takes the
+  # game down at boot, the same trap app/world/gear.rb documents.)
+  MARKET_SPAN = 460
+  MARKET_RISE = 190 # how high the market terrace stands over the water
+
+  def market_top
+    WATERLINE_Y + MARKET_RISE
+  end
+
   def crown_y_at(world_x)
+    return market_top if market_ground?(world_x)
+
     x = WorldGenerator.terrace_start(world_x)
     t = span_t_at(x)
     y = raw_crown_at(x)
@@ -550,6 +567,14 @@ class IslandWorld
     y = (y / CROWN_STEP).floor * CROWN_STEP
     y = WATERLINE_Y + CROWN_MAX if y > WATERLINE_Y + CROWN_MAX
     y
+  end
+
+  # The flat the market stands on — only on the shop's own island, and only
+  # across its middle, so every other island keeps its rolled silhouette.
+  def market_ground?(world_x)
+    return false unless @sector == SHOP_SECTOR
+
+    (world_x - self.class.centre_x(SHOP_SECTOR)).abs <= MARKET_SPAN / 2
   end
 
   # The island's silhouette before any of this: rock coast everywhere, the shape
