@@ -1,136 +1,89 @@
-# What stands behind the islands. Reopens Game.
+# What stands behind an island. Reopens Game.
 #
 # An island used to be a flat cut-out against a flat sky: one silhouette, one
 # colour, nothing behind it. It read as a wall with palms on top rather than as
-# land you were looking *at*, because there was no second thing further away to
-# tell you the first one was near.
+# land you were looking *at*, because there was nothing further away to say the
+# near thing was near.
 #
-# So: ridges drawn behind the island, in two ranks, each paler and hazier than
-# the one in front. That is the whole of aerial perspective and it is the
-# cheapest depth there is — no new sprites, no parallax bookkeeping, just the
-# fact that distance drains colour.
+# The first three attempts were a separate parallax layer behind a visibility
+# switch, and every symptom followed from that choice: a hard switch has to pop,
+# and a layer that scrolls slower than the world has to drag along behind you —
+# right for a distant mountain range, wrong for the thing this is meant to be.
 #
-# CURRENTLY OFF (BACKDROP_ON). Three passes at it and the approach is wrong at
-# the root, so it is switched off rather than tuned again:
+# So it is not a layer. It is **the island's own crown curve, drawn again**: the
+# same shape read at a squeezed x so it comes out wider, multiplied so it comes
+# out taller, shifted a little sideways, and hazed. Three things follow for free
+# and none of them needs tuning:
 #
-#   * It is a separate layer with a visibility switch, and a hard switch has to
-#     pop. The range appeared at full height in one frame.
-#   * It scrolls slower than the world, so it drags along behind you as you walk
-#     — correct for a distant mountain range, wrong for a thing that is supposed
-#     to *be* the island you are standing on, continuing backwards.
-#   * Centred on the island's sector rather than on its visible land, so it sat
-#     beside the island instead of behind it.
+#   * it cannot appear without its island, because it *is* its island;
+#   * it cannot drag, because it moves with it;
+#   * it cannot stand beside it, because it comes off the same curve.
 #
-# What it should be instead: not a layer at all, but a second silhouette derived
-# from the island's own crown (IslandWorld#crown_y_at) — the same curve, taller
-# and wider, hazed and offset, drawn behind the island's rock. Then it cannot
-# appear without the island, cannot drag (it moves with it), and is by
-# construction the same landmass carrying on. The drawing below — two haze
-# ranks, ridged noise, the block raster — carries over unchanged; only where the
-# heights come from has to change.
+# And it arrives the way land arrives: the far end of the range slides in from
+# the screen edge at whatever height the curve has there, rather than switching
+# on at full size.
 class Game
-  # Two ranks. More would be mush at this palette; one would look like a mistake.
-  # The far rank is drawn first and the near one over it, so the near one has to
-  # be the darker: haze drains colour with distance, and a pale hill in front of
-  # a dark one reads as fog rather than as land.
+  # Each rank: [how much wider, how much taller, how far shifted, colour, alpha].
+  # The nearer rank is the darker one — haze drains colour with distance, and a
+  # pale ridge in front of a dark one reads as fog rather than as land.
   BACKDROP_RANKS = [
-    # [how far off (parallax divisor), height in px, colour, alpha]
-    [6.0, 420, [158, 194, 212], 255],
-    [3.4, 620, [104, 146, 172], 255],
+    [2.9, 1.55, -240, [154, 190, 210], 255],
+    [1.9, 1.25, 130, [112, 152, 178], 255],
   ].freeze
-  # Short enough that a screen holds two or three summits. At 1700 you saw one
-  # slope at a time and it read as a grey slab rather than as hills.
-  # Short enough that a summit is a summit. At 520 the peaks were wider than the
-  # screen and came out as one grey plateau — the very slab this was meant to
-  # replace.
-  BACKDROP_WAVELENGTH = 300
-  BACKDROP_SEED = 90_210
-  BACKDROP_STEP = 12         # px per drawn column: pixel-art ridges, not curves
-  # How far below the waterline the ranks are rooted. They sit *in* the sea by a
-  # margin rather than exactly on it, so no rank ever shows a gap of sky under
-  # its own feet when the camera rises.
-  BACKDROP_FOOT = 6 # they stand on the sea line, near enough
+  BACKDROP_STEP = 12 # px per drawn column: pixel-art ridges, not curves
+  BACKDROP_ON = true
 
-  # Only where there is sky to put them in — under water there is no horizon and
-  # a distant hill would be a hallucination.
-  def backdrop_visible?
-    WATERLINE_Y - state.camera_y < SCREEN_HEIGHT
-  end
-
-  # Only where there is an island. On the open sea the horizon is the point —
-  # a ridge out there would be land you can see and never reach, which is a
-  # promise the game cannot keep.
-  # Off. Three attempts in and the model is wrong, not the numbers — see the
-  # note at the top of this file. Left in place rather than deleted because the
-  # drawing half (haze ranks, ridged noise, block raster) is sound and only the
-  # *positioning* has to be rebuilt.
-  BACKDROP_ON = false
-
+  # Only above water, and never on the framing screens: the title, the opening,
+  # the recap and the night park the camera at the boat *for* a clean horizon,
+  # and the island next door is close enough that its hills came along with it.
   def render_backdrop
     return unless BACKDROP_ON
-
-    # Never on the framing screens. The title, the opening, the recap and the
-    # night all park the camera at the boat *for the clean horizon* — that is
-    # the whole reason they draw the real sea — and the home island is close
-    # enough that its hills turned up behind the boat and spoiled exactly the
-    # thing those screens were built on.
     return if game_paused?
     return unless backdrop_visible?
 
     visible_islands.each do |sector|
-      BACKDROP_RANKS.each_with_index do |(distance, height, colour, alpha), rank|
-        outputs.sprites << backdrop_ridge(sector, distance, height, colour, alpha, rank)
+      BACKDROP_RANKS.each_with_index do |rank, i|
+        outputs.sprites << backdrop_silhouette(sector, rank, i)
       end
+      outputs.sprites << backdrop_birds(sector)
     end
   end
 
-  # Whether *this island* is on the screen, not whether its segment is. covers?
-  # reaches a long way past the land itself (it has to: the skerries stand off
-  # the coast), so a range kept showing over open water with the island a
-  # screen and a half away.
-  # A method, not a constant: this file is required from the top of main.rb and
-  # SCREEN_WIDTH is defined below those requires. Third time that has caught me
-  # today, so it is written on the wall in three files now.
-  def backdrop_sight
-    SCREEN_WIDTH # an island still counts while its middle is this near the view's
+  def backdrop_visible?
+    WATERLINE_Y - state.camera_y < SCREEN_HEIGHT
   end
 
+  # Generously: the silhouette is wider than the island it comes from, so a range
+  # can properly reach the screen while its island has not. It falls away to
+  # nothing on its own, so there is nothing here to be exact about.
   def visible_islands
     middle = state.camera_x + SCREEN_WIDTH / 2
     (state.island_sectors || []).select do |sector|
-      (IslandWorld.centre_x(sector) - middle).abs <= backdrop_sight
+      (IslandWorld.centre_x(sector) - middle).abs <= SCREEN_WIDTH * 2
     end
   end
 
-  # A mass rising behind *this* island, centred on it and wider than it: the
-  # island is the front of a hill, and this is the rest of the hill carrying on
-  # backwards. Anchored to the island's own centre rather than scrolling with
-  # the world, so the two never come apart.
-  #
-  # Parallax pulls the far ranks *towards* that centre as you walk past — near
-  # the middle they sit still and the flanks compress, which is what a solid
-  # thing seen from a moving point does.
-  # Not much wider than the island under it: at 1500 the range stood well out
-  # over open water on both sides and read as weather rather than as land.
-  BACKDROP_SPREAD = 1000
+  # The island as an object, so its crown can be asked about. Memoised: building
+  # one rolls its whole shape, and this runs every frame.
+  def backdrop_island(sector)
+    state.backdrop_isles ||= {}
+    state.backdrop_isles[sector] ||= IslandWorld.new(world_at(sector), sector)
+  end
 
-  def backdrop_ridge(sector, distance, height, colour, alpha, rank)
-    base = WATERLINE_Y - state.camera_y - BACKDROP_FOOT
+  def backdrop_silhouette(sector, rank, index)
+    wider, taller, shift, colour, alpha = rank
+    isle = backdrop_island(sector)
     centre = IslandWorld.centre_x(sector)
+    base = WATERLINE_Y - state.camera_y
     columns = (SCREEN_WIDTH / BACKDROP_STEP) + 2
-
-    # Parallax as a *lag*, not as a division of the distance from the island.
-    # Dividing shrank how far away everything was, so the ridge kept its full
-    # height however far you swam — a mountain that followed you across open
-    # water with no island in sight. Lagging keeps the range its own width and
-    # simply lets it slide behind: level with the island it sits on it, and by
-    # the time the island is off-screen so is the range.
-    lag = (state.camera_x - centre) * (1.0 - 1.0 / distance)
 
     (0...columns).map do |i|
       x = i * BACKDROP_STEP
-      world_x = state.camera_x + x - lag
-      lift = backdrop_height(world_x, centre, height, rank)
+      world_x = state.camera_x + x
+      # Sample the island's own curve a third of the way out from its middle and
+      # draw it at full width: that is what turns the same shape into a wider one.
+      source = centre + (world_x - centre - shift) / wider
+      lift = backdrop_lift(isle, source, taller, index)
       next nil if lift <= 0
 
       { x: x, y: base, w: BACKDROP_STEP + 1, h: lift,
@@ -138,31 +91,37 @@ class Game
     end.compact
   end
 
-  # A dome that falls away to nothing at BACKDROP_SPREAD, roughened by the
-  # world's own noise so it is a ridge rather than a hill from a geometry
-  # lesson. Rastered to BACKDROP_STEP: blocks, like everything else here.
-  # Peaks, not a hill. A smooth dome across fifteen hundred pixels comes out as
-  # a flat slab on a screen this wide — a wall behind the island rather than
-  # land behind it. Ridged noise (the fold at 0.5 makes a *point* where plain
-  # noise makes a bump) gives summits and saddles at a wavelength short enough
-  # that two or three of them fit behind one island.
-  #
-  # The dome survives as an envelope only: it is what brings the range down to
-  # nothing at the ends instead of cutting it off mid-mountain.
-  def backdrop_height(world_x, centre, height, rank)
-    t = (world_x - centre).abs / BACKDROP_SPREAD.to_f
-    return 0 if t >= 1.0
+  # How high this column stands over the water. Zero wherever the island's own
+  # crown is at or below the waterline, which is what keeps the range inside the
+  # land it belongs to and lets it end without a cut.
+  def backdrop_lift(isle, source_x, taller, index)
+    above = isle.crown_y_at(source_x) - WATERLINE_Y
+    return 0 if above <= 0
 
-    envelope = (Math.cos(t * Math::PI) + 1) / 2.0
-    seed = BACKDROP_SEED + rank * 977
-    ridge = 1.0 - (2.0 * Noise.value(world_x, BACKDROP_WAVELENGTH, seed) - 1.0).abs
-    detail = 1.0 - (2.0 * Noise.value(world_x, BACKDROP_WAVELENGTH / 3, seed + 41) - 1.0).abs
-    grain = 1.0 - (2.0 * Noise.value(world_x, BACKDROP_WAVELENGTH / 9, seed + 83) - 1.0).abs
-    # Three octaves: summits, shoulders and the nicks along a ridgeline. Two
-    # gave clean triangles, which read as a pattern rather than as rock.
-    peaks = ridge * 0.6 + detail * 0.27 + grain * 0.13
-    # Steep: cubed peaks give sharp summits with real saddles between them
-    # instead of a rolling line that reads as one mass.
-    ((envelope * (0.12 + 0.88 * peaks * peaks * peaks) * height) / BACKDROP_STEP).floor * BACKDROP_STEP
+    lift = above * taller + index * 30
+    lift = SCREEN_HEIGHT if lift > SCREEN_HEIGHT
+    (lift / BACKDROP_STEP).floor * BACKDROP_STEP
+  end
+
+  # A few birds over the range, in its haze rather than in their own colours —
+  # anything that far off is the colour of the air between you and it. They
+  # circle rather than travel, so they never arrive anywhere or leave.
+  BACKDROP_BIRDS = [[-620, 250, 210.0], [-180, 330, 170.0], [420, 285, 240.0]].freeze
+  BACKDROP_BIRD_INK = [176, 204, 220].freeze
+
+  def backdrop_birds(sector)
+    sprite = DECOR_SPRITES["gull"]
+    centre = IslandWorld.centre_x(sector)
+    BACKDROP_BIRDS.map do |dx, height, period|
+      x = centre + dx - state.camera_x + Math.sin(Kernel.tick_count / period) * 90
+      next nil if x < -40 || x > SCREEN_WIDTH + 40
+
+      { x: x,
+        y: WATERLINE_Y + height - state.camera_y +
+           Math.sin(Kernel.tick_count / (period / 2.6)) * 12,
+        w: sprite[:w] * 2, h: sprite[:h] * 2, path: sprite[:path],
+        r: BACKDROP_BIRD_INK[0], g: BACKDROP_BIRD_INK[1], b: BACKDROP_BIRD_INK[2],
+        a: 190, anchor_x: 0.5, anchor_y: 0.5 }
+    end.compact
   end
 end
