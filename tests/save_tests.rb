@@ -98,10 +98,25 @@ class SaveTests
   def test_the_book_still_has_a_home_without_a_command_line(args, assert)
     game = build_game(args)
     game.initialize_game(0)
+    game.open_slot(2)
     no_command_line = Object.new # the browser build, near enough
 
-    assert.equal! game.book_path(no_command_line), SaveFile::PATH,
-                  "it falls back to the real path instead of blowing up"
+    # Against slot_path, not the production name: the suite redirects every slot
+    # somewhere disposable, and what this is really pinning down is that a
+    # runtime with no argv at all still gets an answer instead of an exception.
+    assert.equal! game.book_path(no_command_line), game.slot_path(2),
+                  "it writes to the open slot instead of blowing up"
+  end
+
+  # And with no book open it writes nowhere at all, rather than to whatever the
+  # one file used to be. That single file is how a career got overwritten.
+  def test_nothing_is_written_while_no_book_is_open(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.book_slot = nil
+    no_command_line = Object.new
+
+    assert.equal! game.book_path(no_command_line), nil
   end
 
   def test_a_book_that_was_never_saved_reads_as_nothing(args, assert)

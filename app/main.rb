@@ -41,6 +41,7 @@ require "app/world/whale.rb"
 require "app/world/sting.rb"
 require "app/world/gear.rb"
 require "app/world/save_file.rb"
+require "app/world/save_slots.rb"
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
@@ -190,7 +191,8 @@ class Game
     state.sighted = {} # species laid eyes on — the Artenbuch only lists what you've seen
     # What is on disk from last time. Loaded, not applied: the title asks first,
     # because carrying a book on is a choice and so is putting it down.
-    state.saved_book = SaveFile.decode(read_book_file)
+    state.book_slot = nil # no book is open until one is chosen at the title
+    load_slots            # ... and what is on the shelf is read once, here
     state.kraken = nil # the legend only shows up when you go too deep
     state.whale = nil  # ... and nothing is crossing the blue yet
     state.diver = Diver.new(args, sprite_index)
@@ -1066,45 +1068,11 @@ class Game
   # fish would otherwise write over the real thing.
   # The runtime is an argument so the guard below can actually be tested against
   # one that hasn't got argv.
-  def book_path(runtime = $gtk)
-    # argv is documented as a development/debugging thing, and this runs on every
-    # save — including in the browser build, where the book lives in the
-    # IndexedDB and there is no command line at all. Ask before reaching for it:
-    # a missing method here would take the game down the first time anyone swam
-    # past a fish.
-    return SaveFile::PATH unless runtime.respond_to?(:argv)
-
-    runtime.argv.to_s.include?("--test") ? SaveFile::TEST_PATH : SaveFile::PATH
-  end
-
-  # The path is an argument on top of that, so a test can do a real round trip
-  # through the engine on a file of its own.
-  def read_book_file(path = book_path)
-    $gtk.read_file(path)
-  end
-
-  def save_book(path = book_path)
-    $gtk.write_file(path, SaveFile.encode(name: state.player_name,
-                                          album: state.album, sighted: state.sighted,
-                                          seed: state.world_seed, stash: state.stash,
-                                          credits: state.credits,
-                                          dives: state.log_dives, best: state.log_best,
-                                          sold: state.log_sold, earned: state.log_earned,
-                                          day: state.day, energy: state.energy.round,
-                                          day_earned: state.day_earned,
-                                          day_species: state.day_species,
-                                          day_deepest: state.day_deepest,
-                                          day_sold: state.day_sold,
-                                          gear_film: gear_level(:film),
-                                          gear_air: gear_level(:air),
-                                          gear_suit: gear_level(:suit),
-                                          shop_met: state.shop_met.to_i))
-  end
-
   # Carry the saved book on: same diver, same pages, same sea, straight into the
   # water. No opening story and no camera card — he has been here before.
-  def continue_round
-    book = state.saved_book || SaveFile.blank
+  def continue_round(slot = 1)
+    open_slot(slot)
+    book = state.saved_book || slot_book(slot) || SaveFile.blank
     state.player_name = book[:name]
     state.album = book[:album]
     state.sighted = book[:sighted]
@@ -1140,7 +1108,10 @@ class Game
   # Put it down and start over: a new diver, an empty book, and a sea nobody has
   # had before. The file itself isn't touched until the new diver has a name —
   # change your mind on the name screen and the old book is still there.
-  def fresh_round
+  def fresh_round(slot = nil)
+    # Into the first free slot, or the one you pointed at — never over a book
+    # that is already there.
+    open_slot(slot || (1..SAVE_SLOTS).find { |i| !slot_used?(i) } || 1)
     state.album = {}
     state.sighted = {}
     state.player_name = ""

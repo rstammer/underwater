@@ -15,7 +15,20 @@
 # Pure: encoding and decoding never touch the filesystem, so they are testable
 # without writing over anybody's real book (Game#save_book does the I/O).
 class SaveFile
+  # The single file everybody had before there were slots. Kept only so it can
+  # be adopted into slot one on the first run (Game#adopt_legacy_book); nothing
+  # writes to it any more.
   PATH = "artenbuch.txt"
+  # Five books, at names that are known rather than discovered. Listing a
+  # directory is not something to lean on in the browser build, where this all
+  # lives in the IndexedDB — and an index file saying which slots exist is one
+  # more thing that can drift from the truth. A slot that reads back empty is an
+  # empty slot, and that is the whole of it.
+  SLOTS = 5
+
+  def self.path_for(slot)
+    "book_#{slot}.txt"
+  end
   # Where it goes when the suite is running. Running the tests must never cost
   # the person running them the book they collected — and it did exactly that
   # once: a sighting inside a test wrote straight over the real file, because

@@ -40,3 +40,7 @@ _webtest/
 
 # the player's Artenbuch, written by the game
 artenbuch.txt
+
+# Save slots — one file per career, never versioned
+book_*.txt
+book_*.txt.bak
