@@ -245,8 +245,15 @@ class Game
     1 + Kernel.tick_count.abs + rand(1_000_000_000)
   end
 
+  # The universal yes: space, enter, a gamepad's A. Enter is in here because a
+  # menu you pick a row in is a menu you expect to confirm with it — and every
+  # screen that asks "press on" means the same thing by it.
+  #
+  # It is deliberately *not* what deletes a save. A question that destroys
+  # something answers only to the key that asked it.
   def fire_input?
-    inputs.keyboard.key_down.space ||
+    inputs.keyboard.key_down.enter ||
+      inputs.keyboard.key_down.space ||
       inputs.keyboard.key_down.z ||
       inputs.keyboard.key_down.j ||
       inputs.controller_one.key_down.a

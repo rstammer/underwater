@@ -92,8 +92,10 @@ class Game
       return # nothing reaches the shelf until she has finished talking
     end
 
-    move_shop_cursor(-1) if inputs.keyboard.key_down.down
-    move_shop_cursor(1) if inputs.keyboard.key_down.up
+    # Down goes down the screen: render_shop_shelf draws row zero at the top, so
+    # the arrow and the index run the same way. They did not.
+    move_shop_cursor(1) if inputs.keyboard.key_down.down
+    move_shop_cursor(-1) if inputs.keyboard.key_down.up
     buy_selected if inputs.keyboard.key_down.e || inputs.keyboard.key_down.enter
   end
 

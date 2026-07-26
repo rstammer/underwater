@@ -102,6 +102,33 @@ class SlotsTests
     assert.equal! game.title_slot, 1, "all the way round"
   end
 
+  # Against the screen position, not the index: an index test passes just as
+  # happily when the arrows are the wrong way round.
+  def test_down_moves_down_the_screen(args, assert)
+    game = a_shelf(args)
+    args.state.game_scene = "title"
+    was_at = game.title_layout[game.title_row][:y]
+
+    args.inputs.keyboard.key_down.down = true
+    game.read_title_input
+
+    assert.true! game.title_layout[game.title_row][:y] < was_at,
+                 "the cursor went down the screen, not up it"
+  end
+
+  def test_up_moves_up_the_screen(args, assert)
+    game = a_shelf(args)
+    args.state.game_scene = "title"
+    game.move_title_row(1)
+    was_at = game.title_layout[game.title_row][:y]
+
+    args.inputs.keyboard.key_down.up = true
+    game.read_title_input
+
+    assert.true! game.title_layout[game.title_row][:y] > was_at,
+                 "and up goes back up it"
+  end
+
   def test_pressing_on_an_empty_row_starts_there(args, assert)
     game = a_shelf(args)
     args.state.game_scene = "title"
@@ -117,6 +144,47 @@ class SlotsTests
 
   # Deleting is the one thing on this screen that destroys something, so it asks
   # first — and the question names the career it means.
+  # A menu you pick a row in is a menu you confirm with Enter.
+  def test_enter_opens_the_row_you_are_on(args, assert)
+    game = a_shelf(args)
+    args.state.game_scene = "title"
+    game.move_title_row(2) # slot 3, Kins
+
+    args.inputs.keyboard.key_down.enter = true
+    game.title_tick
+
+    assert.equal! args.state.book_slot, 3
+    assert.equal! args.state.player_name, "Kins"
+  end
+
+  def test_enter_starts_a_career_in_an_empty_row(args, assert)
+    game = a_shelf(args)
+    args.state.game_scene = "title"
+    game.move_title_row(1) # slot 2, empty
+
+    args.inputs.keyboard.key_down.enter = true
+    game.title_tick
+
+    assert.equal! args.state.game_scene, "name"
+    assert.equal! args.state.book_slot, 2
+  end
+
+  # The dangerous action answers only to the key that asked for it: Enter is the
+  # universal yes everywhere else, and here it means "no".
+  def test_enter_does_not_delete_a_career(args, assert)
+    game = a_shelf(args)
+    args.state.game_scene = "title"
+    args.inputs.keyboard.key_down.delete = true
+    game.read_title_input
+
+    args.inputs.keyboard.key_down.delete = false
+    args.inputs.keyboard.key_down.enter = true
+    game.read_title_input
+
+    assert.equal! game.slot_summary(1)[:name], "Gero", "still there"
+    assert.false! game.confirming_delete?, "and the question is dropped"
+  end
+
   def test_deleting_takes_two_presses(args, assert)
     game = a_shelf(args)
     args.state.game_scene = "title"

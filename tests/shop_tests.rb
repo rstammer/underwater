@@ -77,6 +77,7 @@ class ShopTests
 
   def in_the_shop(args, credits: 1000)
     game = at_the_door(args, credits: credits)
+    args.state.shop_met = 1 # past her introduction, which the shelf is deaf behind
     game.open_shop
     game
   end
@@ -97,6 +98,20 @@ class ShopTests
     Game::GEAR.length.times { game.move_shop_cursor(1) }
 
     assert.equal! game.selected_gear, first, "all the way round"
+  end
+
+  # The same inversion lived here, and the title's was copied from it. Measured
+  # against where the row is drawn rather than against its index.
+  def test_the_arrows_walk_the_shelf_the_way_it_is_drawn(args, assert)
+    game = in_the_shop(args)
+    first = game.selected_gear
+
+    args.inputs.keyboard.key_down.down = true
+    game.update_shop_input
+
+    assert.equal! game.selected_gear, Game::GEAR[1][:key],
+                  "down goes to the row drawn underneath, not the one above"
+    assert.false! game.selected_gear == first
   end
 
   def test_buying_from_the_shelf_takes_the_money(args, assert)

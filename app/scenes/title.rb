@@ -90,8 +90,11 @@ class Game
   end
 
   def read_title_input
-    move_title_row(-1) if inputs.keyboard.key_down.down
-    move_title_row(1) if inputs.keyboard.key_down.up
+    # Down goes down the screen. Row zero is drawn at the top (title_row_y), so
+    # the arrow and the index run the same way — they were inverted, copied from
+    # a shop shelf that had it inverted too.
+    move_title_row(1) if inputs.keyboard.key_down.down
+    move_title_row(-1) if inputs.keyboard.key_down.up
     return read_delete_input if state.title_confirm
 
     if inputs.keyboard.key_down.delete || inputs.keyboard.key_down.backspace ||
@@ -229,7 +232,7 @@ class Game
   end
 
   def title_delete_warning
-    "Wirklich löschen?   [ Entf ] ja   ·   [ Leertaste ] nein"
+    "Wirklich löschen?   [ Entf ] ja   ·   [ Enter ] nein"
   end
 
   def title_fish
@@ -275,9 +278,9 @@ class Game
   end
 
   def title_hint
-    return "[ Entf ] löschen wirklich   ·   [ Leertaste ] abbrechen" if state.title_confirm
+    return "[ Entf ] löschen wirklich   ·   [ Enter ] abbrechen" if state.title_confirm
 
-    "↑ ↓ wählen   ·   [ Leertaste ] öffnen   ·   [ Entf ] löschen"
+    "↑ ↓ wählen   ·   [ Enter ] öffnen   ·   [ Entf ] löschen"
   end
 
   # Still asked by the touch layout and by anything that wants to know whether
