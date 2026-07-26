@@ -259,6 +259,42 @@ class FramingTests
     assert.equal! args.state.game_scene, "area1", "and it does not open the pause menu"
   end
 
+  # --- what the viewfinder tells you --------------------------------------------
+
+  def test_the_line_talks_about_the_crop_once_the_shutter_is_down(args, assert)
+    game = with_a_school(args, count: 3)
+
+    hold(game, args, 100)
+    line = game.photo_message
+
+    assert.true! line[:text].include?("3 ×"), "how many of them are in it (#{line[:text]})"
+    assert.true! line[:text].include?("perfekt") || line[:text].include?("gut"),
+                 "and what the picture would be worth (#{line[:text]})"
+  end
+
+  def test_an_empty_frame_says_so(args, assert)
+    game = with_a_school(args)
+    args.state.fish = []
+
+    hold(game, args, 40)
+
+    assert.equal! game.photo_message[:text], "nichts im Bild"
+  end
+
+  # The corners are the answer to "when do I let go", and they have to be
+  # readable on a phone, where there is no key to feel and nothing else to go by.
+  def test_the_corners_change_colour_with_the_grade(args, assert)
+    game = with_a_school(args)
+
+    hold(game, args, 30)
+    loose = game.viewfinder_ink
+    hold(game, args, 95)
+    composed = game.viewfinder_ink
+
+    assert.equal! game.frame_quality(game.frame_report), :perfekt
+    assert.not_equal! loose, composed, "the frame says when it fits"
+  end
+
   # --- and it is drawn ---------------------------------------------------------
 
   def test_the_viewfinder_is_only_up_while_you_hold(args, assert)

@@ -73,6 +73,21 @@ class Game
   VIEWFINDER_INK = [255, 244, 205]
   VIEWFINDER_CORNER = 22 # px of each corner drawn — a frame, not a box
 
+  # What the crop is worth right now, in the corners themselves. The frame closes
+  # steadily and the question is when it fits — but nothing on screen answered
+  # that question, so the answer was a guess, and on a phone, where there is no
+  # key to feel, it was only a guess.
+  #
+  # The corners are where the answer belongs rather than in a line of text at the
+  # foot of the screen: they are the thing you are already watching, and they are
+  # sitting on the edge that is about to cut the animal. A real viewfinder tells
+  # you about the picture inside it.
+  FINDER_GRADES = { perfekt: [255, 226, 130], gut: [176, 226, 244], unscharf: [214, 224, 234] }
+
+  def viewfinder_ink
+    FINDER_GRADES[frame_quality(frame_report)] || VIEWFINDER_INK
+  end
+
   # The crop, while you hold the shutter. Corners rather than a full rectangle:
   # a closed box over the sea reads as a window you are looking *through*, and
   # what matters is where the edges are, not that they join up.
@@ -85,13 +100,13 @@ class Game
     w = rect[:w]
     h = rect[:h]
     c = VIEWFINDER_CORNER
+    ink = viewfinder_ink
     [[x, y, c, 2], [x, y, 2, c],                       # bottom left
      [x + w - c, y, c, 2], [x + w - 2, y, 2, c],       # bottom right
      [x, y + h - 2, c, 2], [x, y + h - c, 2, c],       # top left
      [x + w - c, y + h - 2, c, 2], [x + w - 2, y + h - c, 2, c]].each do |bx, by, bw, bh|
       outputs.sprites << { x: bx, y: by, w: bw, h: bh, path: :solid,
-                           r: VIEWFINDER_INK[0], g: VIEWFINDER_INK[1], b: VIEWFINDER_INK[2],
-                           a: 220 }
+                           r: ink[0], g: ink[1], b: ink[2], a: 220 }
     end
   end
 
@@ -170,7 +185,14 @@ class Game
   # With a creature in the lens, a line saying what it is worth and how the shot
   # would come out — so getting closer is visibly worth it before you spend the
   # frame.
+  # Once the shutter is down, the line stops talking about the nearest fish and
+  # starts talking about the picture — because that is what you are now doing.
+  # It is also where the group shot becomes findable at all: without a count on
+  # the screen, "two of them are in this" is something you would have to work out
+  # from the developed print, a dive later.
   def photo_message
+    return frame_message if framing?
+
     subject = photo_subject
     return nil unless subject
 
@@ -193,6 +215,21 @@ class Game
       end
 
     { text: text, slot: SLOT_PHOTO, color: photo_ink(species, quality) }
+  end
+
+  # A count rather than a plural: "3 × Gemeiner Hornhering" needs no grammar, and
+  # the same shape carries a tease as happily as a name ("3 × grau, mit Hörnchen
+  # am Kopf" would not, which is why the count goes in front on its own).
+  def frame_message
+    report = frame_report
+    return { text: "nichts im Bild", slot: SLOT_PHOTO, color: ENOUGH_INK } unless report
+
+    species = report[:species]
+    quality = frame_quality(report)
+    label = species_label(species)
+    label = "#{report[:flock]} ×  #{label}" if report[:flock] > 1
+    { text: "#{label}  (#{quality})", slot: SLOT_PHOTO,
+      color: photo_ink(species, quality) }
   end
 
   # The flash of the shutter, over the whole picture. Not a message — it is the

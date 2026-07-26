@@ -476,6 +476,9 @@ class PhotographyTests
       "Etwas Neues! Am Boot entwickeln",
       "[ F ]  Schwarzer Schattenhai  (unscharf)",
       "Purpurner Prunkflosser — schon besser im Kasten",
+      # What the shutter says about the crop, at its longest: the biggest school
+      # of the species with the longest thing to call it before you know its name.
+      "6 ×  etwas Blaues, sehr Gemütliches  (unscharf)",
     ]
     room = Game::MESSAGE_W - 24 # a little air at each end
 
