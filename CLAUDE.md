@@ -699,6 +699,23 @@ Screen-Positionen und werden nicht direkt gesetzt.
     Nachmittag sind zwei Wahrheiten über dasselbe Tier, und keine darf die andere
     stillschweigend überschreiben. Die Rolle trennt sie aus demselben Grund
     (`store_shot` hebt Note und Schwarmgröße getrennt an).
+    - **Gezahlt wird bis `species.shoal`** (`payable_flock`) — für eine Gruppe in
+      der Größe, in der diese Art *unterwegs ist*, nicht für so viele, wie
+      zufällig vor der Linse trieben. Ohne den Deckel reißt ein **Quallenfeld**
+      alles auf: 18 Tiere einer Art stehen dicht in einem Fleck von ~200 px, der
+      weit offene Rahmen hält sie **alle** ganz und mittig — gemessen **405 Cr im
+      allerersten Tick** gegen 31 für einen sauber komponierten Sechserschwarm.
+      Mit Deckel 103 Cr, und das ist proportional (eine einzelne Feuerqualle
+      bringt 38, ein Hornhering 8). Der Deckel ist die Zahl aus dem Register statt
+      einer Sonderregel für Quallen, weil die Frage eine über das *Tier* ist: ab
+      wann sind mehrere eine Gruppe? Sechs Heringe sind ein Schwarm, die
+      achtzehnte Qualle im Feld ist keine Nachricht.
+      - **`improves?` vergleicht die gezahlte, nicht die gesehene Zahl** — sonst
+        wäre der Deckel schlimmer als das Loch: der Sucher böte immer größere
+        Felder als filmwürdig an, und der Tank entwickelte jedes Mal nichts.
+      - **`frame_report` deckelt bewusst NICHT.** Der Bericht bleibt eine ehrliche
+        Zählung dessen, was im Bild ist — ein Auftrag „drei auf einmal" muss drei
+        sehen können, was auch immer sie wert sind.
     - **Eigenes Honorar** (`flock_fee`, `FLOCK_FACTOR`=0,9 je zusätzlichem Tier)
       statt eines Multiplikators aufs Porträt — nur so hält die Invariante, auf
       der die Balance ruht: **was die Fotografie eingebracht hat, ist exakt

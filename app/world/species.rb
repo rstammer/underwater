@@ -269,21 +269,21 @@ class Species
         sheet: JELLIES + "mondqualle.png", frame_w: 24, frame_h: 30, habitat: :drift,
         biomes: ["Quallenfeld", "Blauwasser"],
         shallowest: 20, deepest: 170, rarity: :common, tease: "durchsichtig, schwebt einfach",
-        size_cm: 35,
+        size_cm: 35, shoal: 5,
         fee: 12),
 
     new(key: "feuerqualle", name: "Rote Feuerqualle", latin: "Cyanea ignis",
         sheet: JELLIES + "feuerqualle.png", frame_w: 24, frame_h: 30, habitat: :drift,
         biomes: ["Quallenfeld"],
         shallowest: 35, deepest: 210, rarity: :uncommon, tease: "rot, und sie brennt",
-        size_cm: 62,
+        size_cm: 62, shoal: 4,
         fee: 24),
 
     new(key: "laternenqualle", name: "Leuchtende Laternenqualle", latin: "Lucerna gelida",
         sheet: JELLIES + "laternenqualle.png", frame_w: 24, frame_h: 30, habitat: :drift,
         biomes: ["Quallenfeld"],
         shallowest: 95, deepest: 290, rarity: :rare, tease: "leuchtet von innen",
-        size_cm: 46,
+        size_cm: 46, shoal: 3,
         fee: 52),
   ]
 

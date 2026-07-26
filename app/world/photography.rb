@@ -189,10 +189,16 @@ class Game
   # same grade as the single you already have is not the same photograph, so it
   # is worth the frame; the same school out of focus is not, or the wide-open
   # frame would be a free record of whatever you happened to be swimming past.
+  # Compared at what it would *pay*, not at what is in the frame: otherwise the
+  # cap would be worse than the hole it closes — the lens would keep offering a
+  # bigger field as worth a frame, and the tank would keep developing nothing.
   def improves?(key, quality, flock = 1)
     rank = QUALITY_RANK[quality]
     on_roll = state.film_roll.find { |shot| shot[:key] == key }
-    return true if quality != :unscharf && flock > best_flock(key, on_roll)
+    if quality != :unscharf &&
+       payable_flock(Species[key], flock) > best_flock(key, on_roll)
+      return true
+    end
     return false if on_roll && QUALITY_RANK[on_roll[:quality]] >= rank
     return false if state.album[key] && QUALITY_RANK[state.album[key]] >= rank
 
@@ -203,8 +209,8 @@ class Game
   # film you are still carrying.
   def best_flock(key, on_roll = nil)
     on_roll ||= state.film_roll.find { |shot| shot[:key] == key }
-    booked = flock_record(key)
-    rolled = on_roll ? (on_roll[:flock] || 1) : 1
+    booked = payable_flock(Species[key], flock_record(key))
+    rolled = payable_flock(Species[key], on_roll ? on_roll[:flock] : 1)
     rolled > booked ? rolled : booked
   end
 
@@ -259,8 +265,8 @@ class Game
       better = known.nil? || QUALITY_RANK[shot[:quality]] > QUALITY_RANK[known]
       # The two halves of a page move independently: a school you had not got is
       # worth developing even if the picture is no sharper than the one on file.
-      flock = shot[:flock] || 1
-      recorded = flock_record(shot[:key])
+      flock = payable_flock(species, shot[:flock] || 1)
+      recorded = payable_flock(species, flock_record(shot[:key]))
       bigger = shot[:quality] != :unscharf && flock > recorded
       next unless better || bigger
 
@@ -324,9 +330,36 @@ class Game
 
   def flock_fee(species, flock)
     return 0 unless species
-    return 0 if flock.nil? || flock < 2
 
-    (species.fee * FLOCK_FACTOR * (flock - 1)).round
+    counted = payable_flock(species, flock)
+    return 0 if counted < 2
+
+    (species.fee * FLOCK_FACTOR * (counted - 1)).round
+  end
+
+  # You are paid for a group of the size this kind actually goes about in, not
+  # for however many happened to be in front of you.
+  #
+  # Without this the fee is linear in whatever drifted into the crop, and a
+  # jellyfield breaks it wide open: eighteen animals of one species hanging
+  # still in a patch two hundred pixels across, so the frame held every one of
+  # them, whole and centred, *before it had closed at all*. Measured, 405 Cr on
+  # the first tick of the shutter against 31 for a six-herring school composed
+  # properly — the best money in the game for a tap.
+  #
+  # The cap is the roster's own number rather than a rule about jellyfish,
+  # because the question it answers is a question about the animal: how many of
+  # these are a group? Six herring are a school; the eighteenth jellyfish in a
+  # field is not news. It also means a species that shoals in numbers is worth
+  # photographing in numbers, which is the thing worth keeping.
+  #
+  # Deliberately *not* applied in frame_report. That stays an honest count of
+  # what is in the picture — an assignment asking for three at once must be able
+  # to see three, whatever they are worth.
+  def payable_flock(species, flock)
+    return 1 if species.nil? || flock.nil?
+
+    flock < species.shoal ? flock : species.shoal
   end
 
   def album_found

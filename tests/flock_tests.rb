@@ -42,6 +42,66 @@ class FlockTests
     assert.true! game.flock_fee(species, 3) > game.flock_fee(species, 2)
   end
 
+  # --- what a kind is worth in numbers -----------------------------------------------
+  #
+  # Measured in the water and it was a hole: a jellyfield is eighteen animals of
+  # one species standing still in a patch, so the wide-open frame held all of
+  # them, whole and centred, on the very first tick — 405 Cr for a tap, against
+  # 31 for a six-herring school composed properly.
+
+  def test_the_fee_stops_at_the_size_the_species_travels_in(args, assert)
+    game = at_the_boat(args)
+    species = Species["feuerqualle"]
+
+    assert.equal! game.flock_fee(species, 18), game.flock_fee(species, species.shoal),
+                  "eighteen of them pay what #{species.shoal} of them pay"
+    assert.true! game.flock_fee(species, 2) < game.flock_fee(species, species.shoal),
+                 "and below the cap it still grows"
+  end
+
+  def test_jellyfish_travel_in_numbers_rather_than_alone(args, assert)
+    assert.true! Species["mondqualle"].shoal > 1, "a field is what a jellyfish is found in"
+    assert.true! Species["laternenqualle"].shoal < Species["mondqualle"].shoal,
+                 "the rare one in smaller numbers"
+  end
+
+  def test_a_whole_field_is_booked_at_the_cap(args, assert)
+    game = at_the_boat(args)
+    roll(game, args, "feuerqualle", :perfekt, 18)
+
+    game.develop_film
+
+    assert.equal! args.state.flocks["feuerqualle"], Species["feuerqualle"].shoal
+    assert.equal! args.state.credits,
+                  game.photo_fee(Species["feuerqualle"], :perfekt) +
+                  game.flock_fee(Species["feuerqualle"], Species["feuerqualle"].shoal)
+  end
+
+  # And the film must not be spent chasing an increase that cannot pay. Without
+  # this the cap would be worse than the hole: you would keep being told a
+  # bigger field was worth a frame, and keep developing nothing.
+  def test_no_film_goes_on_a_group_bigger_than_pays(args, assert)
+    game = at_the_boat(args)
+    species = Species["feuerqualle"]
+    args.state.album["feuerqualle"] = :perfekt
+    args.state.flocks["feuerqualle"] = species.shoal
+
+    assert.false! game.improves?("feuerqualle", :perfekt, 18),
+                  "more of them in the frame, but not more money"
+  end
+
+  # An old book can hold a count written before the cap existed. It reads back
+  # and is simply valued at the cap — nothing refuses to load.
+  def test_a_book_from_before_the_cap_is_valued_at_the_cap(args, assert)
+    game = at_the_boat(args)
+    args.state.album["feuerqualle"] = :perfekt
+    args.state.flocks["feuerqualle"] = 18
+
+    assert.equal! game.album_score,
+                  game.photo_fee(Species["feuerqualle"], :perfekt) +
+                  game.flock_fee(Species["feuerqualle"], Species["feuerqualle"].shoal)
+  end
+
   # --- developing ------------------------------------------------------------------
 
   def test_a_school_is_paid_for_and_written_down(args, assert)
