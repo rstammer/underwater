@@ -241,6 +241,26 @@ geteilt**. Trennung von *Beschreibung* und *Rendering*:
     `:shore` = läuft **über** der Wasserlinie am Strand. Die drei werden **getrennt
     gewürfelt** (`pick` / `pick_floor` / `pick_shore`), sonst spawnt ein Krebs
     freischwebend im Wasser oder ein Fisch sitzt auf dem Grund.
+  - **`shoal` sagt, zu wievielt eine Art unterwegs ist** (1 = allein anzutreffen).
+    Grob das Gegenteil der Seltenheit — sechs Hornheringe, fünf Burgunder, zwei
+    Prunkflosser, Laternenträger und Hai allein —, also nebenbei eine
+    Schwierigkeitskurve fürs Schwarmbild. Der Schwarm wird als **Formation**
+    gesetzt (`shoal_of`, `SHOAL_GAP`=46, `SHOAL_STAGGER`=26): gestaffelt statt in
+    einer Schlange, um den gewürfelten Ort herum, jedes Tier in die Wasserspanne
+    geklemmt, in die der Anführer geprüft wurde.
+    - **Die Segmentzahl bleibt unangetastet** — jeder Wurf fragt nur nach dem
+      Platz, der noch übrig ist, sonst würde das Gruppieren die Population
+      stillschweigend vervielfachen. Was sich ändert, ist nur: die Fische kommen
+      **zusammen** statt verstreut.
+    - **Ein Schwarm braucht ein geteiltes Tempo** (`Creature#initialize(speed:)`).
+      Mit je eigenem `SPEEDS.sample` ist er nach zehn Sekunden über das Segment
+      verteilt und das Gruppenbild weg. Kostet nichts, weil die beiden
+      Verhaltensweisen, die die Patrouille überschreiben — Flucht und Neugier —
+      ohnehin feste Geschwindigkeiten haben. Gemessen: nach 15 s noch innerhalb
+      von 8 px der Startspanne.
+    - Ihre **Tiefen** driften weiterhin einzeln auseinander (`DRIFT`), und das ist
+      die gute Hälfte: ein Schwarm ist mal fotografierbar und mal nicht — dasselbe
+      Warten, das die scheuen Arten schon verlangen.
   - **`pick_floor` hat bewusst KEINEN Fallback** (anders als `pick`): passt für diese
     Tiefe keine Bodenart, bleibt der Sand **leer**. Dass die Abgrundkrabbe erst ab
     105 m vorkommt, ist der ganze Grund, dort runterzutauchen — ein Fallback würde
@@ -480,7 +500,9 @@ Der komplette Spielzustand — Property-Namen dürfen **nicht** wie Methoden hei
 | `player_name` | der eingetippte Name; `diver_name` liefert ihn bzw. `DIVER_NAME` als Rückfall |
 | `album` | `{species_key => quality}` — das dokumentierte Artenbuch. **Überlebt den Tod** |
 | `sighted` | `{species_key => true}` — welche Arten gesichtet wurden; steuert, was im Buch überhaupt auftaucht. Überlebt den Tod wie `album` |
-| `film_left` / `film_roll` | Aufnahmen übrig bzw. belichtete, noch nicht entwickelte Fotos `{key:, quality:}` — beides pro Runde |
+| `flocks` | `{species_key => n}` — der größte Schwarm dieser Art, den man heimgebracht hat. Überlebt den Tod wie `album`; eigene Zeile im Savefile (`flock key n`, nur ab 2) |
+| `film_left` / `film_roll` | Aufnahmen übrig bzw. belichtete, noch nicht entwickelte Fotos `{key:, quality:, flock:, day:}` — beides pro Runde |
+| `framing` / `frame_w` | ob der Auslöser gehalten wird, und wie weit der Rahmen schon zu ist (`app/world/framing.rb`) |
 | `shot_at` / `shot_note` | Tick der letzten Aufnahme und was drauf ist, für Blitz und Einblender |
 | `developed_roll` | die Abzüge der letzten Entwicklung `{species:, quality:, fee:, day:, fresh:}` — was die Dunkelkammer zeigt |
 | `developed_at` / `darkroom_page` | Tick, in dem der Tank aufging (damit derselbe Druck ihn nicht gleich schließt), und welches Blatt offen ist |
@@ -583,15 +605,69 @@ Screen-Positionen und werden nicht direkt gesetzt.
   die man zum ersten Mal ablichtet, ist eine Seite im **Artenbuch**; `album_score`
   liest die Punkte aus dem Buch (kein mitgeführter Zähler, der aus dem Tritt geraten
   kann). **`F`** ist der Auslöser.
-  - **Motiv** (`photo_subject`): die nächste Kreatur in `PHOTO_REACH`, die **vor** ihm
-    ist (`in_front?`, `state.direction`) — über die Schulter schießen gilt nicht.
+  - **Ein Foto ist ein Ausschnitt, keine Kreatur** (`app/world/framing.rb`). `F`
+    **halten** öffnet einen Rahmen (`FRAME_WIDE`=620), der stetig zugeht
+    (`FRAME_CLOSE`=4,2 px/Tick, ~2 s bis `FRAME_TIGHT`=70); **Loslassen ist die
+    Aufnahme**. Der Rahmen sitzt `FRAME_AHEAD`=90 px **vor** ihm, nicht auf ihm.
+    Der Zoom läuft **in eine Richtung** — ein pulsierender Rahmen wäre ein
+    Quick-Time-Event; so lautet die Frage „wann passt es?" statt „triffst du den
+    Takt?". Schwimmen beim Kadrieren ist erlaubt, Abbrechen kostet keinen Film
+    (Film verbraucht der Auslöser, nicht der Rahmen).
+    - **Emergent, nicht entworfen:** der Rahmen schrumpft um **seine eigene
+      Mitte**, also driftet ein leicht außermittiges Tier beim Zugehen an den
+      Rand (gemessen 0,05 bei 620 px gegen 0,85 bei 70). Ein enges Bild heißt
+      deshalb: **stell dich dorthin, wo der Rahmen enden wird.**
+    - **Gotcha, teuer gelernt:** `release_shutter` muss **erst schießen, dann
+      zurücksetzen**. Andersherum kam jedes Bild als der weit offene Rahmen
+      heraus, wie sorgfältig auch komponiert — die Komposition funktionierte bis
+      genau zu dem Moment, in dem sie benutzt wurde.
+  - **Bericht statt Urteil** (`frame_report` / `frame_quality`): der Bericht
+    liefert **Zahlen** (Füllung, ganz drin, Mittigkeit, Gesellschaft, Schwarmgröße,
+    Fremdlinge), das Urteil wertet sie. Getrennt, damit ein späterer **Auftrag**
+    dieselben Zahlen anders lesen kann („eine Gruppe von drei" will Gesellschaft,
+    kein Alleinsein).
+  - **Zwei Sorten Bild** (`frame_kind`): **Porträt** (ein Tier, groß, ganz, mittig,
+    allein) oder **Schwarmbild** (`FLOCK_MIN`=2 derselben Art, alle **ganz** im
+    Rahmen). Beiden werden dieselben vier Fragen gestellt, nur ist „es" einmal
+    ein Tier und einmal die ganze Gruppe. Ein **Fremdling** anderer Art kostet
+    dem Schwarmbild eine Stufe, so wie Gesellschaft dem Porträt die Bestnote
+    kostet. Ein angeschnittenes Tier zählt **nicht** zum Schwarm — sonst
+    bekäme man Geld für Fische, die man nicht ins Bild bekommen hat.
+    - **Die neue Forderung ist geometrisch und fällt aus der Mechanik heraus:**
+      eine Gruppe braucht einen weiteren Rahmen, ein Schwarmbild wird also
+      **früher** losgelassen — je größer der Schwarm, desto früher. Gleiche Taste,
+      gleicher zugehender Rahmen, umgekehrter Instinkt.
+    - **Warum die Schwarm-Füllung anders gemessen wird** (`frame_span` statt
+      `frame_fill`): eine Reihe Fische ist überwiegend das Wasser zwischen ihnen,
+      also **sinkt** die maximal erreichbare Flächenfüllung mit der Schwarmgröße
+      (gemessen 0,78 beim Paar gegen 0,42 bei sechs). Eine Flächenschwelle hätte
+      große Schwärme unbewertbar gemacht. Die **Spanne** — wie viel des Rahmens
+      sie auf der knapperen Achse einnehmen — liest sich bei zwei Fischen wie bei
+      neun.
+    - **`GROUP_TIGHT` ist gemessen, und der erste Wert war falsch.** Bei 0,72 hatte
+      ein **Paar** nur **7 Ticks** zwischen „eng genug" und „angeschnitten" — ein
+      Achtelsekunden-Quick-Time-Event, genau das, was die Mechanik nicht sein
+      soll. Bei **0,50** bekommt ein Paar 19 Ticks, ein Sechserschwarm 62; das
+      Porträt hat 21. Die Reihenfolge stimmt so: zwei Fische sind am leichtesten
+      zu finden und am fummeligsten zu komponieren.
   - **Unter Wasser das Meer, oben das Land** (`creatures_in_view`): welche Kreaturen
     überhaupt in Frage kommen, hängt davon ab, auf welcher Seite der Oberfläche sein
     Kopf ist. Untergetaucht sind es Schwarm + Bodenkrebse, aufgetaucht **nur der
     Strand**. Im offenen Meer heißt das weiterhin „oben gibt es nichts"; neben einer
     Insel heißt es, dass Auftauchen etwas anderes ist als nur Luftholen.
-  - **Qualität** (`photo_quality`) aus der Entfernung: `perfekt`/`gut`/`unscharf`,
-    und **Sprinten kostet eine Stufe** — man nähert sich also leise statt zu pflügen.
+  - **Qualität**: `perfekt`/`gut`/`unscharf`, und **Sprinten kostet eine Stufe**
+    (`demote`) — man nähert sich also leise statt zu pflügen. `photo_quality`
+    (Entfernung, skaliert per `photo_span`) lebt weiter für den **HUD-Sucher**
+    und die Sichtungen; über das Bild entscheidet `frame_quality`.
+  - **Der Sucher sagt, was drin ist** (`viewfinder_ink`, `frame_message`). Die
+    **Ecken tragen die Note** — dort schaut man ohnehin hin, und dort sitzt die
+    Kante, die das Tier gleich anschneidet. Ohne das war „wann loslassen?" geraten,
+    am Handy mangels Tastengefühl vollständig. Die laufende Zeile spricht ab dem
+    Auslöser nicht mehr über den nächsten Fisch, sondern über **das Bild**, samt
+    Anzahl (`3 ×  …`) — sonst erführe man erst eine Dunkelkammer später, dass zwei
+    drauf waren, ohne es mit dem eigenen Tun verbinden zu können. **Zahl statt
+    Plural**: braucht keine Grammatik und trägt auch den Necknamen, den eine Art
+    vor ihrer Bestimmung hat.
   - **Scheue Arten (`Species#shy`, `Game#update_shyness`) — Fotografieren ist
     Geduld, nicht Schwimmen.** `shy` ist der Abstand in px, ab dem eine Art
     flieht, und er liegt **absichtlich über `PHOTO_CLOSE`**: näher als sie sich
@@ -616,7 +692,26 @@ Screen-Positionen und werden nicht direkt gesetzt.
     (`reset_film` in `reset_game`, `state.album` nur in `initialize_game`).
   - Ein Foto, das **nicht besser** ist als das vorhandene (auf der Rolle *oder* im
     Buch), kostet **keinen Film** (`improves?`) — sonst wäre Vor-einem-Fisch-Stehen
-    eine Strategie.
+    eine Strategie. **Besser heißt zweierlei:** schärfer *oder* mehr Tiere drauf.
+  - **Der Schwarm ist eine eigene Zeile im Buch** (`state.flocks`, neben `album`
+    wie `sighted`) — nicht ein reicherer Album-Wert, weil die beiden Tatsachen
+    unabhängig wandern: ein enges Porträt am Morgen und ein loser Schwarm am
+    Nachmittag sind zwei Wahrheiten über dasselbe Tier, und keine darf die andere
+    stillschweigend überschreiben. Die Rolle trennt sie aus demselben Grund
+    (`store_shot` hebt Note und Schwarmgröße getrennt an).
+    - **Eigenes Honorar** (`flock_fee`, `FLOCK_FACTOR`=0,9 je zusätzlichem Tier)
+      statt eines Multiplikators aufs Porträt — nur so hält die Invariante, auf
+      der die Balance ruht: **was die Fotografie eingebracht hat, ist exakt
+      `album_score`**, und das gilt nur, wenn jede Sache, die das Buch merkt,
+      ihren eigenen Preis hat. Ein perfekter einzelner Hornhering bringt 8, sechs
+      davon 22 **obendrauf**.
+    - **Ein unscharfes Schwarmbild merkt sich nichts** — die Regel ist tragend,
+      nicht ordentlich: sonst wäre der weit offene Rahmen ein Gratis-Eintrag
+      (drücken, loslassen, der größte Schwarm in der Nähe steht im Buch, ohne dass
+      komponiert wurde). Die ganze Mechanik hätte eine Tür daneben.
+    - Sichtbar wird er als **Abzeichen `× n`** auf dem Abzug in der Dunkelkammer
+      (gegenüber dem `NEU`-Abzeichen) und als „Schwarm bis n" unter dem
+      lateinischen Namen im Artenbuch.
   - `F` ist Auslöser unter Wasser **und** Dunkelkammer am Boot — dieselbe Taste, weil
     man am Boot an der Oberfläche ist, wo es nie ein Motiv gibt.
   - **Namensgebung-Falle:** nichts hier heißt `camera` — das Wort bedeutet schon die
@@ -924,7 +1019,13 @@ Tunnel: `TUNNEL_MIN/MAX`, `TUNNEL_WAVE`, `MIN_GAP`, `SAG_MAX`, `DOME_SPAN`,
 `SOLID_STEP_UP=48`, `ISLAND_MIN_SECTOR=2`, `ISLAND_MAX_SECTOR=10`, `ISLAND_NEAR_SECTOR=3`,
 `ISLAND_COUNT=3`,
 `FILM_MAX=12`, `PHOTO_REACH=320`, `PHOTO_CLOSE=90`, `PHOTO_MID=190`, `PHOTO_BEHIND=40`,
-`QUALITY_FACTOR` (unscharf 0.5 / gut 1.0 / perfekt 1.6), `SHUTTER_TICKS`, `NOTE_TICKS`;
+`QUALITY_FACTOR` (unscharf 0.5 / gut 1.0 / perfekt 1.6), `SHUTTER_TICKS`, `NOTE_TICKS`,
+`FLOCK_FACTOR=0.9`;
+`app/world/framing.rb` (Bildgestaltung): `FRAME_WIDE=620`, `FRAME_TIGHT=70`,
+`FRAME_CLOSE=4.2`, `FRAME_ASPECT=0.68`, `FRAME_AHEAD=90`, `FILL_PERFECT=0.14`,
+`FILL_GOOD=0.03`, `CENTRED_ENOUGH=0.45`, `FLOCK_MIN=2`, `GROUP_TIGHT=0.50`,
+`GROUP_LOOSE=0.28` — die letzten beiden **gemessen, nicht geraten** (s. o.);
+`app/world/world_stream.rb`: `SHOAL_GAP=46`, `SHOAL_STAGGER=26`;
 `FOG_OF_WAR=true`, `DEBUG=false`.
 
 `app/world/world_generator.rb` (Geländeform): `FLOOR_TOP_Y`, `SHELF_*`,
