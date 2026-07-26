@@ -697,6 +697,14 @@ Screen-Positionen und werden nicht direkt gesetzt.
   des Wassers. Oben gilt automatisch alles Übrige: `breathing?` wahr (O2 füllt
   auf), `at_open_surface?` wahr (kein Fog, Fische unsichtbar, **Strandkrebse
   fotografierbar**).
+- **Fallen heißt „kommt von Fels", nicht „landet auf Fels"** (`clamp_depth`,
+  `dropping`): ob ein Aufstieg über die Decke ein *Fall* oder ein *Snap* ist,
+  entscheidet, **wo er herkam** (`on_land? || airborne`, vor dem Überschreiben
+  gelesen) — nicht, worauf er zusteuert. Vorher wurde das Ziel gefragt, und offene
+  See ist kein Land: von einer Klippe ins Meer war deshalb ein Teleport über die
+  ganze Fallhöhe. Unter der Oberfläche bleibt es ein Snap, denn dort ist der Clamp
+  **Auftrieb statt Schwerkraft** — wer hochkrault, muss jeden Tick an der
+  Wasserlinie gehalten werden, nicht in eine beschleunigende Kurve gesteckt.
 - **Land-Physik** (`state.on_land`, gesetzt in `clamp_depth`): keine Vertikal­eingabe
   (kein Hochschwimmen am Berg), **Schwerkraft statt Auftrieb** (`fall_toward`, von
   der Kante fällt er statt zu springen), Laufen mit `LAND_SPEED`=0.9, kein Sprint,
