@@ -25,7 +25,8 @@ class Species
   SHELLS = "sprites/animals/crustaceans/"
 
   attr_reader :key, :name, :latin, :sheet, :frame_w, :frame_h, :frames_per_row,
-              :biomes, :shallowest, :deepest, :rarity, :fee, :habitat, :tease, :shy
+              :biomes, :shallowest, :deepest, :rarity, :fee, :habitat, :tease, :shy,
+              :size_cm
 
   # habitat says *where in the water* a species lives, and so which of the sea's
   # populations it belongs to: :water is the swarm in the column, :floor walks on
@@ -42,9 +43,15 @@ class Species
   # purpose: a perfect frame is nearer than a shy fish will tolerate being
   # approached, so the only way to get one is to stop and let it come to you.
   # Tied loosely to rarity, which makes a difficulty curve out of nothing.
+  #
+  # size_cm is how big the animal actually is, which the sprite cannot say — a
+  # crab and a shark are both a handful of pixels on the screen. It is what makes
+  # a developed print read as a field note rather than a receipt, and it is the
+  # first describable property a species has: an assignment like "photograph
+  # something over a metre" needs a number to ask about.
   def initialize(key:, name:, latin:, sheet:, biomes:, shallowest:, deepest:,
-                 rarity:, fee:, tease:, frame_w: 32, frame_h: 16, frames_per_row: 8,
-                 habitat: :water, shy: 0)
+                 rarity:, fee:, tease:, size_cm: 0, frame_w: 32, frame_h: 16,
+                 frames_per_row: 8, habitat: :water, shy: 0)
     @key = key
     @name = name
     @latin = latin
@@ -60,10 +67,21 @@ class Species
     @habitat = habitat
     @tease = tease
     @shy = shy
+    @size_cm = size_cm
   end
 
   def lives_at?(biome_name, depth)
     biomes.include?(biome_name) && depth >= shallowest && depth <= deepest
+  end
+
+  # How big it is, said the way a diver would say it. Anything a metre or over
+  # stops being a number of centimetres and becomes a number of metres — "380 cm"
+  # is arithmetic, "3,8 m" is a shark. German decimal comma, built by hand rather
+  # than by a format string, because there is no locale in here to ask.
+  def size_label
+    return "#{size_cm} cm" if size_cm < 100
+
+    "#{size_cm.idiv(100)},#{(size_cm % 100).idiv(10)} m"
   end
 
   def weight
@@ -74,61 +92,62 @@ class Species
     new(key: "burgunder", name: "Blauer Burgunder", latin: "Vinum caeruleum",
         sheet: SCALAR + "blue.png", biomes: ["Sandbank", "Riff"],
         shallowest: 0, deepest: 55, rarity: :common, tease: "etwas Blaues, sehr Gemütliches",
-        shy: 110,
+        shy: 110, size_cm: 22,
         fee: 5),
 
     new(key: "hornhering", name: "Gemeiner Hornhering", latin: "Clupea cornuta",
         sheet: BASS + "grey.png", biomes: ["Sandbank", "Kelpwald"],
         shallowest: 0, deepest: 70, rarity: :common, tease: "grau, mit Hörnchen am Kopf",
-        shy: 110,
+        shy: 110, size_cm: 28,
         fee: 5),
 
     new(key: "scalarus", name: "Scalarus Coloris", latin: "Scalarus coloris",
         sheet: SCALAR + "orange.png", biomes: ["Riff", "Sandbank"],
         shallowest: 0, deepest: 60, rarity: :common, tease: "bunt und auffällig flach",
-        shy: 120,
+        shy: 120, size_cm: 18,
         fee: 6),
 
     new(key: "zottelmaul", name: "Grünes Zottelmaul", latin: "Barbatus vorax",
         sheet: SCALAR + "green.png", biomes: ["Kelpwald"],
         shallowest: 0, deepest: 80, rarity: :common, tease: "grün und ziemlich zottelig",
-        shy: 130,
+        shy: 130, size_cm: 34,
         fee: 8),
 
     new(key: "doktor", name: "Dicker Doktor", latin: "Medicus obesus",
         sheet: BASS + "orange.png", biomes: ["Kelpwald", "Riff"],
         shallowest: 10, deepest: 75, rarity: :uncommon, tease: "auffällig gut genährt",
-        shy: 150,
+        shy: 150, size_cm: 41,
         fee: 14),
 
     new(key: "rabauke", name: "Roter Rabaukenbarsch", latin: "Perca turbulenta",
         sheet: BASS + "red.png", biomes: ["Riff"],
         shallowest: 5, deepest: 65, rarity: :uncommon, tease: "rot und schlecht gelaunt",
-        shy: 150,
+        shy: 150, size_cm: 33,
         fee: 16),
 
     new(key: "prunkflosser", name: "Purpurner Prunkflosser", latin: "Pompa purpurea",
         sheet: SCALAR + "purple.png", biomes: ["Riff", "Tiefsee"],
         shallowest: 40, deepest: 120, rarity: :uncommon, tease: "lila, hält sich für was",
-        shy: 170,
+        shy: 170, size_cm: 26,
         fee: 22),
 
     new(key: "truebfisch", name: "Tiefblauer Trübfisch", latin: "Obscurus caeruleus",
         sheet: BASS + "blue.png", biomes: ["Tiefsee"],
         shallowest: 60, deepest: 200, rarity: :common, tease: "blau, wirkt bedrückt",
-        shy: 130,
+        shy: 130, size_cm: 47,
         fee: 18),
 
     new(key: "laternentraeger", name: "Fahler Laternenträger", latin: "Lucerna abyssi",
         sheet: SCALAR + "purple.png", biomes: ["Tiefsee"],
         shallowest: 95, deepest: 260, rarity: :rare, tease: "blass, leuchtet vor sich hin",
-        shy: 200,
+        shy: 200, size_cm: 38,
         fee: 45),
 
     new(key: "schattenhai", name: "Schwarzer Schattenhai", latin: "Carcharias umbra",
         sheet: "sprites/animals/dark_shark_32_32/shark.png",
         frame_w: 32, frame_h: 32, biomes: ["Tiefsee"],
         shallowest: 0, deepest: 300, rarity: :rare, tease: "groß. sehr groß.",
+        size_cm: 380,
         fee: 70),
 
     # --- the sea floor ------------------------------------------------------
@@ -145,36 +164,42 @@ class Species
         sheet: SHELLS + "taschenkrebs.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Sandbank", "Riff"],
         shallowest: 0, deepest: 70, rarity: :common, tease: "krabbelt seitwärts, hat Scheren",
+        size_cm: 15,
         fee: 6),
 
     new(key: "einsiedler", name: "Einsiedler Fritz", latin: "Eremita domestica",
         sheet: SHELLS + "einsiedler.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Sandbank", "Riff"],
         shallowest: 0, deepest: 80, rarity: :common, tease: "ein Schneckenhaus mit Beinen",
+        size_cm: 9,
         fee: 8),
 
     new(key: "winkerkrabbe", name: "Grüne Winkerkrabbe", latin: "Uca salutans",
         sheet: SHELLS + "winkerkrabbe.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Kelpwald", "Sandbank"],
         shallowest: 0, deepest: 75, rarity: :common, tease: "winkt mit einer Riesenschere",
+        size_cm: 7,
         fee: 10),
 
     new(key: "schlickkrebs", name: "Grauer Schlickkrebs", latin: "Cancer limosus",
         sheet: SHELLS + "schlickkrebs.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Tiefsee", "Kelpwald"],
         shallowest: 50, deepest: 165, rarity: :common, tease: "grau, staubt beim Laufen",
+        size_cm: 12,
         fee: 12),
 
     new(key: "hummer", name: "Roter Panzerhummer", latin: "Homarus loricatus",
         sheet: SHELLS + "hummer.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Riff", "Kelpwald"],
         shallowest: 15, deepest: 95, rarity: :uncommon, tease: "rot, gepanzert, sehr wehrhaft",
+        size_cm: 52,
         fee: 20),
 
     new(key: "languste", name: "Gestreifte Languste", latin: "Palinurus fasciatus",
         sheet: SHELLS + "languste.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Riff", "Tiefsee"],
         shallowest: 55, deepest: 130, rarity: :uncommon, tease: "gestreift, unfassbar lange Fühler",
+        size_cm: 44,
         fee: 28),
 
     # Down where the suit already complains. The last page of the crustacean
@@ -183,6 +208,7 @@ class Species
         sheet: SHELLS + "abgrundkrabbe.png", frame_w: 20, frame_h: 12, habitat: :floor,
         biomes: ["Tiefsee"],
         shallowest: 105, deepest: 280, rarity: :rare, tease: "blass, viel zu lange Beine",
+        size_cm: 260,
         fee: 55),
 
     # --- above the waterline -------------------------------------------------
@@ -194,6 +220,7 @@ class Species
         sheet: SHELLS + "strandkrabbe.png", frame_w: 20, frame_h: 12, habitat: :shore,
         biomes: ["Sandbank", "Kelpwald", "Riff", "Tiefsee"],
         shallowest: 0, deepest: 5, rarity: :common, tease: "flink, immer im Trockenen",
+        size_cm: 6,
         fee: 14),
   ]
 
@@ -204,6 +231,7 @@ class Species
   KRAKEN = new(key: "kraken", name: "? ? ?", latin: "Architeuthis umbra",
                sheet: "sprites/animals/dark_shark_32_32/shark.png", frame_w: 32, frame_h: 32,
                biomes: [], shallowest: 130, deepest: 400, rarity: :rare, tease: "da ist etwas",
+               size_cm: 0, # nobody has ever measured one
         fee: 0)
 
   BY_KEY = ALL.each_with_object({}) { |species, index| index[species.key] = species }

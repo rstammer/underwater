@@ -122,4 +122,19 @@ class SpeciesTests
     assert.equal! sprite[:source_w], fish.species.frame_w
     assert.equal! sprite[:source_h], fish.species.frame_h
   end
+
+  # --- how big a thing actually is -------------------------------------------
+  #
+  # The sprite cannot say: a crab and a shark are both a handful of pixels.
+
+  def test_every_species_says_how_big_it_is(args, assert)
+    assert.true! Species::ALL.all? { |species| species.size_cm > 0 },
+                 "a field guide without sizes is not a field guide"
+  end
+
+  def test_a_size_reads_as_centimetres_until_it_is_a_metre(args, assert)
+    assert.true! Species["winkerkrabbe"].size_label.include?("cm")
+    assert.true! Species["schattenhai"].size_label.include?("m"), "a shark is metres"
+    assert.false! Species["schattenhai"].size_label.include?("cm"), "380 cm is arithmetic"
+  end
 end
