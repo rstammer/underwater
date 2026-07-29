@@ -44,3 +44,6 @@ artenbuch.txt
 # Save slots — one file per career, never versioned
 book_*.txt
 book_*.txt.bak
+
+# Notes for me, not for the repo — they live on disk but not in the tree.
+CLAUDE.md

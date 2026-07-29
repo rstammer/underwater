@@ -50,6 +50,12 @@ class IslandWorld
   # and the swim out is along the surface, where you are breathing, so getting
   # to it costs no air whatever your bottle is.
   SHOP_SECTOR = 3
+  # Where the people are (app/world/islander.rb). Fixed for the same reason the
+  # shop is: somebody you can go back and ask again has to be somewhere you can
+  # go back to. Out to the *left*, opposite the shop, so the two things worth
+  # finding are not both in the same direction — and far enough past the island
+  # next door (-2, up to SPAN_MAX/2 wide) that the two never touch.
+  BEACH_SECTOR = -5
   TUNNEL_MIN = 130     # tightest the corridor ever squeezes ...
   TUNNEL_MAX = 300     # ... and the widest it opens out
   TUNNEL_WAVE = 260    # px over which its height changes
@@ -131,10 +137,11 @@ class IslandWorld
     }.tap do |shape|
       # Overridden after the rolls, never instead of one: the draws have to stay
       # in their order or every island in the sea changes.
-      # Both of these are places the game *sends* you, so neither may roll a
+      # All three of these are places the game *sends* you, so none may roll a
       # shore you cannot climb: the island next door is where a round starts,
-      # and the shop is no use behind a cliff face.
-      shape[:shore] = :through if sector == HOME_SECTOR || sector == SHOP_SECTOR
+      # the shop is no use behind a cliff face, and there is no talking to
+      # anybody you cannot walk up to.
+      shape[:shore] = :through if [HOME_SECTOR, SHOP_SECTOR, BEACH_SECTOR].include?(sector)
     end
   end
 
@@ -222,8 +229,15 @@ class IslandWorld
 
   # --- Where the island lies, in world x -----------------------------------
 
+  # Where an island starts, answerable without building one — anything that
+  # wants to place something along a fixed island (the people on the beach) asks
+  # this rather than reaching for a stamped world it may not have yet.
+  def self.first_x_for(sector)
+    centre_x(sector) - shape_for(sector)[:span].idiv(2)
+  end
+
   def first_x
-    self.class.centre_x(sector) - span.idiv(2)
+    self.class.first_x_for(sector)
   end
 
   def last_x

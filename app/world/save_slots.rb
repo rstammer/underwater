@@ -76,7 +76,8 @@ class Game
                     gear_suit: gear_level(:suit),
                     gear_mask: gear_level(:mask),
                     gear_fins: gear_level(:fins),
-                    shop_met: state.shop_met.to_i)
+                    shop_met: state.shop_met.to_i,
+                    kraken_met: state.kraken_met.to_i)
   end
 
   # --- what is on the shelf ---------------------------------------------------

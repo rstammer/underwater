@@ -47,4 +47,5 @@ require "tests/shoal_tests.rb"
 require "tests/flock_tests.rb"
 require "tests/gear_tests.rb"
 require "tests/shop_tests.rb"
+require "tests/islander_tests.rb"
 

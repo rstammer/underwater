@@ -17,7 +17,7 @@
 # right.
 require "zlib"
 
-W = 112
+W = 152 # widened from 112 to make room for the drum kit on the right
 H = 44
 
 PALETTE = {
@@ -40,13 +40,55 @@ PALETTE = {
   "P" => [118, 84, 54],
   "N" => [58, 40, 26],    # the shaded inside of the hut    # the bar top's shaded front edge
   "n" => [104, 74, 48],    # the planking of the bar front
-  "h" => [96, 62, 44],     # Insa: hair ...
+  "h" => [222, 184, 104],  # Andi: fair hair ...
   "k" => [226, 176, 138],  # ... face and hands ...
   "e" => [40, 34, 32],     # ... eyes ...
-  "t" => [86, 142, 156],   # ... and her shirt
+  "t" => [86, 142, 156],   # ... and his shirt
   "S" => [72, 108, 132],   # lettering on the sign
   "f" => [196, 208, 216],  # a stack of film boxes
+  # Andi's kit, set up beside the stall. He is a sound engineer and Macblinded's
+  # drummer, out here on holiday minding a counter — and this is the only place
+  # the game *shows* you that rather than having somebody mention it. It is set
+  # up, not packed away: he did not come here to stop playing.
+  "m" => [178, 58, 52],    # drum shells, a red kit
+  "M" => [212, 90, 78],    # ... their lit side
+  "i" => [232, 226, 208],  # drum heads
+  "z" => [226, 190, 92],   # cymbals, brass
+  "Z" => [140, 116, 56],   # ... and the hardware holding them up
 }
+
+# Laid over the stall at a position rather than typed into its rows: the shop is
+# 44 rows tall and hand-editing every one of them to make room on the right is
+# how a silent one-column shift gets in.
+#
+# Kept to three things — one cymbal, one tom, one bass drum — because a full kit
+# at this size is a smudge, and drawn bigger than a real kit would be beside a
+# market stall. At true scale it came out eleven pixels across and landed on
+# screen as a red dot: every detail was a single pixel, and a single pixel
+# doubles to two. It has to be legible before it is accurate.
+DRUMS_AT = [128, 24] # x, y (y counts down from the top, like the rows do)
+DRUMS = [
+  "..zzzzzzzzzzzz..",
+  "..ZZZZZZZZZZZZ..",
+  ".......ZZ.......",
+  ".......ZZ.......",
+  "..mmmmmZZ.......",
+  "..miiimZZ.......",
+  "..miiimZZ.......",
+  "..mmMMMZZ.......",
+  ".......ZZ.......",
+  ".......ZZ.......",
+  "..mmmmmmmmmmm...",
+  ".mMMMMMMMMMMMm..",
+  ".miiiiiiiiiiim..",
+  ".miiiiiiiiiiim..",
+  ".miiiiiiiiiiim..",
+  ".miiiiiiiiiiim..",
+  ".mMMMMMMMMMMMm..",
+  "..mmmmmmmmmmm...",
+  "..ZZ.......ZZ...",
+  "..ZZ.......ZZ...",
+]
 
 # Drawn facing the camera; nothing flips it. The hut is on the left, the counter
 # and its awning in the middle, the board rack on the right.
@@ -67,12 +109,12 @@ SHAPE = [
   "...................dd..............aaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaA....dbbccbbd...dBBccBBd",
   "...................dd..............aaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaA....dbbccbbd...dBBccBBd",
   "...................dd.............dd.............................................dd....dbbccbbd..dBBccBBd",
+  "...................dd.............dd.............................................dd....dbbccbbd..dBBccBBd",
   "...................dd.............dd..................hhhhhh.....................dd....dbbccbbd..dBBccBBd",
   "...................dd.............dd..................hhhhhh.....................dd....dbbccbbd..dBBccBBd",
-  "...................dd.............dd..................hhhhhh.....................dd....dbbccbbd..dBBccBBd",
-  "...................dd.............dd..................hkkkkh.....................dd....dbbccbbd..dBBccBBd",
-  ".......ygg.yoo.ygg.ddfyoo.........dd..................hekkeh.....................dd...ddbbccbbdddddBBccBBddddddd",
-  ".......ggg.ooo.ggg.ddfooo.........dd..................hkkkkh.....................dd...ddbbccbbdddddBBccBBddddddd",
+  "...................dd.............dd...................kkkk......................dd....dbbccbbd..dBBccBBd",
+  ".......ygg.yoo.ygg.ddfyoo.........dd...................ekke......................dd...ddbbccbbdddddBBccBBddddddd",
+  ".......ggg.ooo.ggg.ddfooo.........dd..................kkkkkk.....................dd...ddbbccbbdddddBBccBBddddddd",
   ".......ggg.ooo.ggg.ddfooo.........dd...................kkkk......................dd....dbbccbbd...dBBccBBd",
   ".......ggg.ooo.ggg.ddfooo.........dd..................tttttt.....................dd....dbbccbbd...dBBccBBd",
   ".......ggg.ooo.ggg.ddfooo.........dd..................tttttt.....................dd.....dbbccbbd..dBBccBBd",
@@ -122,6 +164,19 @@ if __FILE__ == $0
   require "fileutils"
   FileUtils.mkdir_p(out)
   rows = SHAPE.map { |row| row.ljust(W, ".") }
+
+  # Stamp the kit in. '.' stays transparent so the stall shows through wherever
+  # the block is empty.
+  dx, dy = DRUMS_AT
+  DRUMS.each_with_index do |drum_row, i|
+    abort "drums row #{i} runs off the sprite" if dx + drum_row.length > W
+    abort "drums row #{i} runs off the bottom" if dy + i >= H
+
+    drum_row.each_char.with_index do |char, j|
+      rows[dy + i][dx + j] = char unless char == "."
+    end
+  end
+
   pixels = []
   H.times do |y|
     W.times do |x|

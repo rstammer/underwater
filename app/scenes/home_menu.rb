@@ -302,7 +302,7 @@ class Game
                           alignment_enum: 2, vertical_alignment_enum: 2,
                           r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
       if row[:top]
-        outputs.labels << { x: right, y: y - 48, text: "das Beste, was Insa hat",
+        outputs.labels << { x: right, y: y - 48, text: "das Beste, was Andi hat",
                             size_enum: 0, alignment_enum: 2, vertical_alignment_enum: 2,
                             r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
       end

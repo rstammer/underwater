@@ -92,8 +92,12 @@ class Game
     state.inventory.length >= INVENTORY_MAX
   end
 
+  # E is the "do the thing in front of you" key, and on the beach the thing in
+  # front of you is a person (Game#update_talking). Nothing collectable is ever
+  # up there — the treasures are all on the sea floor — but the two are checked
+  # against each other rather than left to be true at the same time by luck.
   def update_pickup
-    grab_item if inputs.keyboard.key_down.e
+    grab_item if inputs.keyboard.key_down.e && islander_in_reach.nil?
   end
 
   def update_boat_stash

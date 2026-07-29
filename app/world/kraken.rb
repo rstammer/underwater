@@ -54,9 +54,23 @@ class Game
       return
     end
 
-    state.kraken ||= new_kraken
+    unless state.kraken
+      state.kraken = new_kraken
+      remember_meeting_the_kraken
+    end
     move_kraken
     seize_diver_if_cornered
+  end
+
+  # Having seen it is a fact about the career, not about the dive — the people on
+  # the beach talk differently to somebody who has been down there, and they have
+  # to still do that tomorrow. Written the first time only: it surfaces and fades
+  # several times in a deep dive, and each fade would otherwise cost a file write.
+  def remember_meeting_the_kraken
+    return unless state.kraken_met.to_i.zero?
+
+    state.kraken_met = 1
+    save_book
   end
 
   # Present only underwater and only below the trigger depth, with hysteresis so

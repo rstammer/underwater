@@ -40,7 +40,7 @@ class Game
     "flag"       => { path: "sprites/decor/flag.png",       w: 12, h: 10 },
     "rock"       => { path: "sprites/decor/rock.png",       w: 14, h: 10 },
     "fern"       => { path: "sprites/decor/fern.png",       w: 14, h: 9 },
-    "shop"       => { path: "sprites/decor/shop.png",       w: 112, h: 44 },
+    "shop"       => { path: "sprites/decor/shop.png",       w: 152, h: 44 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up
@@ -96,7 +96,16 @@ class Game
       outputs.sprites << world_decorations(world, dx)
     end
     render_shop_hut
-    render_shop_hint if at_the_shop? && !game_paused?
+    # Not while he is talking: the bubble hangs over the same stall, and the two
+    # were drawn straight through each other.
+    render_shop_hint if at_the_shop? && !game_paused? && !islander_speaking?
+    render_camp
+    render_islanders
+    render_ball
+    unless game_paused?
+      render_islander_hint
+      render_islander_speech
+    end
     if home_visible?
       outputs.sprites << home_boat
       # Not while the boat screen is up: labels always draw over sprites in
@@ -125,7 +134,7 @@ class Game
   end
 
   # Two, not three. At three the stall stood three and a bit divers high: the
-  # counter came up over his head, the trestle table with it, and the woman
+  # counter came up over his head, the trestle table with it, and the man
   # behind it read as twice his size. It is a market stall on a beach, not a
   # civic building — the whole thing was simply drawn too big for the world,
   # which is one number rather than three details to nudge.
@@ -437,9 +446,14 @@ class Game
                      ground + DECOR_SPRITES["shop"][:h] * SHOP_SCALE + 150 - state.camera_y)
   end
 
+  # Both things you can do here on one card, rather than a second card floating
+  # over this one saying "[ E ] ansprechen": the stall and the man behind it are
+  # one place, and two panels stacked on the same spot is how it looked when
+  # they were kept apart.
   def shop_action_lines
-    [{ text: "#{SHOP_KEEPER}s Laden", size: 2, color: [232, 244, 252] },
+    [{ text: SHOP_NAME, size: 2, color: [232, 244, 252] },
      { text: "[ L ]  Ausrüstung kaufen", size: 0, color: [232, 226, 150] },
+     { text: "[ E ]  #{SHOP_KEEPER} ansprechen", size: 0, color: [232, 226, 150] },
      { text: "#{state.credits} Cr dabei", size: 0, color: [150, 198, 224] }]
   end
 

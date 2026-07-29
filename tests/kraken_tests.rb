@@ -150,4 +150,42 @@ class KrakenTests
 
     assert.true! args.outputs.sprites.length > 0, "the murk, the tentacles and the eye draw"
   end
+
+  # --- having met it ---------------------------------------------------------
+
+  # Meeting it is a fact about the career, not about the dive: the people on the
+  # beach talk differently to somebody who has been down there and seen it, and
+  # they have to still do that tomorrow. So it is written to the book the first
+  # time, the way a sighting is.
+  def test_meeting_it_is_remembered(args, assert)
+    game = deep(args, metres: 170)
+    assert.true! args.state.kraken_met.to_i.zero?, "nobody has met it yet"
+
+    game.update_kraken
+
+    assert.true! game.kraken_present?, "it is there to be met"
+    assert.equal! args.state.kraken_met.to_i, 1, "and meeting it sticks"
+  end
+
+  # It comes and goes within a single dive — that must not read as meeting it
+  # again, and it must not rewrite the book every time the fog takes it.
+  def test_meeting_it_twice_is_still_once(args, assert)
+    game = deep(args, metres: 170)
+    game.update_kraken
+    args.state.depth_y = WATERLINE_Y - 100 * PIXELS_PER_METRE
+    game.update_kraken # gone again
+
+    assert.false! game.kraken_present?, "it faded"
+    assert.equal! args.state.kraken_met.to_i, 1, "but he has still met it"
+  end
+
+  # Shallow diver, no legend: the rumours on the beach stay rumours until you
+  # have actually been down far enough to see it.
+  def test_it_is_not_met_in_the_shallows(args, assert)
+    game = deep(args, metres: 40)
+
+    game.update_kraken
+
+    assert.true! args.state.kraken_met.to_i.zero?, "never been near it"
+  end
 end

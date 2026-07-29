@@ -1,4 +1,4 @@
-# The island shop, and the woman who runs it. Reopens Game.
+# The Insel-Späti, and the man minding it. Reopens Game.
 #
 # It stands on a fixed island (IslandWorld::SHOP_SECTOR), always in the same
 # place, always with a beach you can walk up. A shop you have to search for is
@@ -8,14 +8,26 @@
 # app/world/gear.rb). Each is a ladder of three rungs and each rung is a decision
 # about which limit you would rather stop feeling.
 #
-# Insa is the other half of it. Her line is not decoration and it is not a
-# pot of quotes rolled at random: it is picked off *your* state — how deep you
-# have been, how the book is coming along, what you are carrying, what you have
-# not seen yet. A shopkeeper who tells you the same thing every visit is a
-# vending machine; one who notices is a person, and she doubles as the only
-# signposting the game has for water you have not found yet.
+# Andi is the other half of it, and he does not own the place: he is a sound
+# engineer and the drummer of Macblinded, he is on holiday out here, and he is
+# covering the counter for somebody. That is the whole reason the beach island
+# across the water has two guitarists on it who cannot get a rehearsal together
+# — his band is over there, and he is over here, behind a till. Neither half of
+# that is stated anywhere as a fact; it is only ever something somebody says.
+#
+# His line is not decoration and it is not a pot of quotes rolled at random: it
+# is picked off *your* state — how deep you have been, how the book is coming
+# along, what you are carrying, what you have not seen yet. A shopkeeper who
+# tells you the same thing every visit is a vending machine; one who notices is
+# a person, and he doubles as the only signposting the game has for water you
+# have not found yet.
 class Game
-  SHOP_KEEPER = "Insa"
+  SHOP_KEEPER = "Andi"
+  # A Späti is open when nothing else is, which is exactly what a shop at the
+  # edge of the map is for. The name is the sign over the counter, so it is what
+  # gets printed rather than "<somebody>'s shop" — the place outlives whoever is
+  # standing in it today, and Andi is explicitly only standing in it today.
+  SHOP_NAME = "Insel-Späti"
   SHOP_MARGIN = 26
   SHOP_PAD = 26
   SHOP_HEAD_H = 96
@@ -65,19 +77,26 @@ class Game
     save_book
   end
 
+  # He says what he is doing behind the counter before he says what is on it.
+  # The shop is the thing you came for; that he would rather be somewhere else
+  # is the thing you remember, and it is what makes the two guitarists across
+  # the water somebody's bandmates rather than scenery.
   SHOP_INTRO_LINES = [
-    "Na, du bist neu hier. Ich bin #{SHOP_KEEPER}.",
+    "Moin. #{SHOP_KEEPER}. Ich steh hier nur aushilfsweise.",
     "",
-    "Den Laden hier gibt's, seit ich denken kann. Ich verkaufe",
-    "an alle, die runtergehen — Film, Luft und Anzüge.",
+    "Eigentlich mach ich Ton. Studio, Mischpult, der ganze",
+    "Kram — und Schlagzeug, bei Macblinded. Sagt dir nichts,",
+    "sagt noch niemandem was. Kommt aber noch.",
+    "",
+    "Bin im Urlaub hier und hüte den Späti. Späti heisst",
+    "Späti, weil immer einer aufhat. Film, Luft, Anzüge.",
     "",
     "Deine Ausrüstung ist das, was dich begrenzt: wie viele Bilder",
     "du machen kannst, wie lange du unten bleibst, wie tief du",
     "darfst. Bring mir Credits, und ich hebe dir jede der drei",
     "Grenzen an. Behalten tust du das für immer.",
     "",
-    "Und keine Sorge — du findest mich immer hier. Diese Insel",
-    "läuft nicht weg.",
+    "Und keine Sorge, ich lauf dir nicht weg. Ich hab ja Urlaub.",
   ]
 
   def close_shop
@@ -120,10 +139,15 @@ class Game
     true
   end
 
-  # --- what she says ---------------------------------------------------------
+  # --- what he says ----------------------------------------------------------
 
   # Read off the state, most specific first. The order is the point: the first
   # thing that is true about this diver is the most useful thing to tell them.
+  #
+  # The last one is the fallback — what he says when there is nothing left to
+  # tell you — and it is the only place his own life gets a word in. By then you
+  # have heard everything useful he has, so a man behind a counter thinking
+  # about his band is the most interesting thing left in the room.
   def shop_tip
     return "Du bist ja ganz neu. Fang flach an — an der Sandbank fangen alle an, und sie zahlt auch." if state.log_dives.to_i <= 1
     return "Erst mal Luft holen? Dein Anzug hat was abbekommen." if state.suit < SUIT_MAX * 0.4
@@ -135,8 +159,18 @@ class Game
     return "Du hast Geld auf der Tasche. Gönn dir was, das Meer läuft dir nicht weg." if state.credits >= 400
     return "Das Artenbuch füllt sich. Die seltenen sitzen tief und lassen sich nicht anschwimmen — warte, bis sie kommen." if album_found >= 8
 
-    "Schön, dich zu sehen. Pass auf dich auf da draussen."
+    SHOP_IDLE_LINES[(state.log_dives.to_i / 3) % SHOP_IDLE_LINES.length]
   end
+
+  # Rotated on the dive count rather than rolled, so it moves on as you do
+  # instead of flickering between visits.
+  SHOP_IDLE_LINES = [
+    "Schön, dich zu sehen. Pass auf dich auf da draussen.",
+    "Hier ist den ganzen Tag nichts los. Ich hör die Wellen schon im Schlaf.",
+    "Zwei Wochen Urlaub, hab ich gesagt. Ist jetzt die dritte.",
+    "Drüben am Strand üben die zwei ohne mich weiter. Hört man bis hier.",
+    "Ein Schlagzeug kriegst du nicht mit aufs Boot. Glaub mir, ich hab's versucht.",
+  ]
 
   # --- the screen ------------------------------------------------------------
 
@@ -174,7 +208,7 @@ class Game
     outputs.sprites << { x: left - 34, y: top + 30, w: SHOP_INTRO_W + 68, h: 4,
                          r: MENU_ACCENT[0], g: MENU_ACCENT[1], b: MENU_ACCENT[2], path: :solid }
 
-    outputs.labels << { x: left, y: top + 8, text: "#{SHOP_KEEPER}s Laden", size_enum: 6,
+    outputs.labels << { x: left, y: top + 8, text: SHOP_NAME, size_enum: 6,
                         vertical_alignment_enum: 2, r: 255, g: 244, b: 205 }
     y = top - 46
     SHOP_INTRO_LINES.each do |line|
@@ -222,7 +256,7 @@ class Game
   def render_shop_head(left, right, top)
     outputs.sprites << { x: left, y: top - SHOP_HEAD_H, w: right - left, h: SHOP_HEAD_H,
                          r: MENU_PANEL[0], g: MENU_PANEL[1], b: MENU_PANEL[2], path: :solid }
-    outputs.labels << { x: left + SHOP_PAD, y: top - 22, text: "#{SHOP_KEEPER}s Laden",
+    outputs.labels << { x: left + SHOP_PAD, y: top - 22, text: SHOP_NAME,
                         size_enum: 4, vertical_alignment_enum: 2,
                         r: SHOP_INK[0], g: SHOP_INK[1], b: SHOP_INK[2] }
     outputs.labels << { x: left + SHOP_PAD, y: top - 60,

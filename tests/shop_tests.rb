@@ -1,4 +1,4 @@
-# Insa's, on the island in sector 3.
+# Andi's, on the island in sector 3.
 class ShopTests
   def build_game(args)
     game = Game.new
@@ -132,7 +132,7 @@ class ShopTests
     assert.equal! args.state.credits, 0
   end
 
-  # --- Insa ---------------------------------------------------------------
+  # --- Andi ------------------------------------------------------------
 
   # Her line is picked off your state, not out of a hat: the first thing that is
   # true about this diver is the most useful thing to tell them.

@@ -20,6 +20,7 @@ require "app/entities/dark_shark.rb"
 require "app/entities/creature.rb"
 require "app/entities/crustacean.rb"
 require "app/entities/jelly.rb"
+require "app/entities/beachgoer.rb"
 require "app/entities/diver.rb"
 
 require "app/world/fog_of_war.rb"
@@ -38,6 +39,9 @@ require "app/world/backdrop.rb"
 require "app/world/items.rb"
 require "app/world/photography.rb"
 require "app/world/framing.rb"
+require "app/world/islander.rb"
+require "app/world/beach.rb"
+require "app/world/camp.rb"
 require "app/world/kraken.rb"
 require "app/world/whale.rb"
 require "app/world/sting.rb"
@@ -90,7 +94,9 @@ JUMP_SPEED = 6.0   # the push of a hop. Against LAND_GRAVITY that peaks about 33
 ISLAND_MIN_SECTOR = 2 # no island lands on the home sector ...
 ISLAND_MAX_SECTOR = 10 # ... nor further out than this
 ISLAND_NEAR_SECTOR = 3 # ... except the first one, which always lands this close
-ISLAND_COUNT = 3 # how many of them are out there in a round
+ISLAND_COUNT = 4 # how many of them are out there in a round — three of them are
+                 # fixed (home, the shop, the beach), so this is the last one
+                 # that is actually rolled and worth finding
 FOG_OF_WAR = true
 DEBUG = false
 
@@ -111,7 +117,7 @@ class Game
 
     update_scene
     update_controls # touch: read the on-screen joystick and buttons into intents
-    update_shop      # L at the island shop opens Insa's, and closes it again
+    update_shop      # L at the island shop opens Andi's, and closes it again
     update_shop_input # ... and inside it the arrows and E work the shelf
     update_home_menu # L at the boat opens the boat screen and closes it again
     update_exchange  # and while it's open, the arrows and E sort pack against hold
@@ -125,6 +131,7 @@ class Game
     unless game_paused?
       basic_movements_per_tick
       update_depth_and_camera
+      update_talking # E beside somebody on the beach gets a line out of them
       update_pickup # E near an item picks it up (if the pack has room)
       update_camera # F: the shutter down here, the darkroom up at the boat
       update_boat_stash # I at the boat empties the pack into the hold
@@ -153,6 +160,7 @@ class Game
     state.player_y = CAMERA_ANCHOR                    # on-screen y, derived each tick from depth_y - camera_y
     state.direction = :right
     state.world_cache = {}
+    state.beach_band = nil # measured off stamped segments; it cannot outlive them
     state.active_world_index = nil # nothing loaded yet: the first tick builds and stocks it
     state.world_seed = new_world_seed # replaced by the book's own, if one is carried on
     state.island_sectors = roll_island_sectors
@@ -210,6 +218,7 @@ class Game
     state.stash = [] # the boat's hold; survives dying, not a new career
     reset_gear      # nothing bought yet — the ladders all start at the bottom
     state.shop_met = 0
+    state.kraken_met = 0 # the legend is hearsay until he has been down to it
     reset_log       # the dive log starts empty each round
     reset_items     # scatter fresh treasures, empty the pack
     reset_film      # a fresh roll, nothing exposed
@@ -224,7 +233,8 @@ class Game
   # to come ashore. The rest are rolled and scattered, for exploring.
   def roll_island_sectors
     rng = world_rng(1)
-    sectors = [IslandWorld::HOME_SECTOR, IslandWorld::SHOP_SECTOR]
+    sectors = [IslandWorld::HOME_SECTOR, IslandWorld::SHOP_SECTOR,
+               IslandWorld::BEACH_SECTOR]
     sectors << roll_island_sector(rng) until sectors.uniq.length == ISLAND_COUNT
     sectors.uniq
   end
@@ -269,6 +279,7 @@ class Game
     state.angle = 0
     state.direction = :right
     state.world_cache = {}
+    state.beach_band = nil # measured off stamped segments; it cannot outlive them
     # Forget which world is loaded, too: the cache alone isn't enough, and the
     # round would otherwise start out on the *previous* round's segment — old
     # island layout, old fish — until the diver happened to cross a border.
@@ -1118,7 +1129,8 @@ class Game
     state.gear = { film: book[:gear_film] || 0, air: book[:gear_air] || 0,
                    suit: book[:gear_suit] || 0, mask: book[:gear_mask] || 0,
                    fins: book[:gear_fins] || 0 }
-    state.shop_met = book[:shop_met] || 0 # whether she has introduced herself
+    state.shop_met = book[:shop_met] || 0 # whether he has introduced himself
+    state.kraken_met = book[:kraken_met] || 0 # ... and whether the legend is real to him
     state.world_seed = book[:seed] || new_world_seed
     reset_game # rebuild the world from that seed before he is put in it
     state.stash = book[:stash] || [] # ... and the hold as he left it, after reset_items
@@ -1146,7 +1158,8 @@ class Game
     state.day = 1
     state.energy = ENERGY_MAX
     reset_gear # a new diver owns nothing
-    state.shop_met = 0 # ... and has not met her yet
+    state.shop_met = 0 # ... and has not met him yet
+    state.kraken_met = 0 # ... nor been deep enough for the legend
     reset_day_tally
     state.stash = [] # a new career comes with an empty hold
     state.world_seed = new_world_seed

@@ -45,7 +45,7 @@ class SaveFile
   COUNTERS = ["credits", "dives", "best", "sold", "earned", "day", "energy",
               "day_earned", "day_species", "day_deepest", "day_sold",
               "gear_film", "gear_air", "gear_suit", "gear_mask", "gear_fins",
-              "shop_met"]
+              "shop_met", "kraken_met"]
 
   def self.encode(name:, album:, sighted:, seed: nil, stash: [], flocks: {}, **counters)
     lines = []
