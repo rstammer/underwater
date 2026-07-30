@@ -47,10 +47,19 @@ class SaveFile
               "gear_film", "gear_air", "gear_suit", "gear_mask", "gear_fins",
               "shop_met", "kraken_met"]
 
-  def self.encode(name:, album:, sighted:, seed: nil, stash: [], flocks: {}, **counters)
+  def self.encode(name:, album:, sighted:, seed: nil, stash: [], flocks: {},
+                  boat_x: nil, charted_west: nil, charted_east: nil, **counters)
     lines = []
     lines << "name #{name.strip}" if name && !name.strip.empty?
     lines << "seed #{seed}" if seed
+    # Where the boat is moored. Its own line rather than one of the counters,
+    # because the counters only write what is above zero and a boat sailed west
+    # sits at a negative x — as a counter it would quietly come home overnight.
+    lines << "boat #{boat_x.round}" if boat_x
+    # The chart, for the same reason and with the same catch: west is negative.
+    if charted_west || charted_east
+      lines << "charted #{charted_west.to_i} #{charted_east.to_i}"
+    end
     COUNTERS.each do |key|
       value = counters[key.to_sym]
       lines << "#{key} #{value}" if value && value > 0
@@ -89,6 +98,13 @@ class SaveFile
     when "stash"
       # A kind that no longer exists is dropped, the same as a retired species.
       book[:stash].concat([parts[1]] * parts[2].to_i) if Game::ITEM_KINDS.include?(parts[1])
+    when "charted"
+      book[:charted_west] = parts[1].to_i
+      book[:charted_east] = parts[2].to_i
+    when "boat"
+      # No line means a book from before the boat could be moved, which is a
+      # boat that never left its first mooring.
+      book[:boat_x] = parts[1].to_i
     when "seed"
       # A book written before seas had seeds simply hasn't got this line, and
       # that is not an error — it gets a fresh sea.
@@ -118,7 +134,9 @@ class SaveFile
   end
 
   def self.blank
-    book = { name: "", album: {}, sighted: {}, flocks: {}, seed: nil, stash: [] }
+    book = { name: "", album: {}, sighted: {}, flocks: {}, seed: nil, stash: [],
+             boat_x: Game::SURFACE_BOAT_X,
+             charted_west: -Game::CHART_START, charted_east: Game::CHART_START }
     COUNTERS.each { |key| book[key.to_sym] = 0 }
     # A day starts at one, and "no energy written" has to stay tellable from
     # "worn out": nil means a fresh morning, 0 means he has nothing left.

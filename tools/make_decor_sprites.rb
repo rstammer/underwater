@@ -36,6 +36,13 @@ PALETTE = {
   "O" => [186, 150, 102], # deck planks
   "M" => [72, 78, 90],    # outboard motor
   "m" => [46, 50, 60],    # motor, shaded
+  "Q" => [222, 186, 72],  # the dive tanks on the foredeck ...
+  "q" => [148, 118, 40],  # ... their shaded side and their valves
+  "J" => [140, 98, 58],   # the cabin door ...
+  "j" => [96, 64, 38],    # ... and its frame and shadowed edge. Not "E"/"e":
+                          # "e" is already the crab's eye, and taking it would
+                          # have quietly given every crab on every beach brown
+                          # eyes instead of black ones
   "L" => [208, 214, 222], # ladder
   "A" => [92, 98, 110],   # antenna
   "Z" => [128, 134, 144], # boulder, lit
@@ -152,21 +159,21 @@ SPRITES = {
     "..............A",
     "..........nnnnnnnnnnnnnnnnnn",
     "..........nNNNNNNNNNNNNNNNNn",
-    "..........nNvvvvNNvvvvNNNNNn",
-    "..........nNvVVvNNvVVvNNNNNn",
-    "..........nNvvvvNNvvvvNNNNNn............H",
-    "..........nNNNNNNNNNNNNNNNNn...........HH",
-    ".mmm......nNNNNNNNNNNNNNNNNn.........HHHH",
+    "..........nNjjjjNvvvvNvvvvvn..q..q",
+    "..........nNjJJjNvVVvNvVVVVn..QQ.QQ",
+    "..........nNjJJjNvvvvNvVVVVn..QQ.QQ.....H",
+    "..........nNjJJjNNNNNNvvvvvn..QQ.QQ....HH",
+    ".mmm......nNjJJjNNNNNNNNNNNn..qq.qq..HHHH",
     ".mMMmOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOHHHHHH",
-    "..MMHHHHHHHHHHHHHHHHHHHHHHHHHLLLLHHHHHHHH",
-    "..MMHSSSSSSSSSSSSSSSSSSSSSSSSLSSLSSSSSSHH",
-    "..MMHHHHHHHHHHHHHHHHHHHHHHHHHLLLLHHHHHHH",
-    "..mm.hhhhhhhhhhhhhhhhhhhhhhhhLhhLhhhhhh",
-    "..mm..hhhhhhhhhhhhhhhhhhhhhhhLLLLhhhh",
-    ".mmmm...hhhhhhhhhhhhhhhhhhhhhLhhLh",
-    "...........hhhhhhhhhhhhhhhhhhLLLL",
-    ".............................L..L",
-    ".............................LLLL",
+    "..MMHHHHHHHHHHHHHLLLLHHHHHHHHHHHHHHHHHHHH",
+    "..MMHSSSSSSSSSSSSLSSLSSSSSSSSSSSSSSSSSSHH",
+    "..MMHHHHHHHHHHHHHLLLLHHHHHHHHHHHHHHHHHHH",
+    "..mm.hhhhhhhhhhhhLhhLhhhhhhhhhhhhhhhhhh",
+    "..mm..hhhhhhhhhhhLLLLhhhhhhhhhhhhhhhh",
+    ".mmmm...hhhhhhhhhLhhLhhhhhhhhhhhhh",
+    "...........hhhhhhLLLLhhhhhhhhhhhh",
+    ".................L..L",
+    ".................LLLL",
     "",
   ],
   "gull" => [
@@ -192,6 +199,17 @@ def png(pixels, w, h)
     chunk.call("IHDR", [w, h, 8, 6, 0, 0, 0].pack("NNC5")) +
     chunk.call("IDAT", Zlib::Deflate.deflate(raw)) +
     chunk.call("IEND", "")
+end
+
+# Her with the ladder hauled in: the same drawing with every ladder pixel given
+# back to the hull. Derived rather than drawn a second time, because two copies
+# of a boat drift apart the first time one of them is edited — and the colour
+# under the ladder is not one colour, it is topsides, stripe or shaded bottom
+# depending on the row, so each pixel takes whatever its left-hand neighbour is.
+SPRITES["boat_underway"] = SPRITES["boat"].map do |row|
+  cells = row.chars
+  cells.each_index { |i| cells[i] = i.zero? ? "." : cells[i - 1] if cells[i] == "L" }
+  cells.join
 end
 
 out = ARGV[0] or abort "usage: ruby make_sprites.rb <sprites/decor dir>"

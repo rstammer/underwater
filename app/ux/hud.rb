@@ -41,7 +41,18 @@ class Game
   end
 
   def running_messages
-    [photo_message, pickup_message, shot_message, fresh_message, sting_message].compact
+    [photo_message, pickup_message, shot_message, fresh_message, sting_message,
+     boat_block_message].compact
+  end
+
+  # Why the boat has stopped. It takes the note slot, which is free out on open
+  # water — you are not framing a fish while you are steering — and it is his
+  # own words rather than a rule, because a boat that stops for a reason reads
+  # as a man deciding, and a boat that stops at an invisible line reads as a bug.
+  def boat_block_message
+    return nil unless boat_blocked?
+
+    { text: boat_block_line, slot: SLOT_NOTE, color: [236, 214, 150] }
   end
 
   # Being stung. It takes the pickup slot, which is free while you are in a

@@ -50,8 +50,26 @@ class Game
     state.diver_global_x.between?(first, last)
   end
 
+  # How far somebody shuffles along to find ground, and in what order they try:
+  # their own spot first, then alternating outward. Exactly the trick the camp's
+  # buildings needed (Game::CAMP_SHIFTS), for exactly the same reason — the dry
+  # band is only its first and last dry sample, and the middle of it is not
+  # reliably dry. A tent that landed in a dip was simply not built; a person who
+  # landed in one was simply not there, which is worse, because a tent nobody
+  # pitched looks like an empty beach and a missing musician looks like a bug.
+  ISLANDER_SHIFTS = [0, 48, -48, 96, -96, 144, -144, 192, -192, 240, -240]
+
+  # Placed one after another rather than all at once, so somebody shuffling
+  # along cannot shuffle into somebody who is already standing there. Two people
+  # inside one ISLANDER_REACH means the further of them can never be spoken to —
+  # you always get the nearer — so this is a rule with teeth, not tidiness.
   def islanders
-    Islander::ALL.map { |person| place_islander(person) }.compact
+    standing = []
+    Islander::ALL.each do |person|
+      here = place_islander(person, standing)
+      standing << here if here
+    end
+    standing
   end
 
   # Their ground is read off the world that is really stamped there, the way the
@@ -62,7 +80,7 @@ class Game
   #
   # The keeper is the exception in both halves: he is on the *other* island, and
   # his ground is the shop's, because he stands behind the shop's counter.
-  def place_islander(person)
+  def place_islander(person, standing = [])
     if person.kind == :keeper
       return nil unless at_the_shop_island?
 
@@ -74,11 +92,17 @@ class Game
 
     return nil unless beach_island_in_view?
 
-    x = islander_x(person)
-    ground = crown_at_world_x(x)
-    return nil if ground.nil? || ground <= WATERLINE_Y
+    origin = islander_x(person)
+    ISLANDER_SHIFTS.each do |shift|
+      x = origin + shift
+      next if standing.any? { |other| (other.x - x).abs <= ISLANDER_REACH }
 
-    Beachgoer.new(islander: person, x: x, y: ground)
+      ground = crown_at_world_x(x)
+      next if ground.nil? || ground <= WATERLINE_Y
+
+      return Beachgoer.new(islander: person, x: x, y: ground)
+    end
+    nil
   end
 
   # Near enough to the shop island for its keeper to be a person you could speak

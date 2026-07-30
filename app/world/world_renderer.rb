@@ -25,6 +25,10 @@ class Game
   ROOF_FADE = 300             # px under the surface over which rock loses the daylight
 
   BOAT_SPRITE = { path: "sprites/decor/boat.png", w: 41, h: 20 }
+  # The same boat with her ladder hauled in, for when she is making way — one
+  # trailing over the side at seven pixels a tick is a ladder somebody is about
+  # to lose. Same size, so nothing but the path changes.
+  BOAT_UNDERWAY_SPRITE = { path: "sprites/decor/boat_underway.png", w: 41, h: 20 }
 
   DECOR_SPRITES = {
     "seaweed"  => { path: "sprites/decor/seaweed.png",  w: 14, h: 44 },
@@ -87,6 +91,12 @@ class Game
     # Distance, before anything near is drawn: the island has to occlude it.
     render_backdrop
     outputs.sprites << surface_line
+    # Her, then the rock. Steering has one axis, so there is no navigating round
+    # an island — rather than make it a wall she goes *astern* of it, and the
+    # only thing that takes is being painted before it. She reappears the far
+    # side, which is exactly what watching a boat pass behind a headland looks
+    # like.
+    render_home_boat
     visible_world_indices.each do |index|
       world = world_at(index)
       dx = chunk_offset_x(index)
@@ -106,13 +116,20 @@ class Game
       render_islander_hint
       render_islander_speech
     end
-    if home_visible?
-      outputs.sprites << home_boat
-      # Not while the boat screen is up: labels always draw over sprites in
-      # DragonRuby, so the card's text would come straight through the menu
-      # panel even though its own backing box sits behind it.
-      render_boat_hint if at_the_boat? && !game_paused?
-    end
+    # The card is not the boat: it has to stay readable when she is behind an
+    # island, so it is drawn with the rest of the writing rather than with her.
+    # Not while the boat screen is up either — labels always draw over sprites
+    # in DragonRuby, so its text would come straight through the menu panel
+    # even though its own backing box sits behind it.
+    render_boat_hint if home_visible? && at_the_boat? && !game_paused?
+  end
+
+  def render_home_boat
+    return unless home_visible?
+    return if boat_behind_island?
+
+    render_wake
+    outputs.sprites << home_boat
   end
 
   # The view every screen outside the water is built on: the game's own sea, its
@@ -128,7 +145,7 @@ class Game
   BOAT_VIEW_X = 380 # how far right of the boat the camera looks, so it sits left
 
   def render_boat_horizon
-    state.camera_x = SURFACE_BOAT_X - CAMERA_ANCHOR_X + BOAT_VIEW_X
+    state.camera_x = boat_x - CAMERA_ANCHOR_X + BOAT_VIEW_X
     state.camera_y = WATERLINE_Y - HORIZON
     render_world
   end
@@ -321,12 +338,25 @@ class Game
     tiles
   end
 
+  # Where the sea stops you seeing rock. From in the water that is the waterline
+  # itself: an island is a wall of sand ending at the surface, and the skerries
+  # in front of it are the only warning that there is more underneath.
+  #
+  # Aboard the boat it has to reach a little deeper, because *she* reaches a
+  # little deeper — with the cut exactly at the waterline there was nothing
+  # drawn to cover her hull and her ladder, and they showed straight through the
+  # island she was passing. Only as far as her keel: any more and the sea starts
+  # giving away what is under it, which it is not supposed to do.
+  def surface_clip_y
+    state.aboard ? WATERLINE_Y - BOAT_DRAUGHT : WATERLINE_Y
+  end
+
   # One slab of a column run: its body, the lit rim under it, and grass on top if
   # it stands far enough out of the water.
   def roof_slab(tiles, world, rock, first_col, width, dx)
     top = [rock[:crown], state.camera_y + SCREEN_HEIGHT].min
     bottom = [rock[:ceiling], state.camera_y].max
-    bottom = WATERLINE_Y if !submerged_visible? && bottom < WATERLINE_Y # only what's above water
+    bottom = surface_clip_y if !submerged_visible? && bottom < surface_clip_y
     return if top <= bottom # this slab is off screen
 
     island = rock[:crown] > WATERLINE_Y
@@ -403,16 +433,26 @@ class Game
   end
 
   # The diver's home: a small boat bobbing on the waterline over the starting
-  # segment (world x SURFACE_BOAT_X). The diver spawns right next to it.
+  # waterline wherever it is moored (state.boat_x). The diver spawns beside it.
+  # boat_x is her *middle*, hence the anchor. It used to be her left edge, which
+  # is only ever a corner of a picture and not a place a boat is — everything
+  # measuring against her (how close counts as home, whether an island is across
+  # her) was quietly out by half a hull.
+  #
+  # She is drawn pointing the way she was last driven. The motor is at her stern
+  # in the drawing, so turning the picture round is what keeps it there instead
+  # of leaving her steaming along backwards.
   def home_boat
     scale = 4
     bob = Math.sin(Kernel.tick_count / 45.0) * 4
     {
-      x: SURFACE_BOAT_X - state.camera_x,
+      x: boat_x - state.camera_x,
       y: WATERLINE_Y - 20 + bob - state.camera_y, # hull and ladder reach into the water
       w: BOAT_SPRITE[:w] * scale,
       h: BOAT_SPRITE[:h] * scale,
-      path: BOAT_SPRITE[:path],
+      anchor_x: 0.5,
+      flip_horizontally: boat_heading.negative?,
+      path: state.aboard ? BOAT_UNDERWAY_SPRITE[:path] : BOAT_SPRITE[:path],
     }
   end
 
@@ -427,7 +467,7 @@ class Game
   # a screen to click past.
   def render_boat_hint
     render_boat_card(boat_action_lines, BOAT_HINT_W,
-                     SURFACE_BOAT_X - state.camera_x,
+                     boat_x - state.camera_x,
                      WATERLINE_Y + 210 - state.camera_y)
   end
 
@@ -457,7 +497,21 @@ class Game
      { text: "#{state.credits} Cr dabei", size: 0, color: [150, 198, 224] }]
   end
 
+  # Under way the card has one job — say how to stop and what stopping costs.
+  # The list of things you can do at a moored boat is not a list you can act on
+  # while you are steering it.
+  def sailing_lines
+    sectors = ((boat_x - state.boarded_x.to_i).abs / SCREEN_WIDTH.to_f).round
+    [{ text: "Unterwegs", size: 2, color: [232, 244, 252] },
+     { text: "←  →   steuern", size: 0, color: [150, 198, 224] },
+     { text: "[ E ]  hier ankern", size: 0, color: [232, 226, 150] },
+     { text: "Sprit bisher: #{sectors * BOAT_FUEL} Cr",
+       size: 0, color: [232, 202, 150] }]
+  end
+
   def boat_action_lines
+    return sailing_lines if state.aboard
+
     lines = [{ text: "Dein Boot", size: 2, color: [232, 244, 252] }]
     lines << { text: "Anzug wird repariert", size: 0, color: [232, 202, 150], blink: true } if repairing_suit?
     lines << { text: "Aktionen", size: 0, color: [132, 168, 194] }
@@ -465,6 +519,7 @@ class Game
       lines << { text: "[ F ]  Film entwickeln (#{state.film_roll.length})",
                  size: 0, color: [232, 226, 150] }
     end
+    lines << { text: "[ E ]  Ablegen — Boot versetzen", size: 0, color: [232, 226, 150] }
     lines << { text: "[ S ]  Schlafen — Tag #{state.day} beenden", size: 0, color: [180, 214, 180] }
     lines << { text: "[ L ]  Logbuch & Lager", size: 0, color: [150, 198, 224] }
     lines << { text: "[ I ]  Alles einlagern (#{state.inventory.length})", size: 0, color: [150, 198, 224] }

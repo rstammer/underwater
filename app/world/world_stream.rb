@@ -74,9 +74,11 @@ class Game
                  y: sprite[:y] - state.camera_y)
   end
 
-  # Home is the starting segment; the boat shows whenever it's on screen.
+  # Home is wherever the boat is moored; it shows whenever that segment is on
+  # screen. It used to be segment 0 flat, which was the same thing right up
+  # until the boat could be sailed somewhere else.
   def home_visible?
-    visible_world_indices.include?(0)
+    visible_world_indices.include?(boat_sector)
   end
 
   CRAWL_CLEARANCE = 20 # px of water a crab needs over the sand to be standing there

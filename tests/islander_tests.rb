@@ -120,6 +120,40 @@ class IslanderTests
                  "Mike is #{(mike.x - reception[:x]).abs} px from the desk he works at"
   end
 
+  # The one that had been failing about one run in eight, showing up as a flake
+  # in the musicians' test: one of them was simply not there, so the fire had a
+  # single person beside it.
+  #
+  # The beach island's own shape never varies — IslandWorld.shape_for reads only
+  # the sector — so this looked impossible until you remember that a *rolled*
+  # island may land next door and stamp its crown across part of this one. That
+  # roll comes off the world seed, which is fresh every game, so the ground
+  # under a fixed spot is not fixed at all. Measured before fixing: 22 rounds in
+  # 200, every one of them with an island rolled onto sector -6, alongside the
+  # beach at -5.
+  #
+  # Pinned to that arrangement rather than swept over seeds. A sweep needs
+  # dozens of rounds to stumble into it and still says nothing about which
+  # arrangement broke it; this says exactly what went wrong and fails every time
+  # until it is right.
+  def test_everybody_stands_even_with_an_island_alongside(args, assert)
+    game = build_game(args)
+    game.initialize_game(0)
+    args.state.island_sectors = [IslandWorld::HOME_SECTOR, IslandWorld::SHOP_SECTOR,
+                                 IslandWorld::BEACH_SECTOR, IslandWorld::BEACH_SECTOR - 1]
+    args.state.world_cache = {}
+    args.state.beach_band = nil
+    args.state.game_scene = "area1"
+    args.state.diver_global_x = IslandWorld.centre_x(IslandWorld::BEACH_SECTOR)
+    game.current_world
+
+    here = game.islanders.map(&:name)
+    Islander::ALL.reject { |person| person.kind == :keeper }.each do |person|
+      assert.true! here.include?(person.name),
+                   "#{person.name} is on the island, not in the sea beside it"
+    end
+  end
+
   # Close enough together to be a group, far enough apart that walking up to one
   # is walking up to *one*. If two ever came within a reach of each other you
   # could never choose which of them you were talking to.

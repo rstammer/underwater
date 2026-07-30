@@ -46,6 +46,7 @@ require "app/world/kraken.rb"
 require "app/world/whale.rb"
 require "app/world/sting.rb"
 require "app/world/gear.rb"
+require "app/world/sailing.rb"
 require "app/world/save_file.rb"
 require "app/world/save_slots.rb"
 
@@ -60,7 +61,13 @@ CAMERA_FLOOR_SLACK = 60 # how far the smoothed floor may sit above the real sand
 FLOOR_VIEW_MARGIN = 240 # how far below the sea floor the camera rests — the diver sits this high above the bottom edge
 CAMERA_EASE = 0.1 # how quickly the camera catches up per tick — smooths the ragged floor out of the view
 SURFACE_FLOAT_DEPTH = 20 # how far below the waterline the diver's center rests (only head/shoulders show)
-SURFACE_BOAT_X = 120 # world x of the diver's home boat, floating at the waterline
+SURFACE_BOAT_X = 120 # world x the boat is first moored at. Only the *starting*
+                     # place now: where it actually is lives in state.boat_x,
+                     # because the boat can be sailed somewhere else and left
+                     # there. Anything asking "where is home" must read the
+                     # state — reading this constant keeps working perfectly
+                     # until the day somebody moves the boat, which is the worst
+                     # way for a thing to be wrong
 OXYGEN_MAX = 100
 # Per tick under water. The starting bottle is deliberately short — about a
 # minute and a half — so the swim home is something you are counting from the
@@ -94,6 +101,12 @@ JUMP_SPEED = 6.0   # the push of a hop. Against LAND_GRAVITY that peaks about 33
 ISLAND_MIN_SECTOR = 2 # no island lands on the home sector ...
 ISLAND_MAX_SECTOR = 10 # ... nor further out than this
 ISLAND_NEAR_SECTOR = 3 # ... except the first one, which always lands this close
+# How wide the chart is on the first morning, each way. Not nothing: the island
+# next door sits at IslandWorld::HOME_SECTOR = -2 and exists precisely so that a
+# round never opens with a hunt for somewhere to come ashore, and a chart
+# starting at zero put it out of the boat's reach for ever. Three each way takes
+# in that island and the Späti at +3, and leaves the beach at -5 to be found.
+CHART_START = 3
 ISLAND_COUNT = 4 # how many of them are out there in a round — three of them are
                  # fixed (home, the shop, the beach), so this is the last one
                  # that is actually rolled and worth finding
@@ -129,6 +142,7 @@ class Game
     update_sprint
     update_characters(sprite_index)
     unless game_paused?
+      update_sailing # E at the boat casts off; under way the arrows steer it
       basic_movements_per_tick
       update_depth_and_camera
       update_talking # E beside somebody on the beach gets a line out of them
@@ -146,7 +160,7 @@ class Game
       track_log # quietly record how deep you got and what you've seen
     end
     send("#{state.game_scene}_tick")
-    render_diver unless game_paused?
+    render_diver unless game_paused? || state.aboard
     render_panel # HUD last so it draws on top of the scene and fog
   end
 
@@ -189,6 +203,13 @@ class Game
     state.airborne = false # ... and whether his feet are off the ground at all
     state.initialized = true
 
+    # Where the boat lies. Set here rather than in reset_game, and so outliving
+    # a drowning: dying costs you the round, not the voyage that got you there.
+    state.boat_x = SURFACE_BOAT_X
+    state.aboard = false
+    # How far he has swum, each way — what the boat's range is measured against.
+    state.charted_west = -CHART_START
+    state.charted_east = CHART_START
     # The balance. Like the book, it is the work of many dives and dying can't
     # take it — only the undeveloped film goes down with you.
     state.credits = 0
@@ -301,10 +322,26 @@ class Game
 
   # Every round begins floating at the surface next to the home boat, head out
   # of the water — the player catches a breath and eases in before diving.
+  #
+  # Beside *the boat*, not beside where the boat first was: once it can be
+  # sailed, waking up at the old mooring would undo the voyage every morning.
   def spawn_at_surface
     state.depth_y = WATERLINE_Y - SURFACE_FLOAT_DEPTH # head out, body just under the waterline
-    state.diver_global_x = SURFACE_BOAT_X + 96 # world x, in the water just beside the boat
+    state.diver_global_x = boat_x + 96 # world x, in the water just beside the boat
     center_camera
+  end
+
+  # Where home is. The single place that answers it, so nothing has to remember
+  # to read the state rather than the constant. Falls back to the first mooring,
+  # which is also what an old save without the line means.
+  def boat_x
+    state.boat_x ||= SURFACE_BOAT_X
+  end
+
+  # Which segment the boat is moored in — what the renderer asks to know whether
+  # home is on screen.
+  def boat_sector
+    boat_x.idiv(SCREEN_WIDTH)
   end
 
   def update_characters(sprite_index)
@@ -519,6 +556,11 @@ class Game
   end
 
   def basic_movements_per_tick
+    # Under way the arrows are the tiller, and Game#sail has already used them.
+    # Without this they steer the boat *and* swim the man standing in it, and he
+    # slides off the stern at twice the speed she is making.
+    return if state.aboard
+
     # Movement reads will_* (keyboard OR the touch joystick), so the two paths
     # are one from here down.
     # Horizontal movement is in world space (diver_global_x); the camera turns it
@@ -615,6 +657,12 @@ class Game
   # onto it. Reading it without the stride would decide he was standing *under*
   # the slab he just climbed and drop him through the island.
   def clamp_depth
+    # In the boat the rock underneath is not his problem — she passes astern of
+    # the island, and he is standing on a deck. Left to run, this found the
+    # island's rock under him, decided he was climbing it, and took the camera
+    # with him: sailing past a beach dropped the whole view underwater.
+    return if state.aboard
+
     floor, ceiling = rock_span_at(state.diver_global_x, state.depth_y, SOLID_STEP_UP)
     bottom = floor + Diver::HEIGHT
     top = depth_ceiling(ceiling, state.diver_global_x, floor)
@@ -718,6 +766,12 @@ class Game
   # the world sliding. Since the floor's depth varies wildly, this target is
   # relative to the ground under him, not to a fixed world y.
   def camera_target_y
+    # Under way the view is a boat's: waterline across the picture, sky over it,
+    # and that framing held whatever the sea floor is doing underneath. Riding
+    # the diver's camera, a shoal or an island lifted the ground into shot and
+    # the horizon slid about while you were trying to steer by it.
+    return WATERLINE_Y - HORIZON if state.aboard
+
     [state.depth_y - CAMERA_ANCHOR, camera_floor_y - FLOOR_VIEW_MARGIN].max
   end
 
@@ -971,7 +1025,7 @@ class Game
 
   # Back at the boat, up in the air beside it — the one place with tools aboard.
   def at_the_boat?
-    at_open_surface? && (state.diver_global_x - SURFACE_BOAT_X).abs <= BOAT_REACH
+    at_open_surface? && (state.diver_global_x - boat_x).abs <= BOAT_REACH
   end
 
   # He breathes wherever his head is out of the water: up at the sea's surface,
@@ -1085,6 +1139,28 @@ class Game
     state.log_sectors[world_index] = true
     state.log_islands[world_index] = true if state.island_sectors.include?(world_index)
     state.log_caves[world_index] = true if breathing? && !at_open_surface?
+    chart_sector
+  end
+
+  # The chart: the furthest sector he has ever *swum* to, each way. It outlives
+  # the round (log_sectors does not) because it is what the boat's range is
+  # measured against, and a range that forgot itself every morning would be no
+  # range at all.
+  #
+  # Riding the boat does not count. That is the whole load-bearing part: if
+  # sailing charted the water it crossed, you could inch out for ever — sail to
+  # the edge, let the crossing chart it, sail one further — and the rule would
+  # be no rule. Water you have been carried over is not water you know.
+  def chart_sector
+    return if state.aboard
+
+    state.charted_east = world_index if world_index > state.charted_east.to_i
+    state.charted_west = world_index if world_index < state.charted_west.to_i
+  end
+
+  # How far the boat may be taken: one sector past the chart, each way.
+  def boat_range
+    [state.charted_west.to_i - 1, state.charted_east.to_i + 1]
   end
 
   # --- the book on disk -----------------------------------------------------
@@ -1132,6 +1208,15 @@ class Game
     state.shop_met = book[:shop_met] || 0 # whether he has introduced himself
     state.kraken_met = book[:kraken_met] || 0 # ... and whether the legend is real to him
     state.world_seed = book[:seed] || new_world_seed
+    # Where he left the boat. Set before reset_game, because spawning puts him
+    # in the water beside it — carrying on a book must not sail it home for him.
+    state.boat_x = book[:boat_x] || SURFACE_BOAT_X
+    # Never narrower than a diver starting today. A book written before there
+    # was a chart has one full of zeroes, and its owner's real exploring was
+    # never written down anywhere — so there is nothing to reconstruct it from,
+    # and the least the game can do is not box him in tighter than a beginner.
+    state.charted_west = [book[:charted_west] || 0, -CHART_START].min
+    state.charted_east = [book[:charted_east] || 0, CHART_START].max
     reset_game # rebuild the world from that seed before he is put in it
     state.stash = book[:stash] || [] # ... and the hold as he left it, after reset_items
     # Not straight into the water: he gets told where he left off first, and
@@ -1167,7 +1252,13 @@ class Game
     state.game_scene = "name"
   end
 
+  # Nothing while he is aboard: he is *in* the boat, and drawn as well he
+  # floated alongside his own hull like a man being towed — the one reading the
+  # whole feature must not have. The guard is here as well as at the call above,
+  # so a scene that draws him some other way cannot put him back in the water.
   def render_diver
+    return if state.aboard
+
     outputs.sprites << state.diver.to_h
     render_fog
   end
