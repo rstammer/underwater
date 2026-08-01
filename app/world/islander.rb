@@ -67,18 +67,22 @@ class Islander
 
   ALL = [
     # The two boys, at the water's edge, where the water is knee-deep and safe.
-    # Flori believes every word of it and Falko cannot afford to.
-    new(key: "flori", name: "Flori", kind: :boy, spot: 0.04,
-        lines: ["Mein Bruder sagt, da unten wohnt was. Was ganz Grosses.",
+    # They are brothers, and they call the same witness for opposite verdicts:
+    # their father told them both about the deep, and Henny believed every word
+    # while Falko cannot afford to. Children arguing from one authority is what
+    # a family sounds like, and it costs nothing to say — Florian is standing
+    # right there behind them.
+    new(key: "flori", name: "Henny", kind: :boy, spot: 0.04,
+        lines: ["Papa sagt, da unten wohnt was. Was ganz Grosses.",
                 "Ich geh da nie rein. Nur bis zu den Knien, und keinen Schritt weiter.",
-                "Es hat Arme. So lange Arme. Hat mein Bruder gesagt."],
+                "Es hat Arme. So lange Arme. Hat Papa gesagt."],
         deeper: ["Du warst da unten? Richtig unten? Und du lebst noch?"],
         met: ["Du hast's gesehen. Ich WUSSTE es. Keiner glaubt mir, nie."]),
     new(key: "falko", name: "Falko", kind: :boy, spot: 0.11,
-        lines: ["Flori spinnt. Da ist nichts. Mein Papa fährt da dauernd raus.",
+        lines: ["Henny spinnt. Da ist nichts. Mein Papa fährt da dauernd raus.",
                 "Also. Vielleicht ist da was. Aber bestimmt nichts Grosses."],
         deeper: ["Wie weit runter? Nee. Nee, so weit geht keiner."],
-        met: ["Sag Flori nichts davon. Der lässt mich sonst nie wieder in Ruhe."],
+        met: ["Sag Henny nichts davon. Der lässt mich sonst nie wieder in Ruhe."],
         # He asks about the shark until you have actually got one, and then he
         # has to deal with the answer being yes.
         asks: { "schattenhai" => "Sag mal, hast du schon mal einen echten Schattenhai fotografiert?" },
@@ -87,11 +91,17 @@ class Islander
           "Wie nah warst du dran? Nein. Sag's nicht. Ich will's nicht wissen.",
         ] }),
 
-    # The bathers, standing in the shallows. Hendrik cannot stop talking and has
+    # The bathers, standing in the shallows. Florian cannot stop talking and has
     # all of it from somebody else; Tall Pete would rather be left alone and is the
     # one who points you at Mike.
-    new(key: "hendrik", name: "Hendrik", kind: :bather, spot: 0.20,
-        lines: ["Letztes Jahr war hier ein Taucher. Der ist runter und nicht wiedergekommen.",
+    #
+    # Florian is the boys' father, which is the only family tie on the island and
+    # the reason there are children on it at all. It also puts the rumour in the
+    # right mouth: what he has third-hand about a diver who did not come back is
+    # exactly what Henny is repeating at the waterline as something with arms.
+    new(key: "hendrik", name: "Florian", kind: :bather, spot: 0.20,
+        lines: ["Die beiden da hinten, das sind meine Jungs. Camping-Urlaub, ganz entspannt.",
+                "Letztes Jahr war hier ein Taucher. Der ist runter und nicht wiedergekommen.",
                 "Gefunden haben sie nur sein Boot. Angeblich. Sagt man.",
                 "Ich geh nicht tiefer als bis zum Bauch. Aus Prinzip."],
         deeper: ["So weit runter? Mir wird schon anders, wenn ich den Grund nicht mehr sehe.",
@@ -139,7 +149,7 @@ class Islander
     # know: a warden has watched everybody who ever went out from here, and some
     # of them came back and some did not.
     new(key: "mike", name: "Mike", kind: :warden, spot: 0.88, useful: true,
-        lines: ["Mike. Campamento del Kraken Profundo. Stell dein Zeug hin, wo Platz ist.",
+        lines: ["Mike. Campingplatz zur tiefen Krake. Stell dein Zeug hin, wo Platz ist.",
                 "Den Namen hat mein Vater ausgesucht. Gesehen hat es hier nie einer.",
                 "Wenn du da unten was siehst, das nicht aufs Bild will — schwimm ihm nicht nach.",
                 "Genau das will es nämlich. Es geht immer ein Stück tiefer als du."],

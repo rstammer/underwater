@@ -21,10 +21,11 @@
 # that exists to be walked up to and read.
 class Game
   # Somebody named this place after the thing nobody here has seen. That is the
-  # joke and it is also the point: the campers repeat a rumour, and the rumour
-  # is painted on the sign at the gate. Spanish because whoever built it was
-  # from somewhere else, which is how holiday places tend to get their names.
-  CAMP_NAME = "Campamento del Kraken Profundo"
+  # joke and it is also the point: the campers repeat a rumour, and the rumour is
+  # painted on the sign at the gate. Mike's greeting is the only place it is ever
+  # said out loud, and it quotes this — a name kept in two spellings is two
+  # campsites (tests/islander_tests.rb).
+  CAMP_NAME = "Campingplatz zur tiefen Krake"
   CAMP_SCALE = 3
   # Kept in step with what tools/make_camp_sprites.rb prints. A stale w or h
   # here draws the sprite squashed without failing anywhere, so a test holds the
@@ -150,7 +151,7 @@ class Game
   # a finer grain than the children reads as belonging to another picture.
   BALL_SCALE = 2
 
-  # Flori and Falko are throwing a ball to each other. It is worked out from the
+  # Henny and Falko are throwing a ball to each other. It is worked out from the
   # tick count rather than simulated: there is no physics here to get right, and
   # a ball that is a function of the clock cannot drift, cannot be left behind by
   # a paused game, and needs nothing kept in state.

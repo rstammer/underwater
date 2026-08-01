@@ -56,9 +56,54 @@ class IslanderTests
 
   def test_the_cast_is_who_it_should_be(args, assert)
     names = Islander::ALL.map(&:name)
-    ["Flori", "Falko", "Hendrik", "Tall Pete", "Sebastián", "George", "Mike"].each do |name|
+    ["Henny", "Falko", "Florian", "Tall Pete", "Sebastián", "George", "Mike"].each do |name|
       assert.true! names.include?(name), "#{name} is on the island"
     end
+  end
+
+  # The boy was called Flori, and the bather who is now Florian took those very
+  # letters with him — so the old name survives as a substring of a name that is
+  # still in use. Anybody naming the boy has to name him Henny, and the check has
+  # to be on the whole word, or his father answers for him every time.
+  #
+  # Word by word rather than by pattern: this mruby has no Regexp, so scan and
+  # friends are not there to be had, and splitting on spaces and dropping the
+  # punctuation says the same thing in tools that exist.
+  def test_the_boy_is_named_henny_wherever_he_is_named(args, assert)
+    lines = Islander::ALL.flat_map(&:all_lines)
+
+    assert.equal! Islander["flori"].name, "Henny"
+    assert.false! lines.select { |line| line.include?("Henny") }.empty?,
+                  "somebody says his name"
+
+    lines.each do |line|
+      words = line.split(" ").map { |word| word.delete(".,!?:;—\"") }
+      assert.false! words.include?("Flori"),
+                    "\"#{line}\" still calls Henny by his old name"
+    end
+  end
+
+  # Florian is the reason there are children on this island at all: they are his,
+  # and the fortnight is his idea of a rest. Everyone else here is a stranger to
+  # everyone else, so the one family tie is worth holding onto — it is what makes
+  # the boys at the waterline somebody's rather than scenery.
+  def test_florian_is_here_with_his_boys(args, assert)
+    florian = Islander["hendrik"]
+
+    assert.equal! florian.name, "Florian"
+    claim = florian.all_lines.find { |line| line.include?("Jungs") }
+    assert.false! claim.nil?, "Florian says whose boys those are"
+    assert.true! claim.include?("meine"), "\"#{claim}\" claims them as his"
+  end
+
+  # The name of the place lives in one spot and Mike's greeting quotes it, so
+  # renaming the campsite cannot leave the warden announcing the old one to
+  # everybody who walks up to his desk.
+  def test_the_camp_is_named_once(args, assert)
+    assert.equal! Game::CAMP_NAME, "Campingplatz zur tiefen Krake"
+
+    greeting = Islander["mike"].all_lines.find { |line| line.include?(Game::CAMP_NAME) }
+    assert.false! greeting.nil?, "Mike welcomes you to the place by its name"
   end
 
   # He is Sebastián, accent and all — and George says his name out loud, so the

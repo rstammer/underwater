@@ -7,7 +7,7 @@
 # Shape and palette are kept apart, the way the crustaceans do it: there are
 # four drawings — a child, a bather, somebody sitting with a guitar, and
 # somebody sitting looking out to sea — and seven people, each of whom is one of
-# those shapes in their own colours. Flori and Falko stand next to each other,
+# those shapes in their own colours. Henny and Falko stand next to each other,
 # so two boys in identical trunks would read as one boy drawn twice.
 #
 # Rows are padded out to the width of the shape rather than counted by hand, the

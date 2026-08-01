@@ -20,7 +20,7 @@ class Game
   ISLANDER_SAY_TICKS = 420 # how long a line stays up — read twice over, slowly
   ISLANDER_SCALE = 2
   # One drawing per person, not per kind (tools/make_islander_sprites.rb): the
-  # four shapes are shared, but Flori and Falko stand within a stride of each
+  # four shapes are shared, but Henny and Falko stand within a stride of each
   # other, and two boys in the same trunks read as one boy drawn twice.
   ISLANDER_SPRITES = {
     "flori"     => { path: "sprites/decor/islanders/flori.png",     w: 11, h: 16 },
