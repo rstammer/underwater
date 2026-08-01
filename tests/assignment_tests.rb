@@ -298,6 +298,99 @@ class AssignmentTests
     assert.equal! book[:assignment_paid_day], 6, "the save file remembers it"
   end
 
+  # --- the window it gets to itself ------------------------------------------
+
+  # T at the boat. A tab page had it before, three presses deep behind whatever
+  # page you happened to leave open — the one thing you are supposed to plan the
+  # day around should be one key away.
+  def test_t_at_the_boat_opens_the_assignment(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    args.state.diver_global_x = game.boat_x
+    args.state.game_scene = "area1"
+
+    game.open_assignment
+
+    assert.equal! args.state.game_scene, "assignment", "the window is up"
+    assert.true! game.game_paused?, "and the sea is on hold behind it"
+  end
+
+  def test_it_closes_again_to_where_he_was(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    args.state.diver_global_x = game.boat_x
+    game.open_assignment
+    game.close_assignment
+
+    assert.false! args.state.game_scene == "assignment", "closed"
+  end
+
+  # It is a briefing, not a menu: it may be read from the boat screen too, so
+  # you do not have to back out of the hold to look at the job.
+  def test_it_opens_from_the_boat_screen_as_well(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    args.state.diver_global_x = game.boat_x
+    args.state.game_scene = "home_menu"
+
+    game.open_assignment
+
+    assert.equal! args.state.game_scene, "assignment"
+  end
+
+  # Away from the boat it stays shut — this is a thing you read at home.
+  def test_it_does_not_open_out_at_sea(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    args.state.diver_global_x = game.boat_x + 4000
+    args.state.game_scene = "area1"
+
+    game.open_assignment
+
+    assert.equal! args.state.game_scene, "area1", "not out here"
+  end
+
+  # What the briefing has to say. The fee is the reason to read it.
+  def test_the_briefing_says_what_and_what_for(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    job = game.todays_assignment
+
+    lines = game.assignment_briefing(job)
+
+    assert.false! lines.empty?, "there is something written on it"
+    assert.true! lines.any? { |line| line[:text].include?("Cr") }, "the fee is on it"
+    assert.true! lines.any? { |line| line[:text] == game.assignment_text(job) },
+                 "and what they actually want"
+    lines.each do |line|
+      assert.false! line[:text].to_s.strip.empty?, "no blank lines on a briefing"
+    end
+  end
+
+  # The briefing tells you how to go about it, and for a sector that means a
+  # bearing rather than a number: "sector -4" is not a place anybody can steer to.
+  def test_a_sector_briefing_says_which_way_to_steer(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    job = job_of_kind(game, args, :sector)
+
+    detail = game.assignment_detail(job)
+    here = game.boat_sector
+    if job.sector == here
+      assert.true! detail.include?("Boot"), "it says he is already there"
+    else
+      way = job.sector < here ? "Westen" : "Osten"
+      assert.true! detail.include?(way), "\"#{detail}\" does not say which way"
+    end
+  end
+
+  def test_the_tab_page_is_gone(args, assert)
+    ids = Game::BOAT_PAGES.map { |page| page[:id] }
+
+    assert.false! ids.include?(:job),
+                  "one place for the job, and it is the window behind T"
+  end
+
   # --- where the sector on a shot comes from ---------------------------------
 
   # store_shot merges by species, so the sector has to travel with the shot it

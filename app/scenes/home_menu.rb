@@ -28,7 +28,6 @@ class Game
   BOAT_PAGES = [
     { id: :hold, title: "Lager", icon: "sprites/items/jewel.png" },
     { id: :book, title: "Artenbuch", icon: "sprites/animals/scalar_32_16/blue.png" },
-    { id: :job,  title: "Auftrag", icon: "sprites/decor/flag.png" },
     { id: :log,  title: "Logbuch", icon: "sprites/decor/boat.png" },
     { id: :kit,  title: "Ausrüstung", icon: "sprites/items/jewel.png" },
   ]
@@ -106,7 +105,6 @@ class Game
     render_menu_tabs
     case state.boat_page
     when :book then render_artenbuch_page
-    when :job then render_assignment_page
     when :log then render_logbook_page
     when :kit then render_kit_page
     else render_hold_page
@@ -200,6 +198,33 @@ class Game
     outputs.labels << { x: (menu_left + menu_right) / 2, y: menu_bottom + MENU_FOOT_H - 14,
                         text: hint, size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+    render_assignment_call
+  end
+
+  ASSIGNMENT_CALL_H = 44
+
+  # The job, on every page of the boat screen: one line saying what is wanted and
+  # which key reads it out in full. It is not a page of its own because it is not
+  # something to browse — it is the thing you check before you go down, and it
+  # should be legible from wherever you happen to be standing in here.
+  def render_assignment_call
+    job = todays_assignment
+    return unless job
+
+    y = menu_bottom + MENU_FOOT_H + 10
+    outputs.sprites << { x: menu_left + MENU_PAD, y: y, w: menu_width - MENU_PAD * 2,
+                         h: ASSIGNMENT_CALL_H, r: 14, g: 30, b: 46, path: :solid }
+
+    done = assignment_paid?
+    label = done ? "Tagesauftrag erledigt" : "Tagesauftrag:  #{assignment_short(job)}"
+    ink = done ? ASSIGNMENT_DONE_INK : MENU_INK
+    outputs.labels << { x: menu_left + MENU_PAD + 18, y: y + ASSIGNMENT_CALL_H - 12,
+                        text: label, size_enum: 1, vertical_alignment_enum: 2,
+                        r: ink[0], g: ink[1], b: ink[2] }
+    outputs.labels << { x: menu_right - MENU_PAD - 18, y: y + ASSIGNMENT_CALL_H - 12,
+                        text: "[ T ]  ansehen", size_enum: 1, alignment_enum: 2,
+                        vertical_alignment_enum: 2,
+                        r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
   end
 
   # A framed box for a page to put a column in. Boxes rather than bare columns
@@ -284,59 +309,16 @@ class Game
 
   KIT_ROW_H = 74
 
-  # The day's job, in the words the magazine would use, and where it stands. The
-  # state it can be in is the whole point of the page: not asked for yet, on the
-  # film but not delivered, or paid. The middle one is the one worth showing —
-  # it is the reason to be at the boat at all.
-  def render_assignment_page
-    top = body_top
-    render_box(menu_left + MENU_PAD, body_bottom + 10,
-               menu_width - MENU_PAD * 2, top - body_bottom - 10,
-               "Auftrag für Tag #{state.day}")
-
-    x = menu_left + MENU_PAD + 24
-    right = menu_right - MENU_PAD - 24
-    job = todays_assignment
-
-    unless job
-      outputs.labels << { x: x, y: top - 96, text: "Heute liegt nichts an.", size_enum: 2,
-                          vertical_alignment_enum: 2,
-                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
-      return
-    end
-
-    outputs.labels << { x: x, y: top - 84, text: assignment_text(job), size_enum: 3,
-                        vertical_alignment_enum: 2,
-                        r: MENU_INK[0], g: MENU_INK[1], b: MENU_INK[2] }
-    outputs.labels << { x: right, y: top - 84, text: "#{job.fee} Cr", size_enum: 3,
-                        alignment_enum: 2, vertical_alignment_enum: 2,
-                        r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
-
-    state_text, ink = assignment_state_line(job)
-    outputs.labels << { x: x, y: top - 140, text: state_text, size_enum: 1,
-                        vertical_alignment_enum: 2, r: ink[0], g: ink[1], b: ink[2] }
-    outputs.labels << { x: x, y: top - 178, text: assignment_hint(job), size_enum: 0,
-                        vertical_alignment_enum: 2,
-                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
-  end
-
   ASSIGNMENT_DONE_INK = [156, 226, 150]
   ASSIGNMENT_READY_INK = [255, 214, 120]
 
-  def assignment_state_line(job)
+  # Where the job stands, in one line. Lives here rather than in the briefing
+  # window because the boat screen shows it too, on its way past.
+  def assignment_state_line(job = todays_assignment)
     return ["Abgegeben. #{job.fee} Cr sind drauf.", ASSIGNMENT_DONE_INK] if assignment_paid?
     return ["Im Kasten — entwickeln, dann zahlt das Magazin.", ASSIGNMENT_READY_INK] if assignment_done?(job)
 
     ["Noch nicht auf dem Film.", MENU_DIM_INK]
-  end
-
-  def assignment_hint(job)
-    case job.kind
-    when :flock  then "Alle #{job.count} müssen ganz im Bild sein."
-    when :shore  then "An Land, oben auf einer Insel."
-    when :sector then "Die Tiefenanzeige nennt den Sektor, in dem du bist."
-    else "Unscharf zählt nicht."
-    end
   end
 
   def render_kit_page

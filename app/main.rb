@@ -9,6 +9,7 @@ require "app/scenes/intro.rb"
 require "app/scenes/recap.rb"
 require "app/scenes/night.rb"
 require "app/scenes/darkroom.rb"
+require "app/scenes/assignment_view.rb"
 require "app/scenes/shop.rb"
 require "app/scenes/game_over.rb"
 require "app/scenes/area1.rb"
@@ -140,6 +141,8 @@ class Game
     update_escape    # ESC: out of the boat screen, or out of the dive to the title
     quit_game if at_the_boat? && inputs.keyboard.key_down.q # Q at the boat quits
     update_sleep # S at the boat ends the day
+    update_assignment_key # T at the boat reads out the day's job
+    update_assignment_view
     update_sprint
     update_characters(sprite_index)
     unless game_paused?
@@ -1050,7 +1053,7 @@ class Game
 
   def game_paused?
     ["title", "name", "intro", "recap", "night", "darkroom", "shop",
-     "game_over", "home_menu", "pause"].include?(state.game_scene)
+     "game_over", "home_menu", "pause", "assignment"].include?(state.game_scene)
   end
 
   # The boat screen: press L at the boat to open it, L to close it again. The
