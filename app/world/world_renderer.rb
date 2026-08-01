@@ -378,8 +378,13 @@ class Game
     dim = roof_light(top)
 
     tiles << sand({ x: x, y: bottom - state.camera_y, w: w, h: top - bottom }, body, shade, dim)
-    tiles << sand({ x: x, y: rock[:ceiling] - state.camera_y, w: w, h: 4 },
-                  world.biome.floor_colors[0], shade, dim) # lit rim under the rock
+    # The lit rim goes on the underside of the rock — but only when that
+    # underside is the thing being looked at. Drawn at the slab's own ceiling
+    # regardless, it survived the clip above: a skerry's ceiling is 160 px below
+    # the water, so from the surface every island trailed a four-pixel brown line
+    # across the open sea in front of it, rock with no rock attached to it.
+    tiles << sand({ x: x, y: bottom - state.camera_y, w: w, h: 4 },
+                  world.biome.floor_colors[0], shade, dim) if bottom == rock[:ceiling]
     tiles << sand({ x: x, y: rock[:crown] - state.camera_y - GREEN_CAP, w: w, h: GREEN_CAP },
                   GREEN, shade, 1.0) if grassy # grass on top of the island
   end

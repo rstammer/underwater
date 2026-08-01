@@ -50,4 +50,5 @@ require "tests/shop_tests.rb"
 require "tests/islander_tests.rb"
 require "tests/boat_tests.rb"
 require "tests/vegetation_tests.rb"
+require "tests/surface_view_tests.rb"
 
