@@ -531,12 +531,29 @@ class Game
       lines << { text: "[ F ]  Film entwickeln (#{state.film_roll.length})",
                  size: 0, color: [232, 226, 150] }
     end
+    lines << { text: "[ T ]  #{boat_card_assignment}", size: 0, color: boat_card_assignment_ink }
     lines << { text: "[ E ]  Ablegen — Boot versetzen", size: 0, color: [232, 226, 150] }
     lines << { text: "[ S ]  Schlafen — Tag #{state.day} beenden", size: 0, color: [180, 214, 180] }
     lines << { text: "[ L ]  Logbuch & Lager", size: 0, color: [150, 198, 224] }
     lines << { text: "[ I ]  Alles einlagern (#{state.inventory.length})", size: 0, color: [150, 198, 224] }
     lines << { text: "[ Q ]  Spiel beenden", size: 0, color: [150, 198, 224] }
     lines
+  end
+
+  # The job, in the list of things you can do here. Its own state is worth a
+  # word: a job already delivered is not something to go and read.
+  def boat_card_assignment
+    return "Tagesauftrag — erledigt" if assignment_paid?
+    return "Tagesauftrag — im Kasten" if assignment_done?
+
+    "Tagesauftrag ansehen"
+  end
+
+  def boat_card_assignment_ink
+    return [180, 214, 180] if assignment_paid?
+    return [232, 226, 150] if assignment_done?
+
+    [150, 198, 224]
   end
 
   # Anchored rather than pinned to the boat: the shop uses the same card, over

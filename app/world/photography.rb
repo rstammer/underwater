@@ -181,6 +181,7 @@ class Game
     state.film_left -= 1
     store_shot(species.key, quality, flock)
     note_shot(species, quality, flock)
+    note_assignment_landed # ... and say so, once, if that was the day's job
     dismiss_dive_hint # he has got it; the card can go
   end
 

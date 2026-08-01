@@ -475,6 +475,43 @@ class AssignmentTests
     assert.false! note.nil?, "the morning says there is one"
   end
 
+  # Landing the job is a moment, not a state. It said "Auftrag im Kasten" from
+  # the shutter until the tank, which on a long dive is most of the dive — and a
+  # line that is always there is a line nobody reads.
+  def test_the_landed_note_is_a_moment_not_a_banner(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    job = job_of_kind(game, args, :species)
+    args.state.diver_global_x = game.boat_x + 4000 # out at sea, not at the boat
+    args.state.assignment_note_at = nil
+    roll_with(args, job.species_key)
+    game.note_assignment_landed
+
+    assert.false! game.running_messages.find { |r| r[:text].include?("Kasten") }.nil?,
+                  "it says so when it happens"
+
+    args.state.assignment_landed_at -= Game::ASSIGNMENT_NOTE_TICKS + 1
+    assert.true! game.running_messages.find { |r| r[:text].include?("Kasten") }.nil?,
+                 "and not for the rest of the dive"
+  end
+
+  # It is announced once. Photographing a second thing that also fits must not
+  # start the announcement over.
+  def test_landing_it_twice_only_announces_it_once(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    job = job_of_kind(game, args, :species)
+    roll_with(args, job.species_key)
+
+    game.note_assignment_landed
+    first = args.state.assignment_landed_at
+    args.state.assignment_landed_at -= 100
+    game.note_assignment_landed
+
+    assert.equal! args.state.assignment_landed_at, first - 100,
+                  "the second one did not reset the clock"
+  end
+
   def test_the_morning_note_goes_away_again(args, assert)
     game = at_sea(args, day: 3)
     sight_everything(args)
@@ -484,6 +521,36 @@ class AssignmentTests
     args.state.assignment_note_at -= Game::ASSIGNMENT_NOTE_TICKS + 1
     note = game.running_messages.find { |row| row[:text].include?("neuen Tagesauftrag") }
     assert.true! note.nil?, "it is not still up an hour later"
+  end
+
+  # --- the card over the boat ------------------------------------------------
+
+  def at_the_boat(args)
+    game = at_sea(args)
+    sight_everything(args)
+    args.state.diver_global_x = game.boat_x
+    args.state.aboard = false
+    args.state.game_scene = "area1"
+    game
+  end
+
+  # The job is a thing you do here, so it belongs in the list of things you do
+  # here — that list is the card over the boat, not the logbook screen.
+  def test_the_boat_card_offers_the_assignment(args, assert)
+    game = at_the_boat(args)
+
+    line = game.boat_action_lines.find { |l| l[:text].include?("Tagesauftrag") }
+
+    assert.false! line.nil?, "the card names it"
+    assert.true! line[:text].include?("[ T ]"), "and says which key"
+  end
+
+  def test_the_card_says_when_the_job_is_done(args, assert)
+    game = at_the_boat(args)
+    args.state.assignment_paid_day = args.state.day
+
+    line = game.boat_action_lines.find { |l| l[:text].include?("Tagesauftrag") }
+    assert.true! line[:text].include?("erledigt"), "no point sending him to read it again"
   end
 
   def test_the_tab_page_is_gone(args, assert)

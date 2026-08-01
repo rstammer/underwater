@@ -76,7 +76,7 @@ class Game
     # Not while aboard either: boat_block_message has this row when he is under
     # way, and two things in one slot is one thing nobody can read.
     return nil if at_the_boat? || state.on_land || state.aboard
-    return nil unless assignment_done?(job)
+    return nil unless assignment_landed_recently?
 
     { text: "Auftrag im Kasten — am Boot entwickeln", slot: SLOT_NOTE,
       color: ASSIGNMENT_DONE_INK }
@@ -86,6 +86,25 @@ class Game
     return false unless state.assignment_note_at
 
     Kernel.tick_count - state.assignment_note_at < ASSIGNMENT_NOTE_TICKS
+  end
+
+  # Landing the job is a moment. Asked as a state — "is it on the film?" — the
+  # answer stays yes from the shutter all the way back to the boat, and the line
+  # sat there for the rest of the dive.
+  def assignment_landed_recently?
+    return false unless state.assignment_landed_at
+
+    Kernel.tick_count - state.assignment_landed_at < ASSIGNMENT_NOTE_TICKS
+  end
+
+  # Stamped the first time a picture fills the day's job. Only the first: a
+  # second qualifying frame is not news, and would start the announcement again.
+  def note_assignment_landed
+    return if state.assignment_landed_day == state.day
+    return unless assignment_done?
+
+    state.assignment_landed_at = Kernel.tick_count
+    state.assignment_landed_day = state.day
   end
 
   # Why the boat has stopped. It takes the note slot, which is free out on open
