@@ -95,7 +95,8 @@ class Game
   # already does to living things happens to them for nothing: they get ticked,
   # they can be photographed, and they go into the Artenbuch on sight.
   def sea_creatures
-    (state.fish || []) + (state.crawlers || []) + (state.jellies || [])
+    (state.fish || []) + (state.crawlers || []) + (state.jellies || []) +
+      (state.corals || [])
   end
 
   # Above the waterline, on an island's beach.
@@ -118,6 +119,28 @@ class Game
     spawn_crawlers(world)
     spawn_shore_life(world)
     spawn_jellies(world)
+    spawn_corals(world)
+  end
+
+  # The colonies growing on this stretch of floor. Spaced rather than scattered:
+  # two corals on the same column are one coral drawn twice, and the frame is a
+  # crop now — a photograph of a reef wants them side by side, not stacked.
+  CORAL_SPACING = 3 # columns kept clear each side of a colony
+
+  def spawn_corals(world)
+    biome = world.biome
+    taken = []
+    state.corals = biome.anchored_count.times.map do
+      col = rand(world.columns)
+      next if taken.any? { |used| (used - col).abs <= CORAL_SPACING }
+      next unless standing_room?(world, col)
+
+      species = Species.pick_sessile(biome, depth_in_metres(world.floor[col]))
+      next unless species
+
+      taken << col
+      Coral.new(args, 0, species: species, world: world, x: col * World::COLUMN_WIDTH)
+    end.compact
   end
 
   # A *field*, not a scattering. Jellyfish are the first thing out here that is

@@ -24,6 +24,9 @@ class Species
   BASS = "sprites/animals/bass1_32_16/"
   SHELLS = "sprites/animals/crustaceans/"
   JELLIES = "sprites/animals/jellies/"
+  # Everything that holds on rather than swims: the corals, and the seahorse
+  # that grips a frond of kelp and stays put.
+  ANCHORED = "sprites/animals/anchored/"
 
   attr_reader :key, :name, :latin, :sheet, :frame_w, :frame_h, :frames_per_row,
               :biomes, :shallowest, :deepest, :rarity, :fee, :habitat, :tease, :shy,
@@ -285,6 +288,76 @@ class Species
         shallowest: 95, deepest: 290, rarity: :rare, tease: "leuchtet von innen",
         size_cm: 46, shoal: 3,
         fee: 52),
+
+    # --- the reef ----------------------------------------------------------
+    #
+    # habitat :reef is the sessile one. Everything else in the book had to be
+    # chased, waited out or crept up on, and photographing it was a question of
+    # patience; a coral holds perfectly still and lets you frame it exactly.
+    # That makes them the pages a beginner can actually fill — which is the
+    # point of putting five of them in the shallowest, brightest water there is.
+    # They are worth accordingly little each, and the reef is worth swimming to
+    # because there are five of them in one place.
+    new(key: "hirnkoralle", name: "Rosa Hirnkoralle", latin: "Cerebrum roseum",
+        sheet: ANCHORED + "hirnkoralle.png", frame_w: 18, frame_h: 14,
+        frames_per_row: 1, habitat: :sessile,
+        biomes: ["Riff"],
+        shallowest: 0, deepest: 60, rarity: :common,
+        tease: "ein rosa Findling voller Furchen",
+        size_cm: 70,
+        fee: 12),
+
+    new(key: "geweihkoralle", name: "Orange Geweihkoralle", latin: "Cornua aurantia",
+        sheet: ANCHORED + "geweihkoralle.png", frame_w: 18, frame_h: 13,
+        frames_per_row: 1, habitat: :sessile,
+        biomes: ["Riff"],
+        shallowest: 0, deepest: 55, rarity: :common,
+        tease: "verzweigt sich wie ein Geweih",
+        size_cm: 90,
+        fee: 14),
+
+    new(key: "faechergorgonie", name: "Violette Fächergorgonie", latin: "Flabellum violaceum",
+        sheet: ANCHORED + "faechergorgonie.png", frame_w: 18, frame_h: 15,
+        frames_per_row: 1, habitat: :sessile,
+        biomes: ["Riff"],
+        shallowest: 10, deepest: 80, rarity: :uncommon,
+        tease: "ein Netz, quer zur Strömung gestellt",
+        size_cm: 110,
+        fee: 22),
+
+    new(key: "orgelkoralle", name: "Rote Orgelkoralle", latin: "Tubipora rubra",
+        sheet: ANCHORED + "orgelkoralle.png", frame_w: 18, frame_h: 13,
+        frames_per_row: 1, habitat: :sessile,
+        biomes: ["Riff"],
+        shallowest: 5, deepest: 70, rarity: :uncommon,
+        tease: "lauter offene Röhren, dicht an dicht",
+        size_cm: 45,
+        fee: 26),
+
+    # The deep one of the five: it starts where the others stop, so the reef has
+    # a page you cannot fill on your first afternoon in it.
+    new(key: "lederkoralle", name: "Gelbe Lederkoralle", latin: "Sarcophyton flavum",
+        sheet: ANCHORED + "lederkoralle.png", frame_w: 18, frame_h: 14,
+        frames_per_row: 1, habitat: :sessile,
+        biomes: ["Riff"],
+        shallowest: 45, deepest: 120, rarity: :rare,
+        tease: "weich und gelb, mit Polypen aussen",
+        size_cm: 55,
+        fee: 40),
+
+    # The seahorse. Anchored like a coral, because that is what it does — it
+    # grips a frond of kelp with its tail and stays there — but it is an animal,
+    # and the only one in the book you photograph standing still on purpose.
+    # Rare, and only in the kelp: a seahorse you meet by accident is not a
+    # seahorse, it is scenery.
+    new(key: "seepferdchen", name: "Goldenes Seepferdchen", latin: "Hippocampus aureus",
+        sheet: ANCHORED + "seepferdchen.png", frame_w: 10, frame_h: 20,
+        frames_per_row: 1, habitat: :sessile,
+        biomes: ["Kelpwald"],
+        shallowest: 0, deepest: 65, rarity: :rare,
+        tease: "steht senkrecht im Tang und wartet ab",
+        size_cm: 14,
+        fee: 46),
   ]
 
   # The legend of the deep. Deliberately NOT in ALL: it never joins the roster or
@@ -319,6 +392,16 @@ class Species
   # worth going down for — a fallback would hand it to you on a shallow bank.
   def self.pick_floor(biome, depth)
     weighted(ALL.select { |s| s.habitat == :floor && s.lives_at?(biome.name, depth) })
+  end
+
+  # What is growing on this stretch of reef. Depth matters as much as it does on
+  # the floor — the leather coral starts where the others have stopped.
+  def self.pick_sessile(biome, depth)
+    weighted(ALL.select { |s| s.habitat == :sessile && s.lives_at?(biome.name, depth) })
+  end
+
+  def self.sessile_species
+    ALL.select { |s| s.habitat == :sessile }
   end
 
   # What lives on the beaches of this biome's islands. No depth: up here there

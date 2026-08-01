@@ -32,7 +32,8 @@ class PhotographyTests
     args.state.fish = [Creature.new(args, 0, species: Species[species_key],
                                     x: 600 + away, y: -400, size: 2)]
     args.state.crawlers = [] # ... and the crabs it stocked the floor with go too,
-    args.state.jellies = []  #     so the one fish is the only thing in the picture
+    args.state.jellies = []  #     along with the drifting field
+    args.state.corals = []   #     and whatever was growing on the bottom,
     game                     #     so the one fish is the only subject in the water
   end
 

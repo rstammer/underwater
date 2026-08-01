@@ -2,13 +2,17 @@
 # colours and how densely it's populated with flora and fauna. The generator
 # reads these knobs; hand-built static worlds can reuse them too.
 class Biome
+  # coral is the scattered *decoration*; anchored_count is how many photographable
+  # coral colonies grow here (habitat :reef). Two different things with nearly
+  # the same name, which is unfortunate but true to what they are: one is set
+  # dressing on the sand, the other is a page in the Artenbuch.
   attr_reader :name, :water_top, :water_bottom, :floor_colors, :fog,
               :seaweed, :coral, :starfish,
-              :fish_count, :crab_count, :shark
+              :fish_count, :crab_count, :anchored_count, :shark
 
   def initialize(name:, water_top:, water_bottom:, floor_colors:, fog:,
                  seaweed:, coral:, starfish:,
-                 fish_count:, shark:, crab_count: 0)
+                 fish_count:, shark:, crab_count: 0, anchored_count: 0)
     @name = name
     @water_top = water_top
     @water_bottom = water_bottom
@@ -19,6 +23,7 @@ class Biome
     @starfish = starfish
     @fish_count = fish_count
     @crab_count = crab_count
+    @anchored_count = anchored_count
     @shark = shark
   end
 
@@ -40,6 +45,9 @@ class Biome
     fog: 0.42,
     seaweed: 16, coral: 2, starfish: 2,
     fish_count: 9, crab_count: 2, shark: false,
+    # Not coral — the seahorse, which grips a frond and stays. Few of them: the
+    # whole point of a seahorse is that you have to find one.
+    anchored_count: 3,
   )
 
   # A colourful reef, full of coral and fish.
@@ -50,6 +58,9 @@ class Biome
     fog: 0.18,
     seaweed: 6, coral: 10, starfish: 5,
     fish_count: 12, crab_count: 3, shark: false,
+    # Enough that a stretch of reef is a reef rather than a sandbank with three
+    # ornaments on it — and the one biome where the colonies are the point.
+    anchored_count: 9,
   )
 
   # The dark deep — sparse, foggy, and a shark prowls.

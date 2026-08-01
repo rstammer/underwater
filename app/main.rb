@@ -21,6 +21,7 @@ require "app/entities/dark_shark.rb"
 require "app/entities/creature.rb"
 require "app/entities/crustacean.rb"
 require "app/entities/jelly.rb"
+require "app/entities/coral.rb"
 require "app/entities/beachgoer.rb"
 require "app/entities/diver.rb"
 
@@ -356,6 +357,7 @@ class Game
     state.crawlers ||= []
     state.shore_life ||= []
     state.jellies ||= []
+    state.corals ||= []
     update_shyness # before they tick, so a frightened one leaves this very frame
     creatures.each { |creature| creature.tick(args, sprite_index) }
 
