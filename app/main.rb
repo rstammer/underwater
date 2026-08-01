@@ -1019,6 +1019,9 @@ class Game
     state.suit = SUIT_MAX
     state.oxygen = air_capacity
     reset_day_tally
+    # A new day is a new job, and the morning says so — it is the one moment the
+    # assignment can be announced rather than looked up.
+    state.assignment_note_at = Kernel.tick_count
     save_book # a day ended is worth remembering
     resume_scene
   end

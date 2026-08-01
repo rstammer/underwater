@@ -384,6 +384,108 @@ class AssignmentTests
     end
   end
 
+  # Measured against the window it is drawn in, for every job the game can set.
+  # The briefing writes whole sentences — where an animal lives, which way to
+  # steer — and it had no wrapping at all, so the long ones ran straight out
+  # through the side of the panel.
+  def test_no_briefing_line_runs_out_of_the_window(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    room = Game::ASSIGNMENT_W - Game::ASSIGNMENT_PAD * 2
+
+    (1..40).each do |day|
+      args.state.day = day
+      args.state.assignment = nil
+      job = game.todays_assignment
+
+      game.assignment_briefing(job).each do |line|
+        width = args.gtk.calcstringbox(line[:text], line[:size] || 1)[0]
+        assert.true! width <= room,
+                     "day #{day}: \"#{line[:text]}\" is #{width.round} px in a #{room} px window"
+      end
+    end
+  end
+
+  # Wrapping turns one line into three, so the other edge matters too: the whole
+  # briefing has to end above the foot of the panel.
+  def test_the_briefing_ends_above_the_bottom_of_the_window(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+
+    (1..40).each do |day|
+      args.state.day = day
+      args.state.assignment = nil
+      used = Game::ASSIGNMENT_HEAD_H +
+             game.assignment_briefing.sum { |line| line[:gap] || Game::ASSIGNMENT_LINE_H }
+      room = Game::ASSIGNMENT_H - Game::ASSIGNMENT_PAD * 2 - 24 # 24: the closing hint
+
+      assert.true! used <= room,
+                   "day #{day}: the briefing runs #{used - room} px past the bottom"
+    end
+  end
+
+  # And the same for the line the boat screen carries on every page.
+  def test_the_boat_screen_line_fits_its_strip(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    args.state.game_scene = "home_menu"
+    room = game.menu_width - Game::MENU_PAD * 2 - 36
+
+    (1..40).each do |day|
+      args.state.day = day
+      args.state.assignment = nil
+      job = game.todays_assignment
+      label = "Tagesauftrag:  #{game.assignment_short(job)}"
+      key = "[ T ]  ansehen"
+      width = args.gtk.calcstringbox(label, 1)[0] + args.gtk.calcstringbox(key, 1)[0]
+
+      assert.true! width <= room,
+                   "day #{day}: \"#{label}\" plus the key needs #{width.round} px of #{room}"
+    end
+  end
+
+  # The band belongs to the frame, not to a page. Laid inside the body's own box
+  # it was drawn over by whatever page was open and could not be seen at all.
+  def test_the_assignment_band_has_a_row_of_its_own(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    args.state.game_scene = "home_menu"
+
+    band_bottom = game.assignment_band_y
+    band_top = band_bottom + Game::ASSIGNMENT_CALL_H
+
+    assert.true! band_top <= game.menu_top - Game::MENU_HEAD_H,
+                 "the band runs up into the head"
+    assert.true! game.body_top < band_bottom,
+                 "the body starts below the band, not behind it"
+    assert.true! game.body_top > game.body_bottom,
+                 "and there is still a body left to draw in"
+  end
+
+  # A new morning has to say so. Waking up at the boat with a fresh job and no
+  # word about it is how you get to the evening having done the wrong thing.
+  def test_waking_up_announces_the_new_job(args, assert)
+    game = at_sea(args, day: 3)
+    sight_everything(args)
+    args.state.diver_global_x = game.boat_x
+
+    game.wake_up
+
+    note = game.running_messages.find { |row| row[:text].include?("Tagesauftrag") }
+    assert.false! note.nil?, "the morning says there is one"
+  end
+
+  def test_the_morning_note_goes_away_again(args, assert)
+    game = at_sea(args, day: 3)
+    sight_everything(args)
+    args.state.diver_global_x = game.boat_x
+    game.wake_up
+
+    args.state.assignment_note_at -= Game::ASSIGNMENT_NOTE_TICKS + 1
+    note = game.running_messages.find { |row| row[:text].include?("neuen Tagesauftrag") }
+    assert.true! note.nil?, "it is not still up an hour later"
+  end
+
   def test_the_tab_page_is_gone(args, assert)
     ids = Game::BOAT_PAGES.map { |page| page[:id] }
 

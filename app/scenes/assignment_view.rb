@@ -11,8 +11,11 @@
 # can be pressed — reading it is all it is for, which is why it can be opened
 # from the deck and from inside the boat screen alike.
 class Game
-  ASSIGNMENT_W = 720
-  ASSIGNMENT_H = 420
+  ASSIGNMENT_W = 760
+  # Sized against the longest briefing the roster can produce, not by eye: a
+  # wrapped sentence is three lines, and three of those filled a 420 px panel
+  # past its own bottom edge (tests/assignment_tests.rb measures it).
+  ASSIGNMENT_H = 520
   ASSIGNMENT_PAD = 34
   ASSIGNMENT_HEAD_H = 78
   ASSIGNMENT_LINE_H = 34
@@ -115,16 +118,27 @@ class Game
   def assignment_briefing(job = todays_assignment)
     return [{ text: "Heute liegt nichts an.", size: 2 }] unless job
 
-    lines = [{ text: assignment_text(job), size: 3, ink: ASSIGNMENT_TITLE_INK, gap: 46 }]
-    lines << { text: assignment_detail(job), size: 1, gap: 30 }
-    lines << { text: "Honorar: #{job.fee} Cr — gezahlt beim Entwickeln am Boot.",
-               size: 1, ink: ASSIGNMENT_FEE_INK, gap: 46 }
+    state_text, state_ink = assignment_state_line(job)
+    [
+      [assignment_text(job), 3, ASSIGNMENT_TITLE_INK, 46],
+      [assignment_detail(job), 1, ASSIGNMENT_BODY_INK, 30],
+      ["Honorar: #{job.fee} Cr — gezahlt beim Entwickeln am Boot.", 1, ASSIGNMENT_FEE_INK, 46],
+      [state_text, 2, state_ink, 40],
+      ["Unscharfe Bilder zählen nicht. Morgen früh liegt ein neuer Auftrag an.",
+       0, [130, 154, 176], ASSIGNMENT_LINE_H],
+    ].flat_map { |text, size, ink, gap| briefing_lines(text, size, ink, gap) }
+  end
 
-    state_text, ink = assignment_state_line(job)
-    lines << { text: state_text, size: 2, ink: ink, gap: 40 }
-    lines << { text: "Unscharfe Bilder zählen nicht. Morgen früh liegt ein neuer Auftrag an.",
-               size: 0, ink: [130, 154, 176] }
-    lines
+  # One written line becomes as many drawn ones as it needs. The gap belongs to
+  # the last of them: the space between two paragraphs is not the space between
+  # two lines of the same sentence.
+  def briefing_lines(text, size, ink, gap)
+    room = ASSIGNMENT_W - ASSIGNMENT_PAD * 2
+    parts = wrap_text(text, room, size)
+    parts.each_with_index.map do |part, i|
+      { text: part, size: size, ink: ink,
+        gap: i == parts.length - 1 ? gap : ASSIGNMENT_LINE_H - 6 }
+    end
   end
 
   # The part that says how you would go and do it. The sector job needs it most:

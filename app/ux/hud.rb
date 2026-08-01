@@ -51,17 +51,30 @@ class Game
 
   ASSIGNMENT_INK = [190, 206, 226]
   ASSIGNMENT_DONE_INK = [156, 226, 150]
+  ASSIGNMENT_NEW_INK = [255, 214, 120]
+  ASSIGNMENT_NOTE_TICKS = 420 # seven seconds of being the news of the morning
 
   # The day's job, kept where he can see it. Quiet, and gone once it is on the
   # film: a job you have already done is not a thing to be reminded of.
+  #
+  # The morning is the exception: for the first few seconds after waking it says
+  # so outright, wherever he is standing. A day starts at the boat and a new job
+  # arrives with it, and a diver who swam off without looking has spent the day
+  # on the wrong thing.
   def assignment_message
-    # Not while aboard either: boat_block_message has this row when he is under
-    # way, and two things in one slot is one thing nobody can read.
-    return nil if at_the_boat? || state.on_land || state.aboard
     return nil if assignment_paid?
 
     job = todays_assignment
     return nil unless job
+
+    if assignment_fresh?
+      return { text: "Neuer Tagesauftrag — [ T ] am Boot ansehen", slot: SLOT_NOTE,
+               color: ASSIGNMENT_NEW_INK }
+    end
+
+    # Not while aboard either: boat_block_message has this row when he is under
+    # way, and two things in one slot is one thing nobody can read.
+    return nil if at_the_boat? || state.on_land || state.aboard
 
     if assignment_done?(job)
       return { text: "Auftrag im Kasten — am Boot entwickeln", slot: SLOT_NOTE,
@@ -69,6 +82,12 @@ class Game
     end
 
     { text: "Auftrag:  #{assignment_short(job)}", slot: SLOT_NOTE, color: ASSIGNMENT_INK }
+  end
+
+  def assignment_fresh?
+    return false unless state.assignment_note_at
+
+    Kernel.tick_count - state.assignment_note_at < ASSIGNMENT_NOTE_TICKS
   end
 
   # Why the boat has stopped. It takes the note slot, which is free out on open
@@ -493,20 +512,25 @@ class Game
     }
   end
 
-  # Measured, not counted: the tease of a species is a sentence, and how much of
-  # it fits is a fact about the font rather than about the number of characters.
-  def wrap_card_text(text)
-    room = CARD_W - CARD_PAD * 2
+  # Measured, not counted: a sentence's width is a fact about the font, not about
+  # how many characters are in it. Shared, because every panel in the game that
+  # writes a sentence needs it and the one that did not have it printed straight
+  # out through its own edge.
+  def wrap_text(text, room, size = 1, max_lines = 99)
     lines = []
     words = text.to_s.split(" ")
-    until words.empty? || lines.length >= CARD_TEXT_LINES
+    until words.empty? || lines.length >= max_lines
       line = words.shift
-      while words[0] && args.gtk.calcstringbox("#{line} #{words[0]}", -1)[0] <= room
+      while words[0] && args.gtk.calcstringbox("#{line} #{words[0]}", size)[0] <= room
         line = "#{line} #{words.shift}"
       end
       lines << line
     end
     lines
+  end
+
+  def wrap_card_text(text)
+    wrap_text(text, CARD_W - CARD_PAD * 2, -1, CARD_TEXT_LINES)
   end
 
   def fresh_message

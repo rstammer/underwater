@@ -90,8 +90,10 @@ class Game
 
   # Where the page's own content begins and ends, once the head, the tabs and the
   # footer have taken theirs. Everything a page draws hangs off these two.
+  # Under the head, the assignment band and the tabs — the three rows that belong
+  # to the frame rather than to any one page.
   def body_top
-    menu_top - MENU_HEAD_H - MENU_TAB_H - 18
+    assignment_band_y - MENU_TAB_H - 8 - 18
   end
 
   def body_bottom
@@ -102,6 +104,7 @@ class Game
     outputs.sprites << { x: menu_left, y: menu_bottom, w: menu_width, h: menu_top - menu_bottom,
                          r: MENU_BG[0], g: MENU_BG[1], b: MENU_BG[2], path: :solid }
     render_menu_head
+    render_assignment_band
     render_menu_tabs
     case state.boat_page
     when :book then render_artenbuch_page
@@ -159,8 +162,64 @@ class Game
 
   MENU_TAB_W = 240
 
+  ASSIGNMENT_CALL_H = 52
+  ASSIGNMENT_CALL_BG = [18, 38, 54]
+
+  # The job gets a band of its own, right under the head and above the tabs.
+  #
+  # It had a line tucked in over the footer first, which is to say inside the
+  # body's own box, where it was invisible — the page drawn over it is opaque and
+  # the strip was reading as part of whatever page happened to be open. A thing
+  # that belongs to no page cannot live in the space the pages own; it needs a
+  # row in the frame, and the body starts below it.
+  def render_assignment_band
+    y = assignment_band_y
+    job = todays_assignment
+
+    outputs.sprites << { x: menu_left, y: y, w: menu_width, h: ASSIGNMENT_CALL_H,
+                         r: ASSIGNMENT_CALL_BG[0], g: ASSIGNMENT_CALL_BG[1],
+                         b: ASSIGNMENT_CALL_BG[2], path: :solid }
+    return unless job
+
+    done = assignment_paid?
+    ready = !done && assignment_done?(job)
+    marker = done ? ASSIGNMENT_DONE_INK : (ready ? ASSIGNMENT_READY_INK : MENU_ACCENT)
+    # A stripe down the left of the band, in the colour of where the job stands.
+    # The one place on this screen where a colour means something, so it is worth
+    # being the only stripe on it.
+    outputs.sprites << { x: menu_left, y: y, w: 5, h: ASSIGNMENT_CALL_H,
+                         r: marker[0], g: marker[1], b: marker[2], path: :solid }
+
+    mid = y + ASSIGNMENT_CALL_H / 2
+    outputs.labels << { x: menu_left + MENU_PAD, y: mid + 10, text: "Tagesauftrag",
+                        size_enum: 0, vertical_alignment_enum: 1,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+    outputs.labels << { x: menu_left + MENU_PAD, y: mid - 12,
+                        text: assignment_band_text(job, done, ready), size_enum: 2,
+                        vertical_alignment_enum: 1,
+                        r: marker[0], g: marker[1], b: marker[2] }
+
+    outputs.labels << { x: menu_right - MENU_PAD, y: mid + 10, text: "#{job.fee} Cr",
+                        size_enum: 2, alignment_enum: 2, vertical_alignment_enum: 1,
+                        r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
+    outputs.labels << { x: menu_right - MENU_PAD, y: mid - 14, text: "[ T ]  ansehen",
+                        size_enum: 0, alignment_enum: 2, vertical_alignment_enum: 1,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+  end
+
+  def assignment_band_y
+    menu_top - MENU_HEAD_H - ASSIGNMENT_CALL_H
+  end
+
+  def assignment_band_text(job, done, ready)
+    return "erledigt und bezahlt" if done
+    return "im Kasten — entwickeln" if ready
+
+    assignment_short(job)
+  end
+
   def render_menu_tabs
-    y = menu_top - MENU_HEAD_H - MENU_TAB_H
+    y = assignment_band_y - MENU_TAB_H - 8
     BOAT_PAGES.each_with_index do |page, i|
       x = menu_left + MENU_PAD + i * (MENU_TAB_W + 10)
       here = state.boat_page == page[:id]
@@ -198,33 +257,6 @@ class Game
     outputs.labels << { x: (menu_left + menu_right) / 2, y: menu_bottom + MENU_FOOT_H - 14,
                         text: hint, size_enum: 1, alignment_enum: 1, vertical_alignment_enum: 2,
                         r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
-    render_assignment_call
-  end
-
-  ASSIGNMENT_CALL_H = 44
-
-  # The job, on every page of the boat screen: one line saying what is wanted and
-  # which key reads it out in full. It is not a page of its own because it is not
-  # something to browse — it is the thing you check before you go down, and it
-  # should be legible from wherever you happen to be standing in here.
-  def render_assignment_call
-    job = todays_assignment
-    return unless job
-
-    y = menu_bottom + MENU_FOOT_H + 10
-    outputs.sprites << { x: menu_left + MENU_PAD, y: y, w: menu_width - MENU_PAD * 2,
-                         h: ASSIGNMENT_CALL_H, r: 14, g: 30, b: 46, path: :solid }
-
-    done = assignment_paid?
-    label = done ? "Tagesauftrag erledigt" : "Tagesauftrag:  #{assignment_short(job)}"
-    ink = done ? ASSIGNMENT_DONE_INK : MENU_INK
-    outputs.labels << { x: menu_left + MENU_PAD + 18, y: y + ASSIGNMENT_CALL_H - 12,
-                        text: label, size_enum: 1, vertical_alignment_enum: 2,
-                        r: ink[0], g: ink[1], b: ink[2] }
-    outputs.labels << { x: menu_right - MENU_PAD - 18, y: y + ASSIGNMENT_CALL_H - 12,
-                        text: "[ T ]  ansehen", size_enum: 1, alignment_enum: 2,
-                        vertical_alignment_enum: 2,
-                        r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
   end
 
   # A framed box for a page to put a column in. Boxes rather than bare columns
