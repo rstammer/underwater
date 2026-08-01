@@ -45,7 +45,12 @@ class SaveFile
   COUNTERS = ["credits", "dives", "best", "sold", "earned", "day", "energy",
               "day_earned", "day_species", "day_deepest", "day_sold",
               "gear_film", "gear_air", "gear_suit", "gear_mask", "gear_fins",
-              "shop_met", "kraken_met"]
+              "shop_met", "kraken_met",
+              # Which day's assignment has been paid for. The assignment itself
+              # is rolled from the seed and the day, so it needs no storing —
+              # but whether it has been handed in does, or shutting the game
+              # after delivering one is a second fee for the same photograph.
+              "assignment_paid_day"]
 
   def self.encode(name:, album:, sighted:, seed: nil, stash: [], flocks: {},
                   boat_x: nil, charted_west: nil, charted_east: nil, **counters)

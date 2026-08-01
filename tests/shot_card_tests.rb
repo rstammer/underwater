@@ -238,13 +238,18 @@ class ShotCardTests
     end
   end
 
-  # One event, one place on the screen.
-  def test_the_old_line_is_gone(args, assert)
+  # One event, one place on the screen. Asked of what the rows *say* rather than
+  # of which slot they occupy: the day's assignment moved into the row the shot
+  # note used to have, which is fine — it is a different thing being said.
+  def test_the_shot_result_is_no_longer_a_message_row(args, assert)
     game = diving(args)
-    game.note_shot(a_species, :gut, 1)
+    species = a_species
+    args.state.album = { species.key => :gut } # so it has a name to leak
+    game.note_shot(species, :perfekt, 1)
 
-    slots = game.running_messages.map { |m| m[:slot] }
-    assert.false! slots.include?(Game::SLOT_NOTE),
-                  "the result of a shot is the card's job now, not a message row"
+    game.running_messages.each do |row|
+      assert.false! row[:text].include?(species.name),
+                    "\"#{row[:text]}\" is still announcing the shot down at the foot"
+    end
   end
 end

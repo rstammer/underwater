@@ -226,15 +226,25 @@ class Game
   # they can come off different exposures — a tight portrait in the morning and a
   # loose school in the afternoon are two facts about the same animal, and
   # neither should quietly wipe the other.
+  # Where he was standing, which the day's assignment may well be asking about.
+  # It travels with the shot rather than in a tally of its own, because the roll
+  # is what drowning takes away — a sector you photographed in and did not bring
+  # home is not a sector you delivered.
+  def shot_sector
+    state.diver_global_x.idiv(SCREEN_WIDTH)
+  end
+
   def store_shot(key, quality, flock = 1)
     existing = state.film_roll.find { |shot| shot[:key] == key }
     unless existing
-      return state.film_roll << { key: key, quality: quality, flock: flock, day: state.day }
+      return state.film_roll << { key: key, quality: quality, flock: flock,
+                                  day: state.day, sector: shot_sector }
     end
 
     existing[:quality] = quality if QUALITY_RANK[quality] > QUALITY_RANK[existing[:quality]]
     existing[:flock] = flock if quality != :unscharf && flock > (existing[:flock] || 1)
     existing[:day] = state.day
+    existing[:sector] = shot_sector
   end
 
   # What he just caught, as far as he can tell down here — which for something
@@ -293,6 +303,7 @@ class Game
                   day: shot[:day] || state.day, fresh: known.nil? }
     end
     state.developed_roll = prints
+    earned += settle_assignment
     state.credits += earned
     state.log_earned += earned
     state.day_earned += earned

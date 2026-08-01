@@ -46,6 +46,7 @@ require "app/world/kraken.rb"
 require "app/world/whale.rb"
 require "app/world/sting.rb"
 require "app/world/gear.rb"
+require "app/world/assignment.rb"
 require "app/world/sailing.rb"
 require "app/world/save_file.rb"
 require "app/world/save_slots.rb"
@@ -1201,6 +1202,7 @@ class Game
     state.day_species = book[:day_species] || 0
     state.day_deepest = book[:day_deepest] || 0
     state.day_sold = book[:day_sold] || 0
+    state.assignment_paid_day = book[:assignment_paid_day] || 0
     # What he has bought, before reset_game refills the tank and the roll from it.
     state.gear = { film: book[:gear_film] || 0, air: book[:gear_air] || 0,
                    suit: book[:gear_suit] || 0, mask: book[:gear_mask] || 0,

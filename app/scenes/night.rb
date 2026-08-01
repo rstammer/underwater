@@ -69,9 +69,19 @@ class Game
     [
       ["Verdient", "#{state.day_earned} Cr"],
       ["Neue Arten", "#{state.day_species}"],
+      ["Auftrag", night_assignment_value],
       ["Tiefster Punkt", "#{state.day_deepest} m"],
       ["Fundstücke verkauft", "#{state.day_sold}"],
     ]
+  end
+
+  # Delivered, or not. A job that was never handed in says so plainly and costs
+  # nothing — the morning brings another one.
+  def night_assignment_value
+    return "#{state.assignment_earned || 0} Cr" if assignment_paid?
+    return "im Kasten, nicht entwickelt" if assignment_done?
+
+    "nicht geschafft"
   end
 
   def night_rows_top
@@ -108,6 +118,8 @@ class Game
   # One line on how it went, off the day's own numbers. Nothing is a failure —
   # a blank day is a blank day, and there is another one in the morning.
   def night_verdict
+    return "Auftrag erledigt und bezahlt. So geht das." if assignment_paid?
+    return "Der Auftrag liegt noch auf dem Film. Schade um den Tag." if assignment_done?
     return "Ein Tag ohne eine einzige Aufnahme. Kommt vor." if state.day_species.zero? && state.day_earned.zero?
     return "Vier neue Seiten im Artenbuch. Ein guter Tag." if state.day_species >= 4
     return "Das Konto sieht deutlich freundlicher aus." if state.day_earned >= 100

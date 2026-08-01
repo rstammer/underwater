@@ -46,7 +46,29 @@ class Game
   # the screen behind "Rucksack voll" — one event, one place to look.
   def running_messages
     [photo_message, pickup_message, fresh_message, sting_message,
-     boat_block_message].compact
+     boat_block_message, assignment_message].compact
+  end
+
+  ASSIGNMENT_INK = [190, 206, 226]
+  ASSIGNMENT_DONE_INK = [156, 226, 150]
+
+  # The day's job, kept where he can see it. Quiet, and gone once it is on the
+  # film: a job you have already done is not a thing to be reminded of.
+  def assignment_message
+    # Not while aboard either: boat_block_message has this row when he is under
+    # way, and two things in one slot is one thing nobody can read.
+    return nil if at_the_boat? || state.on_land || state.aboard
+    return nil if assignment_paid?
+
+    job = todays_assignment
+    return nil unless job
+
+    if assignment_done?(job)
+      return { text: "Auftrag im Kasten — am Boot entwickeln", slot: SLOT_NOTE,
+               color: ASSIGNMENT_DONE_INK }
+    end
+
+    { text: "Auftrag:  #{assignment_short(job)}", slot: SLOT_NOTE, color: ASSIGNMENT_INK }
   end
 
   # Why the boat has stopped. It takes the note slot, which is free out on open
@@ -284,7 +306,27 @@ class Game
         "[ F ]  #{species_label(species)}  (#{quality})"
       end
 
-    { text: text, slot: SLOT_PHOTO, color: photo_ink(species, quality) }
+    { text: assignment_mark(species, 1, quality) + text, slot: SLOT_PHOTO,
+      color: photo_ink(species, quality) }
+  end
+
+  ASSIGNMENT_MARK = "★  "
+
+  # A star in front of the viewfinder line when what is in the lens would fill
+  # the day's job. It says "this counts", not "this is good" — the grade next to
+  # it is still the only thing saying whether the picture will come out. Which is
+  # the honest amount to give away: the magazine wants the animal, the
+  # photograph is still your problem.
+  def assignment_mark(species, flock, quality)
+    return "" unless species
+    return "" if assignment_paid?
+
+    job = todays_assignment
+    return "" unless job
+    return "" if assignment_done?(job) # already on the film; no need to nag
+
+    shot = { key: species.key, flock: flock, quality: quality, sector: shot_sector }
+    shot_satisfies?(job, shot) ? ASSIGNMENT_MARK : ""
   end
 
   # A count rather than a plural: "3 × Gemeiner Hornhering" needs no grammar, and
@@ -298,8 +340,8 @@ class Game
     quality = frame_quality(report)
     label = species_label(species)
     label = "#{report[:flock]} ×  #{label}" if report[:flock] > 1
-    { text: "#{label}  (#{quality})", slot: SLOT_PHOTO,
-      color: photo_ink(species, quality) }
+    { text: "#{assignment_mark(species, report[:flock], quality)}#{label}  (#{quality})",
+      slot: SLOT_PHOTO, color: photo_ink(species, quality) }
   end
 
   # The flash of the shutter, over the whole picture. Not a message — it is the
