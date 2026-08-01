@@ -145,6 +145,68 @@ class ShotCardTests
     assert.true! args.outputs.sprites.length > sprites, "it put something on screen"
   end
 
+  # Everything on the print, as boxes, so overlaps are a thing a test can see.
+  # They were not: the grade and the NEU badge printed on top of each other, and
+  # the third line of a caption hung out of the bottom edge of the paper.
+  def test_nothing_on_the_print_overlaps_anything_else(args, assert)
+    game = diving(args)
+    args.state.album = {}
+    game.note_shot(a_species, :perfekt, 12) # long grade line *and* a NEU badge
+
+    boxes = game.card_layout(game.shot_card)
+    pairs = []
+    boxes.each_with_index { |a, i| boxes.each_with_index { |b, j| pairs << [a, b] if j > i } }
+
+    pairs.each do |a, b|
+      keys = [a[:key], b[:key]]
+      # The badge is a sticker *on* the print, so it is meant to sit on the
+      # picture. It is not meant to sit on the grade, which is what it did.
+      next if keys.include?(:badge) && keys.include?(:window)
+
+      apart = a[:x] + a[:w] <= b[:x] || b[:x] + b[:w] <= a[:x] ||
+              a[:y] + a[:h] <= b[:y] || b[:y] + b[:h] <= a[:y]
+      assert.true! apart, "#{a[:key]} and #{b[:key]} sit on top of each other"
+    end
+  end
+
+  # And all of it on the paper.
+  def test_everything_on_the_print_is_on_the_paper(args, assert)
+    game = diving(args)
+    args.state.album = {}
+    game.note_shot(a_species, :perfekt, 12)
+    card = game.shot_card
+
+    x = SCREEN_WIDTH - Game::CARD_RIGHT - Game::CARD_W
+    y = Game::CARD_BOTTOM
+    game.card_layout(card).each do |box|
+      assert.true! box[:x] >= x, "#{box[:key]} runs off the left edge"
+      assert.true! box[:x] + box[:w] <= x + Game::CARD_W, "#{box[:key]} runs off the right edge"
+      assert.true! box[:y] >= y, "#{box[:key]} hangs out of the bottom"
+      assert.true! box[:y] + box[:h] <= y + Game::CARD_H, "#{box[:key]} runs off the top"
+    end
+  end
+
+  # The film strip had the same fault: the word "Film" sat straight on the cells.
+  def test_the_film_label_clears_the_strip(args, assert)
+    game = diving(args)
+    cells = game.film_cells
+    top = cells.first[:y] + cells.first[:h]
+
+    assert.true! game.film_label_y >= top + 4,
+                 "the label is #{game.film_label_y - top} px off the strip"
+  end
+
+  # ... and does not solve that by climbing into the gauge above it. The strip
+  # hangs under the lowest bar, and the whole of it has to fit in that gap.
+  def test_the_whole_strip_fits_under_the_gauges(args, assert)
+    game = diving(args)
+    lowest_gauge = game.gauges_bottom + Game::GAUGE_GAP
+
+    assert.true! game.film_label_y < lowest_gauge,
+                 "the word Film is #{game.film_label_y - lowest_gauge} px into the bar above it"
+    assert.true! game.film_cells.first[:y] > 0, "and the strip is on the screen"
+  end
+
   def test_the_card_is_wholly_on_the_screen(args, assert)
     game = diving(args)
     game.note_shot(a_species, :gut, 1)

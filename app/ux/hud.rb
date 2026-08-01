@@ -177,7 +177,10 @@ class Game
   # frames make wide cells, thirty make sprocket holes, and the strip is the same
   # length either way.
   def render_film_gauge
-    outputs.labels << { x: GAUGE_X, y: gauges_bottom + 34, text: "Film", size_enum: 0,
+    outputs.labels << { x: GAUGE_X, y: film_label_y, text: "Film", size_enum: 0,
+                        vertical_alignment_enum: 2, # top-pinned: y is the top of
+                        # the word, so it grows down into the gap and not up into
+                        # the gauge above it
                         r: FILM_INK[0], g: FILM_INK[1], b: FILM_INK[2] }
     film_cells.each do |cell|
       colour = if state.film_left.zero? then FILM_EMPTY
@@ -188,6 +191,18 @@ class Game
       outputs.sprites << { x: cell[:x], y: cell[:y], w: cell[:w], h: cell[:h],
                            r: colour[0], g: colour[1], b: colour[2], path: :solid }
     end
+  end
+
+  # Where the word "Film" goes: the same distance over its strip that every other
+  # label sits over its bar (render_gauge). It was eight pixels lower, and a
+  # label whose baseline is inside the thing it names comes out printed on it —
+  # "Film███████".
+  def film_strip_y
+    gauges_bottom + 12
+  end
+
+  def film_label_y
+    film_strip_y + FILM_H + 22
   end
 
   # One entry per frame on the roll, left to right, oldest first — so the strip
@@ -206,7 +221,7 @@ class Game
     flashing = state.shot_at && Kernel.tick_count - state.shot_at < FILM_FLASH
 
     total.times.map do |i|
-      { x: GAUGE_X + (i * span).round, y: gauges_bottom + 12,
+      { x: GAUGE_X + (i * span).round, y: film_strip_y,
         w: w.round, h: FILM_H,
         spent: i < spent_count,
         lit: flashing && i == spent_count - 1 }
@@ -301,7 +316,7 @@ class Game
   end
 
   CARD_W = 190
-  CARD_H = 150
+  CARD_H = 196          # tall enough for three lines of caption under the picture
   CARD_PAD = 10
   CARD_RIGHT = 24     # gap from the right edge ...
   CARD_BOTTOM = 96    # ... and from the bottom, clear of the message rows
@@ -336,6 +351,49 @@ class Game
       alpha: alpha < 0 ? 0 : alpha, rise: rise }
   end
 
+  # The animal, in the window at the top of the print — drawn the way the
+  # darkroom draws it, only smaller, so a print in the water and a print at the
+  # boat are recognisably the same object.
+  CARD_WINDOW_H = 78
+  CARD_HEAD_H = 22    # the grade line under the window
+  CARD_LINE_H = 18    # ... and each line of caption under that
+  CARD_TEXT_LINES = 3
+  CARD_BADGE_W = 44   # the NEU sticker, up in the corner of the picture
+  CARD_BADGE_H = 20
+
+  # Every piece of the print as a box, in screen coordinates, before anything is
+  # drawn. Worth having apart from the drawing: laid out inline, the grade and
+  # the NEU badge printed straight through each other and the last line of a
+  # caption hung off the bottom of the paper, and neither is visible from a test
+  # that only asks whether something was drawn.
+  def card_layout(card, y_override = nil)
+    x = SCREEN_WIDTH - CARD_RIGHT - CARD_W
+    y = y_override || CARD_BOTTOM
+    win_y = y + CARD_H - CARD_PAD - CARD_WINDOW_H
+    boxes = [{ key: :window, x: x + CARD_PAD, y: win_y,
+               w: CARD_W - CARD_PAD * 2, h: CARD_WINDOW_H }]
+
+    # The badge lives *on* the picture, in its top corner, like a sticker on a
+    # print. It used to share the grade line, where a "12 ×  perfekt" ran
+    # straight into it.
+    if card[:fresh]
+      boxes << { key: :badge, x: x + CARD_W - CARD_PAD - CARD_BADGE_W,
+                 y: win_y + CARD_WINDOW_H - CARD_BADGE_H - 4,
+                 w: CARD_BADGE_W, h: CARD_BADGE_H }
+    end
+
+    head_y = win_y - CARD_HEAD_H
+    boxes << { key: :head, x: x + CARD_PAD, y: head_y,
+               w: CARD_W - CARD_PAD * 2, h: CARD_HEAD_H } if card[:quality]
+
+    wrap_card_text(card[:text]).each_with_index do |line, i|
+      boxes << { key: :"line#{i}", x: x + CARD_PAD,
+                 y: head_y - CARD_LINE_H * (i + 1),
+                 w: CARD_W - CARD_PAD * 2, h: CARD_LINE_H, text: line }
+    end
+    boxes
+  end
+
   def render_shot_card
     card = shot_card
     return unless card
@@ -350,25 +408,42 @@ class Game
     outputs.sprites << { x: x, y: y, w: CARD_W, h: CARD_H,
                          r: CARD_PAPER[0], g: CARD_PAPER[1], b: CARD_PAPER[2],
                          a: a, path: :solid }
-    render_card_subject(card, x, y, a)
-    render_card_caption(card, x, y, a)
+
+    card_layout(card, y).each { |box| render_card_box(card, box, a) }
   end
 
-  # The animal, in the window at the top of the print — drawn the way the
-  # darkroom draws it, only smaller, so a print in the water and a print at the
-  # boat are recognisably the same object.
-  CARD_WINDOW_H = 78
+  # Labels are pinned to the top of their box (vertical_alignment_enum 2) rather
+  # than left to sit on a baseline: a box a test measured and a line the engine
+  # placed somewhere else is the same bug in a new place.
+  def render_card_box(card, box, a)
+    case box[:key]
+    when :window
+      outputs.sprites << { x: box[:x], y: box[:y], w: box[:w], h: box[:h],
+                           r: 30, g: 52, b: 74, a: a, path: :solid }
+      render_card_subject(card, box, a)
+    when :badge
+      outputs.labels << { x: box[:x] + box[:w], y: box[:y] + box[:h], text: "NEU",
+                          size_enum: 0, alignment_enum: 2, vertical_alignment_enum: 2,
+                          a: a, r: 255, g: 206, b: 108 }
+    when :head
+      head = card[:flock] > 1 ? "#{card[:flock]} ×   #{card[:quality]}" : card[:quality].to_s
+      outputs.labels << { x: box[:x], y: box[:y] + box[:h], text: head, size_enum: 1,
+                          vertical_alignment_enum: 2, a: a,
+                          r: CARD_FRAME[0], g: CARD_FRAME[1], b: CARD_FRAME[2] }
+    else
+      outputs.labels << { x: box[:x], y: box[:y] + box[:h], text: box[:text],
+                          size_enum: -1, vertical_alignment_enum: 2, a: a,
+                          r: 68, g: 74, b: 86 }
+    end
+  end
 
-  def render_card_subject(card, x, y, a)
+  def render_card_subject(card, box, a)
     species = card[:species]
-    win_y = y + CARD_H - CARD_PAD - CARD_WINDOW_H
-    outputs.sprites << { x: x + CARD_PAD, y: win_y, w: CARD_W - CARD_PAD * 2, h: CARD_WINDOW_H,
-                         r: 30, g: 52, b: 74, a: a, path: :solid }
     return unless species
 
-    scale = fit_scale(species, CARD_W - CARD_PAD * 2 - 12, CARD_WINDOW_H - 12)
+    scale = fit_scale(species, box[:w] - 12, box[:h] - 12)
     outputs.sprites << {
-      x: x + CARD_W / 2, y: win_y + CARD_WINDOW_H / 2,
+      x: box[:x] + box[:w] / 2, y: box[:y] + box[:h] / 2,
       w: species.frame_w * scale, h: species.frame_h * scale,
       path: species.sheet, anchor_x: 0.5, anchor_y: 0.5,
       source_x: 0, source_y: 0, source_w: species.frame_w, source_h: species.frame_h,
@@ -376,30 +451,8 @@ class Game
     }
   end
 
-  def render_card_caption(card, x, y, a)
-    left = x + CARD_PAD
-    head = card[:flock] > 1 ? "#{card[:flock]} ×   #{card[:quality]}" : card[:quality].to_s
-    outputs.labels << { x: left, y: y + CARD_H - CARD_WINDOW_H - CARD_PAD - 4,
-                        text: head, size_enum: 1, a: a,
-                        r: CARD_FRAME[0], g: CARD_FRAME[1], b: CARD_FRAME[2] } if card[:quality]
-
-    wrap_card_text(card[:text]).each_with_index do |line, i|
-      outputs.labels << { x: left, y: y + CARD_H - CARD_WINDOW_H - CARD_PAD - 30 - i * 18,
-                          text: line, size_enum: -1, a: a,
-                          r: 68, g: 74, b: 86 }
-    end
-
-    return unless card[:fresh]
-
-    outputs.labels << { x: x + CARD_W - CARD_PAD, y: y + CARD_H - CARD_WINDOW_H - CARD_PAD - 4,
-                        text: "NEU", size_enum: 1, alignment_enum: 2, a: a,
-                        r: 196, g: 118, b: 32 }
-  end
-
   # Measured, not counted: the tease of a species is a sentence, and how much of
   # it fits is a fact about the font rather than about the number of characters.
-  CARD_TEXT_LINES = 3
-
   def wrap_card_text(text)
     room = CARD_W - CARD_PAD * 2
     lines = []
