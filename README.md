@@ -78,6 +78,46 @@ launch: right-click the app and choose **Open**, which offers you the button
 that a double-click does not. Windows shows a SmartScreen panel with the same
 way past it under **More info → Run anyway**.
 
+## Where your saves live
+
+A career is one small text file. There are five slots, so five possible files,
+next to a one-generation backup of each:
+
+```
+book_1.txt   book_1.txt.bak
+book_2.txt   book_2.txt.bak
+...
+```
+
+Copy those away and you have your saves; put them back and you have them again.
+The `.bak` beside each one is the state before the last write — if a book ever
+comes back wrong, rename that over it.
+
+**The downloaded builds don't keep them next to the game.** DragonRuby writes to
+the place each platform keeps application data, so an unzipped game folder you
+delete takes nothing with it:
+
+| macOS | `~/Library/Application Support/Underwater/` |
+|---|---|
+| Windows | `%APPDATA%\Robin Stammer\Underwater\` — i.e. `C:\Users\<you>\AppData\Roaming\Robin Stammer\Underwater` |
+| Linux | `~/.local/share/Underwater/` |
+
+**In the browser there is no file.** The web version keeps the same five books in
+the browser's IndexedDB, tied to the site they were played on. That means they
+survive closing the tab but not clearing site data for stammer.dev, they do not
+follow you to another browser or machine, and a private window starts empty every
+time. There is no export — if a career matters to you, play a desktop build.
+
+**Running from source** (`./dragonruby .`) is a development build, and those write
+straight into the game directory instead: the books turn up in the repo root,
+beside `app/`. They are gitignored. This is also why a career built from source
+does not appear in the downloaded app — different place, empty shelf. Copying the
+`book_*.txt` files into the directory above moves it over, since the game reads
+its data directory first and the game directory second.
+
+(A save from before there were slots is a single `artenbuch.txt`. The game adopts
+it into slot one on first launch and leaves the original where it is.)
+
 ## Running it locally
 
 **The DragonRuby engine is deliberately not in this repo.** It is commercial
