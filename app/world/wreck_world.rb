@@ -113,22 +113,22 @@ module WreckWorld
         # A hull with a bottom to it: the very tip of the bow lifts clear of the
         # mud, the way a stem does where the keel runs out.
         base = from_bow < 3 ? floor[col] + (3 - from_bow) * 22 : floor[col]
-        slabs << { ceiling: base.round, crown: top.round }
+        slabs << { ceiling: base.round, crown: top.round, wood: true }
       elsif col.between?(BREAK_FROM, BREAK_TO)
         # The hole. No deck here, so the hold is open to the water above it.
       else
-        slabs << { ceiling: deck_bottom.round, crown: deck_top.round }
+        slabs << { ceiling: deck_bottom.round, crown: deck_top.round, wood: true }
       end
 
       # The quarterdeck aft, standing on the main deck: a second slab rather
       # than a taller deck, so the hold underneath keeps its headroom.
       if col >= QUARTER_FROM && from_stern >= TAIL
-        slabs << { ceiling: deck_top.round, crown: (deck_top + QUARTER_H).round }
+        slabs << { ceiling: deck_top.round, crown: (deck_top + QUARTER_H).round, wood: true }
       end
 
       # The mast, or what is left of it — a stump still standing amidships.
       if (col - MAST_COL).abs < MAST_W && !col.between?(BREAK_FROM, BREAK_TO)
-        slabs << { ceiling: deck_top.round, crown: (deck_top + MAST_STUMP).round }
+        slabs << { ceiling: deck_top.round, crown: (deck_top + MAST_STUMP).round, wood: true }
       end
 
       # ... and the length that came off it, lying across the foredeck where it
@@ -139,7 +139,7 @@ module WreckWorld
         run = (col - FALLEN_FROM) / (FALLEN_TO - FALLEN_FROM).to_f
         lift = 10 + (44 * run).round
         slabs << { ceiling: (deck_top + lift).round,
-                   crown: (deck_top + lift + FALLEN_THICK).round }
+                   crown: (deck_top + lift + FALLEN_THICK).round, wood: true }
       end
       slabs
     end

@@ -18,6 +18,11 @@ class Game
                              # rock at the waterline and the low skerries stay stone
   ISLAND_ROCK = [138, 122, 102] # sun-bleached stone — an island wears its own colour,
                                 # not the palette of the sea floor around it
+  # Waterlogged oak, a century down. The wreck was drawn in the biome's own
+  # floor colour before this, which is to say in the colour of the mud it lies
+  # in — so the one hand-built thing in the sea read as an outcrop of rock. A
+  # ship is made of something, and what it is made of is most of what says ship.
+  WRECK_TIMBER = [104, 76, 50]
   BEACH_SAND = [231, 208, 156]  # ... except where it meets the water as a beach, which
                                 # is sand and has to look like it (IslandWorld tags those
                                 # slabs; a rock coast and the skerries never carry it)
@@ -370,6 +375,7 @@ class Game
     island = rock[:crown] > WATERLINE_Y
     grassy = rock[:crown] > WATERLINE_Y + GREEN_MIN
     body = if rock[:sand] then BEACH_SAND
+           elsif rock[:wood] then WRECK_TIMBER
            elsif island then ISLAND_ROCK
            else world.biome.floor_colors[2]
            end
