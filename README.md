@@ -5,7 +5,8 @@ has a picture of, and bring the film home.
 
 <img width="700" alt="A diver in the fog of war beside a field of red jellyfish, with air, suit and energy gauges, film left, and the lens naming what it is looking at" src="media/screenshot.png">
 
-**▶ [Play it in your browser](https://stammer.dev/underwater/)**
+**▶ [Play it in your browser](https://stammer.dev/underwater/)**  
+**⬇ [Download for macOS, Windows or Linux](https://github.com/rstammer/underwater/releases/latest)**
 
 My first game, made with [DragonRuby GTK](https://dragonruby.org). A pet project
 for the joy of learning how to make games.
@@ -56,6 +57,26 @@ on an island where the money turns into better gear.
 
 There is a touch layout too — joystick and buttons appear as soon as a finger
 touches the screen, so it plays on a phone.
+
+## Downloading it
+
+Every release carries a build for each desktop platform, on the
+**[releases page](https://github.com/rstammer/underwater/releases/latest)**:
+
+| | | |
+|---|---|---|
+| macOS | `underwater-macos.zip` | `Underwater.app` — unzip and open |
+| Windows | `underwater-windows-amd64.zip` | one `.exe`, nothing to install |
+| Linux | `underwater-linux-amd64.zip` | one `.bin`; `chmod +x` it if the zip did not keep the bit |
+
+These carry their own copy of the engine and need nothing else — the licence
+business below is about *building* the game, not playing it.
+
+They are also unsigned, because signing costs a developer account on two
+platforms for a game nobody is charging for. So macOS will refuse the first
+launch: right-click the app and choose **Open**, which offers you the button
+that a double-click does not. Windows shows a SmartScreen panel with the same
+way past it under **More info → Run anyway**.
 
 ## Running it locally
 
@@ -109,6 +130,19 @@ cp -R app sprites sounds metadata _pkg/underwater/
 ./dragonruby-publish --platforms=html5 --package _pkg/underwater
 # -> builds/underwater-html5.zip
 ```
+
+The same command makes the desktop builds that go on the releases page — the
+staged folder is the same one, so it is only the platform list that changes:
+
+```sh
+./dragonruby-publish --platforms=macos,linux-amd64,windows-amd64 --package _pkg/underwater
+# -> builds/underwater-{macos,linux-amd64,windows-amd64}.zip
+```
+
+`builds/` is gitignored: the zips are already compressed, so git can neither
+pack them down nor tell two versions apart, and each release would put its full
+weight into the history for good. They live on the releases page instead, where
+they can also be deleted again.
 
 This needs a `metadata/game_metadata.txt` (the publisher tells you the exact
 fields if it's missing). Unzip it and test locally with the bundled server:
