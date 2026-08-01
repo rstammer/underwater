@@ -54,13 +54,14 @@ class Game
   ASSIGNMENT_NEW_INK = [255, 214, 120]
   ASSIGNMENT_NOTE_TICKS = 420 # seven seconds of being the news of the morning
 
-  # The day's job, kept where he can see it. Quiet, and gone once it is on the
-  # film: a job you have already done is not a thing to be reminded of.
+  # The job says something twice a day, and otherwise keeps quiet.
   #
-  # The morning is the exception: for the first few seconds after waking it says
-  # so outright, wherever he is standing. A day starts at the boat and a new job
-  # arrives with it, and a diver who swam off without looking has spent the day
-  # on the wrong thing.
+  # It had a standing line under water naming the job the whole time you were
+  # down there, which is a poster, not a message: the row is for things that just
+  # happened, and something that is on screen always is something you stop
+  # seeing. What is left is the two moments it is actually news — a new one in
+  # the morning, and the moment it lands on the film. The rest of the time the
+  # job lives at the boat, on its own band, behind T.
   def assignment_message
     return nil if assignment_paid?
 
@@ -75,13 +76,10 @@ class Game
     # Not while aboard either: boat_block_message has this row when he is under
     # way, and two things in one slot is one thing nobody can read.
     return nil if at_the_boat? || state.on_land || state.aboard
+    return nil unless assignment_done?(job)
 
-    if assignment_done?(job)
-      return { text: "Auftrag im Kasten — am Boot entwickeln", slot: SLOT_NOTE,
-               color: ASSIGNMENT_DONE_INK }
-    end
-
-    { text: "Auftrag:  #{assignment_short(job)}", slot: SLOT_NOTE, color: ASSIGNMENT_INK }
+    { text: "Auftrag im Kasten — am Boot entwickeln", slot: SLOT_NOTE,
+      color: ASSIGNMENT_DONE_INK }
   end
 
   def assignment_fresh?

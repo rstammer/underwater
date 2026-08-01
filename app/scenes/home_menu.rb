@@ -163,7 +163,11 @@ class Game
   MENU_TAB_W = 240
 
   ASSIGNMENT_CALL_H = 52
-  ASSIGNMENT_CALL_BG = [18, 38, 54]
+  # Against MENU_BG at 12,30,48 the first version of this was 18,38,54 — six
+  # points of difference on each channel, which is not a band, it is the same
+  # dark blue drawn twice. It reads now, with rules top and bottom.
+  ASSIGNMENT_CALL_BG = [34, 66, 92]
+  ASSIGNMENT_CALL_RULE = [86, 132, 164]
 
   # The job gets a band of its own, right under the head and above the tabs.
   #
@@ -179,6 +183,11 @@ class Game
     outputs.sprites << { x: menu_left, y: y, w: menu_width, h: ASSIGNMENT_CALL_H,
                          r: ASSIGNMENT_CALL_BG[0], g: ASSIGNMENT_CALL_BG[1],
                          b: ASSIGNMENT_CALL_BG[2], path: :solid }
+    [y, y + ASSIGNMENT_CALL_H - 1].each do |rule|
+      outputs.sprites << { x: menu_left, y: rule, w: menu_width, h: 1,
+                           r: ASSIGNMENT_CALL_RULE[0], g: ASSIGNMENT_CALL_RULE[1],
+                           b: ASSIGNMENT_CALL_RULE[2], path: :solid }
+    end
     return unless job
 
     done = assignment_paid?
