@@ -444,22 +444,16 @@ class AssignmentTests
     end
   end
 
-  # The band belongs to the frame, not to a page. Laid inside the body's own box
-  # it was drawn over by whatever page was open and could not be seen at all.
-  def test_the_assignment_band_has_a_row_of_its_own(args, assert)
+  # The band across the boat screen is gone: the job belongs on the card over the
+  # boat, where the keys are, and its history belongs on a page. A strip on every
+  # page was a third place saying the same thing.
+  def test_there_is_no_band_across_the_boat_screen(args, assert)
     game = at_sea(args)
     sight_everything(args)
-    args.state.game_scene = "home_menu"
 
-    band_bottom = game.assignment_band_y
-    band_top = band_bottom + Game::ASSIGNMENT_CALL_H
-
-    assert.true! band_top <= game.menu_top - Game::MENU_HEAD_H,
-                 "the band runs up into the head"
-    assert.true! game.body_top < band_bottom,
-                 "the body starts below the band, not behind it"
-    assert.true! game.body_top > game.body_bottom,
-                 "and there is still a body left to draw in"
+    assert.false! game.respond_to?(:render_assignment_band), "no band left"
+    assert.equal! game.body_top, game.menu_top - Game::MENU_HEAD_H - Game::MENU_TAB_H - 18,
+                  "and the body has its full height back"
   end
 
   # A new morning has to say so. Waking up at the boat with a fresh job and no
@@ -553,11 +547,84 @@ class AssignmentTests
     assert.true! line[:text].include?("erledigt"), "no point sending him to read it again"
   end
 
-  def test_the_tab_page_is_gone(args, assert)
+  # --- the record of finished ones -------------------------------------------
+
+  def test_finishing_a_job_writes_it_down(args, assert)
+    game = at_sea(args, day: 5)
+    sight_everything(args)
+    job = job_of_kind(game, args, :species)
+    args.state.album = {}
+    roll_with(args, job.species_key)
+
+    game.develop_film
+    entry = game.assignment_log.first
+
+    assert.false! entry.nil?, "it is written down"
+    assert.equal! entry[:day], args.state.day
+    assert.equal! entry[:fee], job.fee
+    assert.false! entry[:text].to_s.strip.empty?, "with what it was"
+  end
+
+  def test_the_record_survives_a_reload(args, assert)
+    game = at_sea(args, day: 5)
+    sight_everything(args)
+    args.state.assignment_log = [{ day: 4, fee: 130, text: "3 × Rotflosser" }]
+
+    book = SaveFile.decode(game.encode_book)
+
+    assert.equal! book[:assignment_log].length, 1, "the file kept it"
+    assert.equal! book[:assignment_log].first[:text], "3 × Rotflosser",
+                  "including what the job actually said"
+    assert.equal! book[:assignment_log].first[:fee], 130
+  end
+
+  # Newest first, and bounded: a career is open-ended, the save file is not.
+  def test_the_record_is_recent_and_bounded(args, assert)
+    game = at_sea(args)
+    sight_everything(args)
+    args.state.assignment_log = []
+
+    (1..Game::ASSIGNMENT_LOG_MAX + 6).each do |day|
+      args.state.day = day
+      args.state.assignment = nil
+      game.record_assignment(game.todays_assignment)
+    end
+
+    log = game.assignment_log
+    assert.equal! log.length, Game::ASSIGNMENT_LOG_MAX, "it stops growing"
+    assert.true! log.first[:day] > log.last[:day], "newest first"
+  end
+
+  # Five tabs at the old width are wider than the panel they sit in — the last
+  # one hung out over the right edge and through the "[ Tab ] blättert" hint.
+  def test_the_tabs_fit_across_the_panel(args, assert)
+    game = at_sea(args)
+    args.state.game_scene = "home_menu"
+
+    tabs = Game::BOAT_PAGES.length
+    used = tabs * Game::MENU_TAB_W + (tabs - 1) * 10
+    room = game.menu_width - Game::MENU_PAD * 2
+
+    assert.true! used <= room,
+                 "#{tabs} tabs need #{used} px of #{room}"
+    # ... and the hint on the right needs its own room beside them.
+    hint = args.gtk.calcstringbox("[ Tab ] blättert", 0)[0]
+    assert.true! used + hint + 40 <= room,
+                 "the tabs leave #{(room - used).round} px for a #{hint.round} px hint"
+
+    # And each title has to fit its own tab, beside its icon.
+    Game::BOAT_PAGES.each do |page|
+      width = args.gtk.calcstringbox(page[:title], 2)[0]
+      assert.true! 50 + width + 8 <= Game::MENU_TAB_W,
+                   "\"#{page[:title]}\" needs #{(50 + width).round} px of a #{Game::MENU_TAB_W} px tab"
+    end
+  end
+
+  def test_the_jobs_page_is_a_tab_again(args, assert)
     ids = Game::BOAT_PAGES.map { |page| page[:id] }
 
-    assert.false! ids.include?(:job),
-                  "one place for the job, and it is the window behind T"
+    assert.true! ids.include?(:jobs), "the record has a page"
+    assert.false! ids.include?(:job), "and it is not the old briefing page"
   end
 
   # --- where the sector on a shot comes from ---------------------------------

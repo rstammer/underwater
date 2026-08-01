@@ -75,6 +75,7 @@ class Game
                     day_deepest: state.day_deepest,
                     day_sold: state.day_sold,
                     assignment_paid_day: state.assignment_paid_day.to_i,
+                    assignment_log: assignment_log,
                     gear_film: gear_level(:film),
                     gear_air: gear_level(:air),
                     gear_suit: gear_level(:suit),

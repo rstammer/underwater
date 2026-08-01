@@ -53,7 +53,8 @@ class SaveFile
               "assignment_paid_day"]
 
   def self.encode(name:, album:, sighted:, seed: nil, stash: [], flocks: {},
-                  boat_x: nil, charted_west: nil, charted_east: nil, **counters)
+                  boat_x: nil, charted_west: nil, charted_east: nil,
+                  assignment_log: [], **counters)
     lines = []
     lines << "name #{name.strip}" if name && !name.strip.empty?
     lines << "seed #{seed}" if seed
@@ -73,6 +74,13 @@ class SaveFile
     # line per tin can, because a hold can hold rather a lot of tin cans.
     (stash || []).uniq.each do |kind|
       lines << "stash #{kind} #{stash.count { |stored| stored == kind }}"
+    end
+    # Finished jobs, newest first, one per line: day, fee, then the wording.
+    # The text is written out rather than rebuilt from the seed, because what a
+    # job *said* is the point of keeping it — and re-rolling an old day would
+    # give the wrong answer the moment the roster or the pool changes.
+    (assignment_log || []).each do |done|
+      lines << "job #{done[:day].to_i} #{done[:fee].to_i} #{done[:text]}"
     end
     (album || {}).each { |key, quality| lines << "album #{key} #{quality}" }
     # The biggest school of a species brought home. One fish is not a school, so
@@ -103,6 +111,11 @@ class SaveFile
     when "stash"
       # A kind that no longer exists is dropped, the same as a retired species.
       book[:stash].concat([parts[1]] * parts[2].to_i) if Game::ITEM_KINDS.include?(parts[1])
+    when "job"
+      return if parts.length < 4
+
+      book[:assignment_log] << { day: parts[1].to_i, fee: parts[2].to_i,
+                                 text: parts[3..-1].join(" ") }
     when "charted"
       book[:charted_west] = parts[1].to_i
       book[:charted_east] = parts[2].to_i
@@ -140,6 +153,7 @@ class SaveFile
 
   def self.blank
     book = { name: "", album: {}, sighted: {}, flocks: {}, seed: nil, stash: [],
+             assignment_log: [],
              boat_x: Game::SURFACE_BOAT_X,
              charted_west: -Game::CHART_START, charted_east: Game::CHART_START }
     COUNTERS.each { |key| book[key.to_sym] = 0 }

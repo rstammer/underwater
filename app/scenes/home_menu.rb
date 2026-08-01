@@ -28,6 +28,7 @@ class Game
   BOAT_PAGES = [
     { id: :hold, title: "Lager", icon: "sprites/items/jewel.png" },
     { id: :book, title: "Artenbuch", icon: "sprites/animals/scalar_32_16/blue.png" },
+    { id: :jobs, title: "Aufträge", icon: "sprites/decor/flag.png" },
     { id: :log,  title: "Logbuch", icon: "sprites/decor/boat.png" },
     { id: :kit,  title: "Ausrüstung", icon: "sprites/items/jewel.png" },
   ]
@@ -90,10 +91,8 @@ class Game
 
   # Where the page's own content begins and ends, once the head, the tabs and the
   # footer have taken theirs. Everything a page draws hangs off these two.
-  # Under the head, the assignment band and the tabs — the three rows that belong
-  # to the frame rather than to any one page.
   def body_top
-    assignment_band_y - MENU_TAB_H - 8 - 18
+    menu_top - MENU_HEAD_H - MENU_TAB_H - 18
   end
 
   def body_bottom
@@ -104,10 +103,10 @@ class Game
     outputs.sprites << { x: menu_left, y: menu_bottom, w: menu_width, h: menu_top - menu_bottom,
                          r: MENU_BG[0], g: MENU_BG[1], b: MENU_BG[2], path: :solid }
     render_menu_head
-    render_assignment_band
     render_menu_tabs
     case state.boat_page
     when :book then render_artenbuch_page
+    when :jobs then render_jobs_page
     when :log then render_logbook_page
     when :kit then render_kit_page
     else render_hold_page
@@ -160,75 +159,12 @@ class Game
     true
   end
 
-  MENU_TAB_W = 240
-
-  ASSIGNMENT_CALL_H = 52
-  # Against MENU_BG at 12,30,48 the first version of this was 18,38,54 — six
-  # points of difference on each channel, which is not a band, it is the same
-  # dark blue drawn twice. It reads now, with rules top and bottom.
-  ASSIGNMENT_CALL_BG = [34, 66, 92]
-  ASSIGNMENT_CALL_RULE = [86, 132, 164]
-
-  # The job gets a band of its own, right under the head and above the tabs.
-  #
-  # It had a line tucked in over the footer first, which is to say inside the
-  # body's own box, where it was invisible — the page drawn over it is opaque and
-  # the strip was reading as part of whatever page happened to be open. A thing
-  # that belongs to no page cannot live in the space the pages own; it needs a
-  # row in the frame, and the body starts below it.
-  def render_assignment_band
-    y = assignment_band_y
-    job = todays_assignment
-
-    outputs.sprites << { x: menu_left, y: y, w: menu_width, h: ASSIGNMENT_CALL_H,
-                         r: ASSIGNMENT_CALL_BG[0], g: ASSIGNMENT_CALL_BG[1],
-                         b: ASSIGNMENT_CALL_BG[2], path: :solid }
-    [y, y + ASSIGNMENT_CALL_H - 1].each do |rule|
-      outputs.sprites << { x: menu_left, y: rule, w: menu_width, h: 1,
-                           r: ASSIGNMENT_CALL_RULE[0], g: ASSIGNMENT_CALL_RULE[1],
-                           b: ASSIGNMENT_CALL_RULE[2], path: :solid }
-    end
-    return unless job
-
-    done = assignment_paid?
-    ready = !done && assignment_done?(job)
-    marker = done ? ASSIGNMENT_DONE_INK : (ready ? ASSIGNMENT_READY_INK : MENU_ACCENT)
-    # A stripe down the left of the band, in the colour of where the job stands.
-    # The one place on this screen where a colour means something, so it is worth
-    # being the only stripe on it.
-    outputs.sprites << { x: menu_left, y: y, w: 5, h: ASSIGNMENT_CALL_H,
-                         r: marker[0], g: marker[1], b: marker[2], path: :solid }
-
-    mid = y + ASSIGNMENT_CALL_H / 2
-    outputs.labels << { x: menu_left + MENU_PAD, y: mid + 10, text: "Tagesauftrag",
-                        size_enum: 0, vertical_alignment_enum: 1,
-                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
-    outputs.labels << { x: menu_left + MENU_PAD, y: mid - 12,
-                        text: assignment_band_text(job, done, ready), size_enum: 2,
-                        vertical_alignment_enum: 1,
-                        r: marker[0], g: marker[1], b: marker[2] }
-
-    outputs.labels << { x: menu_right - MENU_PAD, y: mid + 10, text: "#{job.fee} Cr",
-                        size_enum: 2, alignment_enum: 2, vertical_alignment_enum: 1,
-                        r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
-    outputs.labels << { x: menu_right - MENU_PAD, y: mid - 14, text: "[ T ]  ansehen",
-                        size_enum: 0, alignment_enum: 2, vertical_alignment_enum: 1,
-                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
-  end
-
-  def assignment_band_y
-    menu_top - MENU_HEAD_H - ASSIGNMENT_CALL_H
-  end
-
-  def assignment_band_text(job, done, ready)
-    return "erledigt und bezahlt" if done
-    return "im Kasten — entwickeln" if ready
-
-    assignment_short(job)
-  end
+  # Sized so the whole row fits the panel with the Tab hint beside it. It was
+  # 240, which was fine for four tabs and half a tab too wide for five.
+  MENU_TAB_W = 184
 
   def render_menu_tabs
-    y = assignment_band_y - MENU_TAB_H - 8
+    y = menu_top - MENU_HEAD_H - MENU_TAB_H
     BOAT_PAGES.each_with_index do |page, i|
       x = menu_left + MENU_PAD + i * (MENU_TAB_W + 10)
       here = state.boat_page == page[:id]
@@ -360,6 +296,85 @@ class Game
     return ["Im Kasten — entwickeln, dann zahlt das Magazin.", ASSIGNMENT_READY_INK] if assignment_done?(job)
 
     ["Noch nicht auf dem Film.", MENU_DIM_INK]
+  end
+
+  JOBS_ROW_H = 44
+  JOBS_ROWS = 7
+
+  # Today's job at the top, then the ones already done, newest first.
+  #
+  # The done ones are here because finishing one otherwise leaves no trace: the
+  # fee goes into the same pile as everything else, and by the evening there is
+  # nothing to say that Tuesday had you waiting out a school of six in the dark.
+  # The Artenbuch records what the sea holds; this records what you did in it.
+  def render_jobs_page
+    top = body_top
+    render_box(menu_left + MENU_PAD, body_bottom + 10,
+               menu_width - MENU_PAD * 2, top - body_bottom - 10,
+               "Aufträge")
+
+    x = menu_left + MENU_PAD + 24
+    right = menu_right - MENU_PAD - 24
+    y = top - 82
+
+    y = render_todays_job_row(x, right, y)
+    done = assignment_log
+
+    if done.empty?
+      outputs.labels << { x: x, y: y - 16, text: "Noch keinen Auftrag abgegeben.",
+                          size_enum: 1, vertical_alignment_enum: 2,
+                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+      return
+    end
+
+    outputs.labels << { x: x, y: y - 10, text: "Erledigt", size_enum: 0,
+                        vertical_alignment_enum: 2,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+    y -= 40
+    done.first(JOBS_ROWS).each do |entry|
+      outputs.labels << { x: x, y: y, text: "Tag #{entry[:day]}", size_enum: 0,
+                          vertical_alignment_enum: 2,
+                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+      outputs.labels << { x: x + 92, y: y, text: entry[:text].to_s, size_enum: 1,
+                          vertical_alignment_enum: 2,
+                          r: MENU_INK[0], g: MENU_INK[1], b: MENU_INK[2] }
+      outputs.labels << { x: right, y: y, text: "#{entry[:fee]} Cr", size_enum: 1,
+                          alignment_enum: 2, vertical_alignment_enum: 2,
+                          r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
+      y -= JOBS_ROW_H
+    end
+
+    return unless done.length > JOBS_ROWS
+
+    outputs.labels << { x: x, y: y, text: "… und #{done.length - JOBS_ROWS} weitere",
+                        size_enum: 0, vertical_alignment_enum: 2,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+  end
+
+  # The one at the top is the one you can still do something about, so it gets
+  # the state line and the key that opens the full briefing.
+  def render_todays_job_row(x, right, y)
+    job = todays_assignment
+    unless job
+      outputs.labels << { x: x, y: y, text: "Heute liegt nichts an.", size_enum: 2,
+                          vertical_alignment_enum: 2,
+                          r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+      return y - 70
+    end
+
+    state_text, ink = assignment_state_line(job)
+    outputs.labels << { x: x, y: y, text: "Heute — #{assignment_short(job)}", size_enum: 3,
+                        vertical_alignment_enum: 2,
+                        r: MENU_INK[0], g: MENU_INK[1], b: MENU_INK[2] }
+    outputs.labels << { x: right, y: y, text: "#{job.fee} Cr", size_enum: 3,
+                        alignment_enum: 2, vertical_alignment_enum: 2,
+                        r: CREDIT_INK[0], g: CREDIT_INK[1], b: CREDIT_INK[2] }
+    outputs.labels << { x: x, y: y - 34, text: state_text, size_enum: 1,
+                        vertical_alignment_enum: 2, r: ink[0], g: ink[1], b: ink[2] }
+    outputs.labels << { x: right, y: y - 34, text: "[ T ]  ganzer Auftrag", size_enum: 0,
+                        alignment_enum: 2, vertical_alignment_enum: 2,
+                        r: MENU_DIM_INK[0], g: MENU_DIM_INK[1], b: MENU_DIM_INK[2] }
+    y - 92
   end
 
   def render_kit_page

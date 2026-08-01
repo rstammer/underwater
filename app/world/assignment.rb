@@ -165,7 +165,28 @@ class Game
 
     state.assignment_paid_day = state.day
     state.assignment_earned = job.fee
+    record_assignment(job)
     job.fee
+  end
+
+  # How many finished jobs a book keeps. A career is open-ended and the file is
+  # a text file read on every load, so the list is the recent past rather than
+  # the whole of it — enough to look back over a fortnight's work.
+  ASSIGNMENT_LOG_MAX = 24
+
+  # The done ones, newest first. Kept because a job you finished and were paid
+  # for otherwise leaves no trace at all: the credits go into one pile with
+  # everything else, and by the evening there is nothing to show that Tuesday had
+  # you photographing a school of six in the dark.
+  def record_assignment(job)
+    state.assignment_log ||= []
+    state.assignment_log.unshift({ day: state.day, fee: job.fee,
+                                   text: assignment_short(job), kind: job.kind })
+    state.assignment_log = state.assignment_log.first(ASSIGNMENT_LOG_MAX)
+  end
+
+  def assignment_log
+    state.assignment_log || []
   end
 
   # What the job says out loud. German, like everything the game says.
