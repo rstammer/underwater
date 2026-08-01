@@ -54,4 +54,5 @@ require "tests/surface_view_tests.rb"
 require "tests/shot_card_tests.rb"
 require "tests/assignment_tests.rb"
 require "tests/reef_tests.rb"
+require "tests/wreck_tests.rb"
 

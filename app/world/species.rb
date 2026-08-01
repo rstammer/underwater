@@ -155,13 +155,13 @@ class Species
         fee: 22),
 
     new(key: "truebfisch", name: "Tiefblauer Trübfisch", latin: "Obscurus caeruleus",
-        sheet: BASS + "blue.png", biomes: ["Tiefsee", "Blauwasser", "Quallenfeld"],
+        sheet: BASS + "blue.png", biomes: ["Tiefsee", "Blauwasser", "Quallenfeld", "Wrack"],
         shallowest: 60, deepest: 200, rarity: :common, tease: "blau, wirkt bedrückt",
         shy: 130, shoal: 4, size_cm: 47,
         fee: 18),
 
     new(key: "laternentraeger", name: "Fahler Laternenträger", latin: "Lucerna abyssi",
-        sheet: SCALAR + "purple.png", biomes: ["Tiefsee", "Quallenfeld"],
+        sheet: SCALAR + "purple.png", biomes: ["Tiefsee", "Quallenfeld", "Wrack"],
         shallowest: 95, deepest: 260, rarity: :rare, tease: "blass, leuchtet vor sich hin",
         shy: 200, size_cm: 38,
         fee: 45),
@@ -206,7 +206,7 @@ class Species
 
     new(key: "schlickkrebs", name: "Grauer Schlickkrebs", latin: "Cancer limosus",
         sheet: SHELLS + "schlickkrebs.png", frame_w: 20, frame_h: 12, habitat: :floor,
-        biomes: ["Tiefsee", "Kelpwald", "Quallenfeld", "Blauwasser"],
+        biomes: ["Tiefsee", "Kelpwald", "Quallenfeld", "Blauwasser", "Wrack"],
         shallowest: 50, deepest: 165, rarity: :common, tease: "grau, staubt beim Laufen",
         size_cm: 12,
         fee: 12),
@@ -229,7 +229,7 @@ class Species
     # chapter costs the same kind of nerve the Laternenträger does.
     new(key: "abgrundkrabbe", name: "Blasse Abgrundkrabbe", latin: "Macrocheira abyssi",
         sheet: SHELLS + "abgrundkrabbe.png", frame_w: 20, frame_h: 12, habitat: :floor,
-        biomes: ["Tiefsee", "Blauwasser"],
+        biomes: ["Tiefsee", "Blauwasser", "Wrack"],
         shallowest: 105, deepest: 280, rarity: :rare, tease: "blass, viel zu lange Beine",
         size_cm: 260,
         fee: 55),

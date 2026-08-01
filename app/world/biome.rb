@@ -63,6 +63,19 @@ class Biome
     anchored_count: 9,
   )
 
+  # The water around the wreck. Its own biome rather than the deep sea's,
+  # because the wreck is a place and a place should not look like everywhere
+  # else at that depth: colder, greener, and with the silt hanging in it. No
+  # shark — what is down there is the ship.
+  WRECK = new(
+    name: "Wrack",
+    water_top: [26, 74, 82], water_bottom: [8, 28, 38],
+    floor_colors: [[86, 88, 76], [70, 72, 62], [54, 56, 50]],
+    fog: 0.62,
+    seaweed: 4, coral: 2, starfish: 2,
+    fish_count: 5, crab_count: 4, shark: false,
+  )
+
   # The dark deep — sparse, foggy, and a shark prowls.
   DEEP = new(
     name: "Tiefsee",
