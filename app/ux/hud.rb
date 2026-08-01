@@ -15,6 +15,7 @@ class Game
     render_dive_hint
     render_viewfinder # the frame, while the shutter is down
     render_flash    # the shutter going off, over the whole picture
+    render_shot_card # ... and the print it leaves behind, over on the right
     render_messages # ... and everything the game says to you in passing, down at the foot
     render_touch_controls # the joystick and buttons, once a finger has touched
   end
@@ -40,8 +41,11 @@ class Game
     running_messages.each { |line| render_message(line) }
   end
 
+  # shot_message used to sit in here. What you just photographed now comes out of
+  # the camera as a print (render_shot_card) instead of queueing at the foot of
+  # the screen behind "Rucksack voll" — one event, one place to look.
   def running_messages
-    [photo_message, pickup_message, shot_message, fresh_message, sting_message,
+    [photo_message, pickup_message, fresh_message, sting_message,
      boat_block_message].compact
   end
 
@@ -153,20 +157,60 @@ class Game
   end
 
   FILM_INK = [214, 226, 240]
+  FILM_H = 14          # a shade under a gauge: it is a strip, not a fourth bar
+  FILM_GAP = 2         # the sprocket line between frames
+  FILM_FREE = [222, 232, 244]  # unexposed
+  FILM_SPENT = [38, 48, 66]    # ... and gone
+  FILM_EMPTY = [214, 96, 96]   # the whole roll, when there is none of it left
+  FILM_FLASH = 10      # ticks the frame you just took stays lit
 
   # How many frames are left on the roll, under whatever gauges there are. It
   # only matters under water, but it is quiet enough to leave up.
   #
   # Under *whatever there are*: this sat on a hard-coded third slot and the
   # energy gauge moved in on top of it the day there was a third gauge.
+  #
+  # Drawn as the roll rather than written as a number. Air, suit and daylight all
+  # run down continuously and belong on bars; film is the one thing out here you
+  # count, so it gets a shape you can count. It takes the width of the bars above
+  # it, which is what lets it carry the gear ladder without a decision: twelve
+  # frames make wide cells, thirty make sprocket holes, and the strip is the same
+  # length either way.
   def render_film_gauge
-    outputs.labels << {
-      x: GAUGE_X, y: gauges_bottom + 12,
-      text: "Film  #{state.film_left} / #{film_capacity}", size_enum: 1,
-      r: state.film_left.zero? ? 235 : FILM_INK[0],
-      g: state.film_left.zero? ? 150 : FILM_INK[1],
-      b: state.film_left.zero? ? 150 : FILM_INK[2],
-    }
+    outputs.labels << { x: GAUGE_X, y: gauges_bottom + 34, text: "Film", size_enum: 0,
+                        r: FILM_INK[0], g: FILM_INK[1], b: FILM_INK[2] }
+    film_cells.each do |cell|
+      colour = if state.film_left.zero? then FILM_EMPTY
+               elsif cell[:lit] then [255, 255, 255]
+               elsif cell[:spent] then FILM_SPENT
+               else FILM_FREE
+               end
+      outputs.sprites << { x: cell[:x], y: cell[:y], w: cell[:w], h: cell[:h],
+                           r: colour[0], g: colour[1], b: colour[2], path: :solid }
+    end
+  end
+
+  # One entry per frame on the roll, left to right, oldest first — so the strip
+  # fills up from the left as you shoot, the way a roll actually winds on.
+  #
+  # The cell just spent is lit for a few ticks: a frame is the scarcest thing in
+  # the game and it used to leave nothing behind but a digit changing quietly.
+  def film_cells
+    total = film_capacity
+    return [] if total <= 0
+
+    span = (GAUGE_W + FILM_GAP) / total.to_f
+    w = span - FILM_GAP
+    w = 2 if w < 2
+    spent_count = total - state.film_left
+    flashing = state.shot_at && Kernel.tick_count - state.shot_at < FILM_FLASH
+
+    total.times.map do |i|
+      { x: GAUGE_X + (i * span).round, y: gauges_bottom + 12,
+        w: w.round, h: FILM_H,
+        spent: i < spent_count,
+        lit: flashing && i == spent_count - 1 }
+    end
   end
 
   # A species tells you its name only once it is in the Artenbuch — which is to
@@ -256,17 +300,118 @@ class Game
                          a: fade, path: :solid }
   end
 
-  # Afterwards, a line saying what he caught. Still nameless if it isn't in the
-  # book yet — you have exposed film, not a discovery, and what it was is
-  # something the boat tells you.
-  def shot_message
+  CARD_W = 190
+  CARD_H = 150
+  CARD_PAD = 10
+  CARD_RIGHT = 24     # gap from the right edge ...
+  CARD_BOTTOM = 96    # ... and from the bottom, clear of the message rows
+  CARD_RISE = 26      # how far it slides up on its way in
+  CARD_IN = 12        # ticks it takes to arrive ...
+  CARD_OUT = 26       # ... and to fade out again at the end
+  CARD_PAPER = [246, 246, 240]
+  CARD_FRAME = [28, 34, 44]
+
+  # What just came out of the camera. The note behind it is the same one the old
+  # line used, and it obeys the same rule: an animal you have never developed
+  # stays nameless and shows what you could actually see of it — you have exposed
+  # film, not a discovery, and what it was is something the boat tells you.
+  #
+  # Returns nil, or everything the drawing needs. Kept apart from the drawing so
+  # a test can ask what the print says without a screen.
+  def shot_card
     note = fresh_note
     return nil unless note
 
+    since = Kernel.tick_count - state.shot_at
+    left = NOTE_TICKS - since
+    alpha = 255
+    alpha = (255 * since / CARD_IN) if since < CARD_IN
+    alpha = (255 * left / CARD_OUT) if left < CARD_OUT
+    rise = since < CARD_IN ? CARD_RISE * (CARD_IN - since) / CARD_IN : 0
+
     # The kraken leaves no grade behind: there is nothing to grade.
-    text = note[:quality] ? "#{note[:name]}  —  #{note[:quality]}" : note[:name]
-    { text: text, slot: SLOT_NOTE, size: 3,
-      color: note[:fresh] ? NEW_INK : [236, 246, 255] }
+    text = note[:quality] ? note[:name] : note[:name]
+    { text: text, quality: note[:quality], flock: note[:flock] || 1,
+      fresh: note[:fresh], species: note[:key] && Species[note[:key]],
+      alpha: alpha < 0 ? 0 : alpha, rise: rise }
+  end
+
+  def render_shot_card
+    card = shot_card
+    return unless card
+
+    x = SCREEN_WIDTH - CARD_RIGHT - CARD_W
+    y = CARD_BOTTOM - card[:rise]
+    a = card[:alpha]
+
+    outputs.sprites << { x: x - 3, y: y - 3, w: CARD_W + 6, h: CARD_H + 6,
+                         r: CARD_FRAME[0], g: CARD_FRAME[1], b: CARD_FRAME[2],
+                         a: a * 0.8, path: :solid }
+    outputs.sprites << { x: x, y: y, w: CARD_W, h: CARD_H,
+                         r: CARD_PAPER[0], g: CARD_PAPER[1], b: CARD_PAPER[2],
+                         a: a, path: :solid }
+    render_card_subject(card, x, y, a)
+    render_card_caption(card, x, y, a)
+  end
+
+  # The animal, in the window at the top of the print — drawn the way the
+  # darkroom draws it, only smaller, so a print in the water and a print at the
+  # boat are recognisably the same object.
+  CARD_WINDOW_H = 78
+
+  def render_card_subject(card, x, y, a)
+    species = card[:species]
+    win_y = y + CARD_H - CARD_PAD - CARD_WINDOW_H
+    outputs.sprites << { x: x + CARD_PAD, y: win_y, w: CARD_W - CARD_PAD * 2, h: CARD_WINDOW_H,
+                         r: 30, g: 52, b: 74, a: a, path: :solid }
+    return unless species
+
+    scale = fit_scale(species, CARD_W - CARD_PAD * 2 - 12, CARD_WINDOW_H - 12)
+    outputs.sprites << {
+      x: x + CARD_W / 2, y: win_y + CARD_WINDOW_H / 2,
+      w: species.frame_w * scale, h: species.frame_h * scale,
+      path: species.sheet, anchor_x: 0.5, anchor_y: 0.5,
+      source_x: 0, source_y: 0, source_w: species.frame_w, source_h: species.frame_h,
+      a: card[:quality] == :unscharf ? a * 0.66 : a,
+    }
+  end
+
+  def render_card_caption(card, x, y, a)
+    left = x + CARD_PAD
+    head = card[:flock] > 1 ? "#{card[:flock]} ×   #{card[:quality]}" : card[:quality].to_s
+    outputs.labels << { x: left, y: y + CARD_H - CARD_WINDOW_H - CARD_PAD - 4,
+                        text: head, size_enum: 1, a: a,
+                        r: CARD_FRAME[0], g: CARD_FRAME[1], b: CARD_FRAME[2] } if card[:quality]
+
+    wrap_card_text(card[:text]).each_with_index do |line, i|
+      outputs.labels << { x: left, y: y + CARD_H - CARD_WINDOW_H - CARD_PAD - 30 - i * 18,
+                          text: line, size_enum: -1, a: a,
+                          r: 68, g: 74, b: 86 }
+    end
+
+    return unless card[:fresh]
+
+    outputs.labels << { x: x + CARD_W - CARD_PAD, y: y + CARD_H - CARD_WINDOW_H - CARD_PAD - 4,
+                        text: "NEU", size_enum: 1, alignment_enum: 2, a: a,
+                        r: 196, g: 118, b: 32 }
+  end
+
+  # Measured, not counted: the tease of a species is a sentence, and how much of
+  # it fits is a fact about the font rather than about the number of characters.
+  CARD_TEXT_LINES = 3
+
+  def wrap_card_text(text)
+    room = CARD_W - CARD_PAD * 2
+    lines = []
+    words = text.to_s.split(" ")
+    until words.empty? || lines.length >= CARD_TEXT_LINES
+      line = words.shift
+      while words[0] && args.gtk.calcstringbox("#{line} #{words[0]}", -1)[0] <= room
+        line = "#{line} #{words.shift}"
+      end
+      lines << line
+    end
+    lines
   end
 
   def fresh_message

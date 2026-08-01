@@ -51,4 +51,5 @@ require "tests/islander_tests.rb"
 require "tests/boat_tests.rb"
 require "tests/vegetation_tests.rb"
 require "tests/surface_view_tests.rb"
+require "tests/shot_card_tests.rb"
 

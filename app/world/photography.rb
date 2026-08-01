@@ -180,7 +180,7 @@ class Game
 
     state.film_left -= 1
     store_shot(species.key, quality, flock)
-    note_shot(species, quality)
+    note_shot(species, quality, flock)
     dismiss_dive_hint # he has got it; the card can go
   end
 
@@ -241,9 +241,13 @@ class Game
   # not yet in the book is not much (see Game#species_label). Both fields are
   # settled now, and neither can change while the note is up: the album only
   # moves at the boat.
-  def note_shot(species, quality)
+  # The key and the count as well as the label, because the print that comes out
+  # of the camera draws the animal — and a label is a finished sentence, not
+  # something you can look a sprite up by.
+  def note_shot(species, quality, flock = 1)
     state.shot_at = Kernel.tick_count
-    state.shot_note = { name: species_label(species), quality: quality,
+    state.shot_note = { key: species.key, name: species_label(species),
+                        quality: quality, flock: flock,
                         fresh: !state.album[species.key] }
   end
 
