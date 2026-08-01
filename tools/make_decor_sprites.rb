@@ -191,6 +191,22 @@ SPRITES = {
     "....WWWW....",
   ],
 
+  # An old ship's gun, lying on the wreck's deck where it fell off its carriage.
+  # Read at a glance from the silhouette alone: a heavy tube that is thicker at
+  # the breech than at the muzzle, with the trunnion stub under it and the
+  # cascabel knob at the back. Pointing left, the way the bow does.
+  "cannon" => [
+    "....MMMMMMMMMMMMMM..",
+    "..MMmmmmmmmmmmmmMMm.",
+    ".MmmmmmmmmmmmmmmmMMM",
+    ".MmmmmmmmmmmmmmmmmMM",
+    "..MMmmmmmmmmmmmmMMm.",
+    "....MM..MMMM..MMMM..",
+    "........MMMM........",
+    ".......dDDDDd.......",
+    "......dDDDDDDd......",
+  ],
+
   # --- the wood -------------------------------------------------------------
   # Palms say atoll. These say the island carries a wood, which is what the
   # tunnels inside it always implied and the surface never showed. All of them

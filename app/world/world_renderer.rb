@@ -52,6 +52,7 @@ class Game
     "banana"      => { path: "sprites/decor/banana.png",      w: 15, h: 10 },
     "snag"        => { path: "sprites/decor/snag.png",        w: 8,  h: 10 },
     "flower_bush" => { path: "sprites/decor/flower_bush.png", w: 12, h: 7 },
+    "cannon"      => { path: "sprites/decor/cannon.png",      w: 20, h: 9 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up

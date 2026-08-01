@@ -115,6 +115,59 @@ class WreckTests
                  "and the air stops where the deck starts"
   end
 
+  # --- that it reads as a ship -----------------------------------------------
+
+  # The stem is the tell. A hull that stops flush at the deck is a barge, and the
+  # first attempt ran the stem and the taper on the same columns, which came out
+  # as a notch — a spike, a dip, then the deck.
+  def test_the_bow_stands_up_and_falls_away_aft(args, assert)
+    game = build_game(args)
+    world = wreck(args, game)
+
+    tops = (0...WreckWorld::NOSE).map do |i|
+      col = WreckWorld::BOW + i
+      world.slabs_at(col * World::COLUMN_WIDTH).map { |s| s[:crown] }.max
+    end
+
+    assert.equal! tops.max, tops.first, "the very bow is the highest thing forward"
+    # ... and from there it only ever comes down, with no dip in between.
+    tops.each_cons(2) do |a, b|
+      assert.true! b <= a + 1, "the sheer rises again behind the stem"
+    end
+  end
+
+  def test_the_mast_is_snapped_off(args, assert)
+    game = build_game(args)
+    world = wreck(args, game)
+
+    stump = world.slabs_at(WreckWorld::MAST_COL * World::COLUMN_WIDTH)
+    deck_top = world.floor_y_at(WreckWorld::MAST_COL * World::COLUMN_WIDTH) +
+               WreckWorld::HOLD_H + WreckWorld::DECK_H
+    standing = stump.select { |s| s[:crown] > deck_top + 20 }
+
+    assert.false! standing.empty?, "there is a stump still standing"
+    assert.true! standing.first[:crown] - deck_top < 200,
+                 "and it is a stump, not a mast"
+
+    # The length that came off it lies forward of the stump, sloping down.
+    lying = [WreckWorld::FALLEN_FROM + 2, WreckWorld::FALLEN_TO - 2].map do |col|
+      world.slabs_at(col * World::COLUMN_WIDTH).map { |s| s[:crown] }.max
+    end
+    assert.true! lying.first < lying.last, "the fallen spar slopes down towards the bow"
+  end
+
+  def test_there_is_a_gun_on_the_deck(args, assert)
+    game = build_game(args)
+    world = wreck(args, game)
+
+    gun = world.decorations.find { |d| d[:kind] == "cannon" }
+    assert.false! gun.nil?, "there is a gun"
+    assert.false! Game::DECOR_SPRITES["cannon"].nil?, "and the renderer can draw it"
+
+    deck_top = world.floor_y_at(gun[:x]) + WreckWorld::HOLD_H + WreckWorld::DECK_H
+    assert.equal! gun[:y], deck_top, "it is lying on the deck, not in the mud"
+  end
+
   # It is a place, so it has to look like one: its own water, not the deep sea's.
   def test_it_has_its_own_water(args, assert)
     game = build_game(args)
