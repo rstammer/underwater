@@ -49,4 +49,5 @@ require "tests/gear_tests.rb"
 require "tests/shop_tests.rb"
 require "tests/islander_tests.rb"
 require "tests/boat_tests.rb"
+require "tests/vegetation_tests.rb"
 

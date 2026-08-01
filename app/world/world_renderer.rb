@@ -45,6 +45,13 @@ class Game
     "rock"       => { path: "sprites/decor/rock.png",       w: 14, h: 10 },
     "fern"       => { path: "sprites/decor/fern.png",       w: 14, h: 9 },
     "shop"       => { path: "sprites/decor/shop.png",       w: 152, h: 44 },
+    # The wood. Kept in step with what tools/make_decor_sprites.rb prints —
+    # tests/vegetation_tests.rb holds this table against the pictures.
+    "broadleaf"   => { path: "sprites/decor/broadleaf.png",   w: 20, h: 15 },
+    "tree_fern"   => { path: "sprites/decor/tree_fern.png",   w: 15, h: 11 },
+    "banana"      => { path: "sprites/decor/banana.png",      w: 15, h: 10 },
+    "snag"        => { path: "sprites/decor/snag.png",        w: 8,  h: 10 },
+    "flower_bush" => { path: "sprites/decor/flower_bush.png", w: 12, h: 7 },
   }
 
   # A shark only prowls in shark biomes, and never while the diver is up

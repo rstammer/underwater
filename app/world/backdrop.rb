@@ -33,12 +33,50 @@ class Game
   # The nearer rank is the darker one — haze drains colour with distance, and a
   # pale ridge in front of a dark one reads as fog rather than as land.
   BACKDROP_RANKS = [
-    [0.72, 2.30, -170, [162, 198, 216], 255],
-    [0.86, 1.75, 90, [104, 146, 174], 255],
+    [0.72, 2.30, -170, [140, 178, 168], 255],
+    [0.86, 1.75, 90, [74, 126, 104], 255],
   ].freeze
-  BACKDROP_STEP = 12   # px per drawn column: pixel-art ridges, not curves
-  BACKDROP_SAMPLE = 24 # px of island curve per sample, locked to the world
+  # Finer than they were (12/24). A ridge could be drawn coarsely because a ridge
+  # is one long line; a canopy cannot, because at twelve pixels of height per
+  # step a crown is two steps tall and comes out as a battlement. Roughly three
+  # hundred solid rects across both ranks, which is nothing beside the sea floor.
+  BACKDROP_STEP = 6    # px per drawn column: pixel-art ridges, not curves
+  BACKDROP_SAMPLE = 12 # px of island curve per sample, locked to the world
   BACKDROP_ON = true
+
+  # What turns the far ridge into a far *wood*.
+  #
+  # The island's crown steps in wide terraces, so a silhouette taken straight off
+  # it holds one height for a long way and then jumps — which is the outline of
+  # bare rock, and no amount of green makes it read as anything else. Trees break
+  # that edge up: every sample gets a crown of its own, so the top is busy at the
+  # scale of a treetop instead of at the scale of a hillside.
+  #
+  # Rolled from the sample's own world position, like everything else out here.
+  # It has to be: the whole reason this walks a fixed world grid is that the same
+  # place must answer the same however the camera stands, and a canopy that
+  # wobbled per frame would bring back exactly the shimmer that cost three
+  # attempts to get rid of.
+  # Two scales, and the big one has to be *smooth*. Rolling every sample on its
+  # own gave each drawn column an independent height, and a row of narrow columns
+  # at independent heights is a skyline — the first version of this looked like a
+  # city on the horizon. A crown is wider than one sample, so the main shape is
+  # interpolated noise at about the width of a tree, and the per-sample roll is
+  # left as the small ragged edge on top of it.
+  CANOPY_SPAN = 56     # world px per crown — the wavelength of the round part
+  CANOPY_RISE = 30     # how much of the height comes from that
+  CANOPY_RAGGED = 7    # ... and how much is the per-column fringe
+  CANOPY_SEED = 4242
+  # Now and then one tree is well clear of the rest. Rain forest reads the way it
+  # does largely because of these — without them a canopy is a hedge.
+  #
+  # Interpolated too, and for the same reason as the crowns: rolled per sample,
+  # an emergent came out one column wide, which at this sample rate is eight
+  # pixels of pole standing off a wood. A tree that stands out still has to be a
+  # tree's width, so it is a short wavelength rather than a spike.
+  CANOPY_EMERGENT_SPAN = 34
+  CANOPY_EMERGENT = 0.82 # rolls above this get the extra
+  CANOPY_EMERGENT_RISE = 34
 
   # Only above water, and never on the framing screens: the title, the opening,
   # the recap and the night park the camera at the boat *for* a clean horizon,
@@ -126,9 +164,24 @@ class Game
     above = isle.crown_y_at(source_x) - WATERLINE_Y
     return 0 if above <= 0
 
-    lift = above * taller + index * 30
+    lift = above * taller + index * 30 + canopy_rise(source_x, index)
     lift = SCREEN_HEIGHT if lift > SCREEN_HEIGHT
     (lift / BACKDROP_STEP).floor * BACKDROP_STEP
+  end
+
+  # The trees on this column. Two rolls: the ordinary spread of crown heights,
+  # and the occasional one that stands out of it. Each rank rolls its own, or the
+  # two ridges would carry the same wood twice and the far one would read as a
+  # shadow of the near one.
+  def canopy_rise(source_x, index)
+    cell = source_x.idiv(BACKDROP_SAMPLE)
+    seed = CANOPY_SEED + index * 17
+
+    rise = Noise.value(source_x, CANOPY_SPAN, seed) * CANOPY_RISE
+    rise += Noise.jitter(cell, seed + 3) * CANOPY_RAGGED
+    tall = Noise.value(source_x, CANOPY_EMERGENT_SPAN, seed + 5)
+    rise += (tall - CANOPY_EMERGENT) / (1 - CANOPY_EMERGENT) * CANOPY_EMERGENT_RISE if tall > CANOPY_EMERGENT
+    rise
   end
 
   # A few birds over the range, in its haze rather than in their own colours —

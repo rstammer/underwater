@@ -12,7 +12,15 @@ PALETTE = {
   "C" => [176, 132, 68],  # coconut
   "b" => [58, 92, 48],    # bush shadow
   "B" => [84, 132, 62],   # bush body
-  "h" => [110, 166, 86],  # bush highlight
+  "i" => [110, 166, 86],  # bush highlight. Was "h" — and "h" is taken further
+                          # down by the boat's shaded hull, which silently gave
+                          # every bush on every island a blue-grey top edge. The
+                          # letters in here are one flat namespace; check before
+                          # you claim one (a test does it now).
+  "c" => [34, 74, 44],    # canopy shadow — the deepest green, for the underside
+                          # of a crown and the gaps inside it
+  "o" => [240, 210, 224], # blossom
+  "U" => [206, 158, 182], # blossom, shaded
   "W" => [238, 240, 244], # gull, white
   "w" => [196, 202, 212], # gull, shaded
   "K" => [52, 58, 70],    # gull, wing tip
@@ -70,10 +78,10 @@ SPRITES = {
     "....TTt.............",
   ],
   "bush" => [
-    "....hhh.....",
-    "..hhBBBhh...",
-    ".hBBBBBBBh..",
-    "hBBBBBBBBBh.",
+    "....iii.....",
+    "..iiBBBii...",
+    ".iBBBBBBBi..",
+    "iBBBBBBBBBi.",
     "BBBBbBBBBBBB",
     "bBBBbbBBBBbb",
     ".bbb..bbbb..",
@@ -181,6 +189,93 @@ SPRITES = {
     ".Kw......wK.",
     "..WWw..wWW..",
     "....WWWW....",
+  ],
+
+  # --- the wood -------------------------------------------------------------
+  # Palms say atoll. These say the island carries a wood, which is what the
+  # tunnels inside it always implied and the surface never showed. All of them
+  # are lit from the upper left, like the palm: light side "l", body "g", far
+  # side "G", and "c" where a crown closes over itself.
+
+  # The ordinary tree of the place: one round crown, wider than it is tall, on a
+  # short trunk. It is the only plant here bigger than a palm, so a stand of them
+  # is what makes a skyline read as forest rather than as beach.
+  "broadleaf" => [
+    ".......gggggg.......",
+    ".....gllllllllg.....",
+    "...gglllllllllggg...",
+    "..gllllllllllllcGg..",
+    ".gllllllllllllggcGg.",
+    ".glllllllllggGGGcGg.",
+    "..gggllllggGGGGcGg..",
+    "...gggggggGGGGcgg...",
+    ".....ggcccccccg.....",
+    "........TTt.........",
+    "........TTt.........",
+    "........TTt.........",
+    ".......TTTt.........",
+    ".......TTTt.........",
+    "......TTTTtt........",
+  ],
+
+  # A tree fern: a slender scaly trunk with a single ring of fronds off the top.
+  # The one plant that is unmistakably rain forest rather than woodland, and the
+  # tall counterpart to the low fern already growing between the palms.
+  "tree_fern" => [
+    "l..l...l...l..l",
+    ".ll.ll.l.ll.ll.",
+    "..lgglglglggl..",
+    "...ggGgGgGgg...",
+    "....GGgcgGG....",
+    "......TTt......",
+    "......TtT......",
+    "......TTt......",
+    "......TtT......",
+    "......TTt......",
+    ".....bTTtb.....",
+  ],
+
+  # A banana plant: no trunk to speak of, just a stem and four big paddle leaves
+  # arching off it. Broad flat leaves are the shape nothing else here has.
+  "banana" => [
+    "ll.........ll..",
+    "lll.......lll..",
+    "gll..lll..llg..",
+    ".gll.lll.llg...",
+    "..gl.ggg.lg....",
+    "...g.ggg.g.....",
+    "....cgTgc......",
+    "......Tt.......",
+    "......Tt.......",
+    ".....bTtb......",
+  ],
+
+  # A dead trunk with the stubs of two branches. Nothing grows for ever, and a
+  # wood with no dead wood in it is a park — this is the plant that says the
+  # rest of them are alive.
+  "snag" => [
+    "...Dd...",
+    "...Dd...",
+    "D..Dd...",
+    ".DdDd.dD",
+    "..dDddD.",
+    "...Dd...",
+    "...Dd...",
+    "...Dd...",
+    "...Dd...",
+    "..dDdd..",
+  ],
+
+  # A flowering shrub — the bush with blossom on it. The islands are green on
+  # green on green; this is the one plant carrying a colour that is not.
+  "flower_bush" => [
+    "..o..o...o..",
+    ".oiioUiioU..",
+    "oiBBBBBBBio.",
+    "iBBBBBBBBBBi",
+    "BBBBbBBBBBBB",
+    "bBBbbBBBBbbb",
+    "..bb..bbb...",
   ],
 }
 

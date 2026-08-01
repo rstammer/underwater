@@ -97,6 +97,10 @@ class IslandWorld
     "palm" => 6, "palm_small" => 4, "bush" => 3, "grass" => 3,
     "driftwood" => 3, "crab" => 2, "flag" => 3, "gull" => 3,
     "rock" => 3, "fern" => 3,
+    # The wood. A broadleaf is the one thing out here drawn bigger than a palm:
+    # it is the tree the others stand under.
+    "broadleaf" => 7, "tree_fern" => 4, "banana" => 4, "snag" => 4,
+    "flower_bush" => 3,
   }
 
   def self.build(world, sector)
@@ -742,22 +746,31 @@ class IslandWorld
     band > SHORE_HEIGHT ? SHORE_HEIGHT : band
   end
 
-  # What belongs where: driftwood and crabs down on the beach, and further up
-  # whatever actually fits in the space — a palm needs room to stand, a tuft of
+  # What belongs where: driftwood down on the beach, and further up whatever
+  # actually fits in the space — a broadleaf needs room to stand, a tuft of
   # grass doesn't.
+  #
+  # These lists used to be mostly palm, three of six slots on the widest ground,
+  # and an island read as an atoll because of it: sand, palms, done. An island
+  # here is big enough to walk across and has tunnels running through it, so what
+  # belongs on top is a wood. The palm keeps its place at the front — this is
+  # still the tropics — but it is now one tree among several rather than the
+  # only one, and the wide ground grows the things that make a canopy.
   def plant_for(flat, room, seed)
     kinds =
       if flat[:y] - WATERLINE_Y < shore_line
         # No crab here any more: the beach carries real ones now (spawn_shore_life),
         # which walk about and photograph. A decor crab beside a living one would
         # only be the same animal drawn twice, one of them a fake.
-        ["grass", "driftwood", "grass", "rock", "driftwood", "bush"]
-      elsif room >= base_width("palm") + MARGIN
-        ["palm", "fern", "palm", "palm_small", "rock", "palm"]
+        ["grass", "driftwood", "grass", "rock", "driftwood", "flower_bush"]
+      elsif room >= base_width("broadleaf") + MARGIN
+        ["broadleaf", "palm", "tree_fern", "broadleaf", "banana",
+         "palm", "snag", "broadleaf"]
       elsif room >= base_width("palm_small") + MARGIN
-        ["palm_small", "fern", "grass", "bush", "palm_small", "rock"]
+        ["palm_small", "tree_fern", "banana", "fern",
+         "flower_bush", "snag", "banana", "palm_small"]
       else
-        ["grass", "bush", "fern", "bush", "grass", "rock"]
+        ["grass", "bush", "fern", "flower_bush", "bush", "grass", "fern"]
       end
     kind = kinds[(Noise.jitter(seed + 7, DECOR_SEED + 1) * kinds.length).to_i]
     room >= base_width(kind) + MARGIN ? kind : nil
