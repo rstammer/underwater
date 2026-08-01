@@ -115,6 +115,26 @@ class WreckTests
                  "and the air stops where the deck starts"
   end
 
+  # Air collects under something and is held in by walls. The pocket hung in the
+  # middle of the hold at first with open water on every side — a rectangle of
+  # air floating in the sea, which is not a thing that can exist. It is a
+  # compartment now: deck over it, a bulkhead at each end.
+  def test_the_air_is_in_a_compartment_with_walls(args, assert)
+    game = build_game(args)
+    world = wreck(args, game)
+    pocket = world.air_pockets.first
+
+    [pocket[:x] - World::COLUMN_WIDTH, pocket[:x] + pocket[:w] + World::COLUMN_WIDTH].each do |x|
+      assert.true! world.solid_at?(x, pocket[:y] + pocket[:h] / 2),
+                   "there is a bulkhead beside the air at #{x}"
+    end
+
+    # ... and you can still get in: the bulkheads stop short of the mud.
+    under = world.floor_y_at(pocket[:x] - World::COLUMN_WIDTH) + 10
+    assert.false! world.solid_at?(pocket[:x] - World::COLUMN_WIDTH, under),
+                  "and a way under them into the compartment"
+  end
+
   # --- that it reads as a ship -----------------------------------------------
 
   # The stem is the tell. A hull that stops flush at the deck is a barge, and the

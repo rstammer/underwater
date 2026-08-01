@@ -191,6 +191,72 @@ SPRITES = {
     "....WWWW....",
   ],
 
+  # --- what is left aboard the wreck ----------------------------------------
+  #
+  # A ship on the bottom is not a shape, it is a place somebody lived and
+  # worked. These are the things that say so — and every one of them is drawn to
+  # be read at a glance from its silhouette, because at this scale that is all
+  # there is.
+
+  # A barrel on its side, hoops and all. The hoops are the whole tell: without
+  # them it is a log.
+  "barrel" => [
+    ".dddddddd.",
+    "dDDwDDwDDd",
+    "DDDwDDwDDD",
+    "DDDwDDwDDD",
+    "dDDwDDwDDd",
+    ".dddddddd.",
+  ],
+
+  # The ship's wheel, still on its post at the stern. Spokes sticking out past
+  # the rim are what make a circle a wheel.
+  "wheel" => [
+    "...D.D.D...",
+    "..DDDDDDD..",
+    ".DD..D..DD.",
+    "DD...D...DD",
+    "D..D.D.D..D",
+    "DDDDDdDDDDD",
+    "D..D.D.D..D",
+    "DD...D...DD",
+    ".DD..D..DD.",
+    "..DDDDDDD..",
+    "...D.D.D...",
+    ".....d.....",
+    ".....d.....",
+    "....ddd....",
+  ],
+
+  # An anchor, fouled in the mud beside the bow. Read from the ring at the top,
+  # the crossbar under it and the two flukes at the bottom.
+  "anchor" => [
+    "...ZZZ...",
+    "..Z...Z..",
+    "...ZZZ...",
+    "....Z....",
+    ".ZZZZZZZ.",
+    "....Z....",
+    "....Z....",
+    "Z...Z...Z",
+    "Zz..Z..zZ",
+    ".ZzzZzzZ.",
+    "..ZZZZZ..",
+  ],
+
+  # A chest, lid shut, bands across it. The one thing down here that suggests
+  # somebody might still want what is in it.
+  "chest" => [
+    "..CCCCCCCC..",
+    ".CCQCCCCQCC.",
+    "CCCQCCCCQCCC",
+    "cccQccccQccc",
+    "cQQQQccQQQQc",
+    "ccQccccccQcc",
+    "cccccccccccc",
+    ".dddddddddd.",
+  ],
+
   # An old ship's gun, lying on the wreck's deck where it fell off its carriage.
   # Read at a glance from the silhouette alone: a heavy tube that is thicker at
   # the breech than at the muzzle, with the trunnion stub under it and the

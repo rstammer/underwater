@@ -49,6 +49,17 @@ module WreckWorld
   FALLEN_THICK = 12
   # Where the gun ended up when it came off its carriage.
   CANNON_COL = 100
+  # The foremast, snapped shorter than the main. Two stumps read as a ship that
+  # was rigged; one reads as a post.
+  FORE_COL = 34
+  FORE_STUMP = 52
+  # The bowsprit, out over the stem. It is the one line on the whole ship that
+  # is neither upright nor flat, and it is what a bow is recognised by.
+  SPRIT_LEN = 9          # columns it reaches forward of the stem
+  SPRIT_THICK = 9
+  SPRIT_RISE = 4         # px it climbs per column — a bowsprit is a shallow
+                         # line, not a mast lying over; at 7 it left the top of
+                         # the picture before it left the ship
 
   def self.floor_y
     WATERLINE_Y - DEPTH_METRES * PIXELS_PER_METRE
@@ -81,6 +92,15 @@ module WreckWorld
   # building, and the game has no buildings on the sea floor.
   def self.build_roof(columns, floor)
     (0...columns).map do |col|
+      # The bowsprit reaches forward of the stem, so these columns carry ship
+      # without being part of the hull.
+      if col.between?(BOW - SPRIT_LEN, BOW - 1)
+        out = BOW - col
+        deck_top = floor[col] + HOLD_H + DECK_H
+        lift = STEM_RISE + out * SPRIT_RISE
+        next [{ ceiling: (deck_top + lift).round,
+                crown: (deck_top + lift + SPRIT_THICK).round, wood: true }]
+      end
       next [] unless col.between?(BOW, STERN)
 
       slabs = []
@@ -120,15 +140,27 @@ module WreckWorld
         slabs << { ceiling: deck_bottom.round, crown: deck_top.round, wood: true }
       end
 
+      # The bulkheads that close the forward compartment off. Without them the
+      # trapped air had open water on both sides — a rectangle of air hanging in
+      # the sea. They stop short of the mud, so you can still swim under them
+      # into the compartment and come up inside it.
+      if (col - AIR_FROM).abs < BULKHEAD_W || (col - AIR_TO).abs < BULKHEAD_W
+        slabs << { ceiling: (floor[col] + 46).round, crown: deck_bottom.round, wood: true }
+      end
+
       # The quarterdeck aft, standing on the main deck: a second slab rather
       # than a taller deck, so the hold underneath keeps its headroom.
       if col >= QUARTER_FROM && from_stern >= TAIL
         slabs << { ceiling: deck_top.round, crown: (deck_top + QUARTER_H).round, wood: true }
       end
 
-      # The mast, or what is left of it — a stump still standing amidships.
+      # The masts, or what is left of them — two stumps, snapped at different
+      # heights. Two say the ship was rigged; one says post.
       if (col - MAST_COL).abs < MAST_W && !col.between?(BREAK_FROM, BREAK_TO)
         slabs << { ceiling: deck_top.round, crown: (deck_top + MAST_STUMP).round, wood: true }
+      end
+      if (col - FORE_COL).abs < MAST_W
+        slabs << { ceiling: deck_top.round, crown: (deck_top + FORE_STUMP).round, wood: true }
       end
 
       # ... and the length that came off it, lying across the foredeck where it
@@ -149,32 +181,89 @@ module WreckWorld
   # your head up in a place where surfacing is otherwise a two-minute swim — the
   # same trick the islands' dead ends use, and the reason a wreck is worth going
   # *into* rather than photographing from outside.
+  # Air caught in the forward compartment.
+  #
+  # It hung in the middle of the hold at first, with open water on all sides —
+  # a rectangle of air floating in the sea, which is not how air behaves. Air
+  # collects *under* something and is held in by walls. So the pocket is flush
+  # against the underside of the deck, and the compartment it sits in has a
+  # bulkhead at each end (build_roof draws them). It is a room with air at the
+  # top of it, which is a thing that can exist.
+  AIR_FROM = BOW + NOSE + 2   # the compartment's forward bulkhead ...
+  AIR_TO = BOW + NOSE + 15    # ... and its after one
+  AIR_H = 34                  # how deep the trapped air reaches down from the deck
+  BULKHEAD_W = 2              # columns thick
+
   def self.build_air(floor)
-    col = BOW + NOSE + 6
-    x = col * World::COLUMN_WIDTH
-    w = 12 * World::COLUMN_WIDTH
-    bottom = floor[col] + HOLD_H - 34
-    [{ x: x, y: bottom, w: w, h: 30 }]
+    first = AIR_FROM + BULKHEAD_W
+    last = AIR_TO - BULKHEAD_W
+    x = first * World::COLUMN_WIDTH
+    w = (last - first) * World::COLUMN_WIDTH
+    # The deck follows the mud, and the mud dips — so the ceiling of the
+    # compartment is not level. Measured at its lowest point across the whole
+    # pocket, or the air would be inside the deck at one end of it.
+    ceiling = (first..last).map { |c| floor[c] }.min + HOLD_H
+    [{ x: x, y: ceiling - AIR_H, w: w, h: AIR_H }]
   end
 
   # What has grown on it in the meantime. Weed along the hull and on the open
   # mud, thicker where the hull has been standing longest — a wreck that is bare
   # looks like it went down last week.
+  # Everything aboard her, and what has grown on her since.
+  #
+  # This is where the wreck stops being a shape and becomes a place: a ship on
+  # the bottom is somewhere people worked, and the things they left are what say
+  # so. Half of it is out on the deck where it can be seen from outside — the
+  # gun, the wheel, the anchor in the mud — and half is down in the hold, which
+  # is the payoff for finding the way in.
   def self.build_decorations(floor)
-    spots = [2, 4, 155, 158]
-    items = spots.each_with_index.map do |col, i|
-      kind = %w[seaweed coral seaweed starfish][i % 4]
-      { kind: kind, x: col * World::COLUMN_WIDTH, y: floor[col], scale: 2 }
-    end
-    items << cannon(floor)
+    weed(floor) + on_deck(floor) + in_the_hold(floor)
   end
 
-  # The gun, lying on the main deck aft where it came off its carriage. Drawn as
-  # decoration rather than built as a slab: it is the one thing up here that is a
-  # made object rather than a piece of ship, and it should look like one.
-  def self.cannon(floor)
-    { kind: "cannon", x: CANNON_COL * World::COLUMN_WIDTH,
-      y: floor[CANNON_COL] + HOLD_H + DECK_H, scale: 3 }
+  def self.deck_y(floor, col)
+    floor[col] + HOLD_H + DECK_H
+  end
+
+  def self.weed(floor)
+    [2, 5, 154, 158].each_with_index.map do |col, i|
+      { kind: %w[seaweed coral seaweed starfish][i % 4],
+        x: col * World::COLUMN_WIDTH, y: floor[col], scale: 2 }
+    end
+  end
+
+  # What is still up top. The wheel goes aft on the quarterdeck, where a wheel
+  # belongs; the gun lies on the main deck where it came off its carriage; the
+  # anchor is down in the mud off the bow, fouled, where it did the ship no good
+  # at all.
+  def self.on_deck(floor)
+    [
+      { kind: "cannon", x: CANNON_COL * World::COLUMN_WIDTH,
+        y: deck_y(floor, CANNON_COL), scale: 3 },
+      { kind: "cannon", x: (CANNON_COL - 12) * World::COLUMN_WIDTH,
+        y: deck_y(floor, CANNON_COL - 12), scale: 3 },
+      { kind: "wheel", x: (QUARTER_FROM + 6) * World::COLUMN_WIDTH,
+        y: deck_y(floor, QUARTER_FROM + 6) + QUARTER_H, scale: 3 },
+      { kind: "barrel", x: (STERN - 22) * World::COLUMN_WIDTH,
+        y: deck_y(floor, STERN - 22), scale: 3 },
+      { kind: "anchor", x: (BOW - 4) * World::COLUMN_WIDTH,
+        y: floor[BOW - 4], scale: 3 },
+    ]
+  end
+
+  # And what is down in the hold, which you only see if you drop through the
+  # deck. The chest is the far one, right forward past the air pocket: something
+  # to swim the length of the hold for.
+  def self.in_the_hold(floor)
+    [
+      { kind: "barrel", x: (BREAK_TO + 6) * World::COLUMN_WIDTH,
+        y: floor[BREAK_TO + 6], scale: 3 },
+      { kind: "barrel", x: (BREAK_TO + 11) * World::COLUMN_WIDTH,
+        y: floor[BREAK_TO + 11], scale: 3 },
+      { kind: "barrel", x: (BREAK_FROM - 8) * World::COLUMN_WIDTH,
+        y: floor[BREAK_FROM - 8], scale: 3 },
+      { kind: "chest", x: (BOW + NOSE + 3) * World::COLUMN_WIDTH,
+        y: floor[BOW + NOSE + 3], scale: 3 },
+    ]
   end
 
   def self.build(index)
