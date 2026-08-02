@@ -140,7 +140,7 @@ bin/test                        # the whole suite
 bin/test tests/framing_tests.rb # one file
 ```
 
-619 tests across 50 files, run headless in DragonRuby's own test runner.
+827 tests across 57 files, run headless in DragonRuby's own test runner.
 `bin/test` wraps it because `--test` always exits 0, which is no use to anyone
 who wants to know whether the tests passed.
 

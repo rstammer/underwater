@@ -55,4 +55,4 @@ require "tests/shot_card_tests.rb"
 require "tests/assignment_tests.rb"
 require "tests/reef_tests.rb"
 require "tests/wreck_tests.rb"
-
+require "tests/render_budget_tests.rb"

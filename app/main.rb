@@ -307,6 +307,12 @@ class Game
     state.direction = :right
     state.world_cache = {}
     state.beach_band = nil # measured off stamped segments; it cannot outlive them
+    # The far ranges are read off the islands, so they cannot outlive them
+    # either — and they did: a new round opened with the previous round's hills
+    # standing behind this round's coast. Both the silhouettes and the crown
+    # heights kept off them go here.
+    state.backdrop_isles = {}
+    state.backdrop_lifts = {}
     # Forget which world is loaded, too: the cache alone isn't enough, and the
     # round would otherwise start out on the *previous* round's segment — old
     # island layout, old fish — until the diver happened to cross a border.
