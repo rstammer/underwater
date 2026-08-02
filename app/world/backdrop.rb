@@ -109,7 +109,9 @@ class Game
   end
 
   # The island as an object, so its crown can be asked about. Memoised: building
-  # one rolls its whole shape, and this runs every frame.
+  # one rolls its whole shape, and this runs every frame. Game#reset_game drops
+  # the lot — a new round is new land, and a silhouette that outlives the island
+  # it came off draws the previous round's hills behind this one's coast.
   def backdrop_island(sector)
     state.backdrop_isles ||= {}
     state.backdrop_isles[sector] ||= IslandWorld.new(world_at(sector), sector)
@@ -157,10 +159,35 @@ class Game
     centre + (world_x - centre - shift) / wider
   end
 
-  # How high this column stands over the water. Zero wherever the island's own
-  # crown is at or below the waterline, which is what keeps the range inside the
-  # land it belongs to and lets it end without a cut.
+  # How high this column stands over the water — worked out once per place and
+  # kept.
+  #
+  # Keeping it is the whole payoff of walking a fixed world grid. Every sample
+  # rolls a crown height and three octaves of canopy noise, and Noise.jitter
+  # builds an Rng to do each of them; at ~150 samples a rank, two ranks and up
+  # to three islands in view, the far hills came to 5.5 ms of a 9 ms frame —
+  # more than the sea floor, the fish and the HUD together, spent re-rolling
+  # hills that had not moved. Since the answer cannot depend on anything but the
+  # place (that is what tests/vegetation_tests.rb#test_the_canopy_holds_still is
+  # for), asking twice is pure waste.
+  #
+  # It is bounded by the land rather than by how far anyone swims: a range only
+  # reaches so far past its island (visible_islands), so an island's whole ridge
+  # is about a thousand numbers and a round holds four islands. It goes when
+  # they do (reset_game).
   def backdrop_lift(isle, source_x, taller, index)
+    lifts = (state.backdrop_lifts ||= {})
+    key = "#{isle.sector} #{index} #{source_x}"
+    kept = lifts[key]
+    return kept if kept
+
+    lifts[key] = rolled_backdrop_lift(isle, source_x, taller, index)
+  end
+
+  # Zero wherever the island's own crown is at or below the waterline, which is
+  # what keeps the range inside the land it belongs to and lets it end without
+  # a cut.
+  def rolled_backdrop_lift(isle, source_x, taller, index)
     above = isle.crown_y_at(source_x) - WATERLINE_Y
     return 0 if above <= 0
 

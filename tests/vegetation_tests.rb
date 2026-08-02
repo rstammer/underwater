@@ -158,4 +158,56 @@ class VegetationTests
 
     assert.equal! second, first, "the same place has to keep the same crown"
   end
+
+  # --- and how it is kept ----------------------------------------------------
+  #
+  # Because it holds still, it is worked out once per place and remembered
+  # (Game#backdrop_lift). That is worth its own guard in both directions: a
+  # cache that answers too readily draws one island's hills behind another, and
+  # a cache that outlives its islands draws last round's.
+
+  def test_the_kept_crowns_are_told_apart(args, assert)
+    game = backdrop_game(args)
+    sector = args.state.island_sectors.first
+    isle = game.backdrop_island(sector)
+    centre = IslandWorld.centre_x(sector)
+
+    assert.equal! game.backdrop_lift(isle, centre, 2.3, 0),
+                  game.backdrop_lift(isle, centre, 2.3, 0),
+                  "asking twice has to give the same answer"
+
+    # Two neighbouring places may honestly share a height, and so may the two
+    # ranks at one place — both round to BACKDROP_STEP. What cannot happen is a
+    # whole ridge coming back as another ridge, so they are compared as lines.
+    near = tree_line(game, sector, 60)
+    far = []
+    (0...60).each do |i|
+      lift = game.backdrop_lift(isle, centre + (i - 30) * Game::BACKDROP_SAMPLE, 1.75, 1)
+      far << lift if lift > 0
+    end
+
+    assert.true! near.length > 20, "the near rank is actually there"
+    assert.true! far.length > 20, "the far rank is actually there"
+    assert.true! near != far, "the two ranks came back as one ridge"
+  end
+
+  # A new career rolls a new seed, so the islands are new land: different
+  # sectors, different shapes. Everything read off them has to go with them —
+  # the silhouettes themselves and the crowns kept off them alike. The far hills
+  # used to survive a reset (state.backdrop_isles was never cleared), so a new
+  # round opened with the previous round's range standing behind its islands.
+  def test_a_new_round_forgets_the_old_islands(args, assert)
+    game = backdrop_game(args)
+    sector = args.state.island_sectors.first
+    before = game.backdrop_island(sector)
+    game.backdrop_lift(before, IslandWorld.centre_x(sector), 2.3, 0)
+
+    args.state.world_seed = args.state.world_seed + 1
+    game.reset_game
+
+    after = game.backdrop_island(sector)
+
+    assert.true! !after.equal?(before),
+                 "the range behind an island outlived the island it came off"
+  end
 end
