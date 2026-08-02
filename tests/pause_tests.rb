@@ -1,9 +1,19 @@
 # The pause menu: ESC freezes the dive with a choice instead of throwing the
 # round away, and you can carry on or end the dive.
 class PauseTests
-  # Fog squares are a 40x40 grid of solids; nothing else in the scene is.
-  def fog_squares(args)
-    args.outputs.sprites.flatten.count { |s| s[:w] == 40 && s[:h] == 40 && s[:path] == :solid }
+  # How much of the screen the dark covers. The fog is drawn on a 40 px grid, a
+  # row at a time, so it is the solids that are exactly one cell tall and a whole
+  # number of cells wide — and it is the *area* that matters here, not the count:
+  # the runs cover the same screen in far fewer rects than the old cell-by-cell
+  # fog did, and counting rects would read that as the dark having lifted.
+  def fogged_area(args)
+    cell = FogOfWar::CELL
+    args.outputs.sprites.flatten.reduce(0) do |area, s|
+      next area unless s[:path] == :solid && s[:h] == cell
+      next area unless s[:w] % cell == 0 && s[:x] % cell == 0 && s[:y] % cell == 0
+
+      area + s[:w] * s[:h]
+    end
   end
 
   # Pausing showed the whole map. The dark is part of the world, but it was being
@@ -19,7 +29,7 @@ class PauseTests
 
     game.area1_tick
     game.render_diver
-    diving = fog_squares(args)
+    diving = fogged_area(args)
     assert.true! diving > 0, "there is fog down here to begin with (#{diving})"
 
     args.outputs.sprites.clear
@@ -27,8 +37,8 @@ class PauseTests
     args.state.paused_at = Kernel.tick_count # so the menu doesn't read its own key
     game.pause_tick
 
-    assert.true! fog_squares(args) >= diving,
-                 "and it is still there behind the menu (#{fog_squares(args)} of #{diving})"
+    assert.true! fogged_area(args) >= diving,
+                 "and it is still there behind the menu (#{fogged_area(args)} of #{diving})"
   end
 
   def build_game(args)
