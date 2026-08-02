@@ -90,6 +90,36 @@ class Game
     (bare * sight_factor).to_i # ... and a better mask sees through more of it
   end
 
+  # The slice of screen the fog leaves open, as [left, right] — or nil where
+  # there is no fog and the whole screen is on show.
+  #
+  # The fog is opaque and it is a circle, so terrain outside it is built, drawn,
+  # and then painted straight over. Across the sea that is about seven rects in
+  # ten. Everything that draws the sea draws the fog with it (render_fog), so
+  # the same three conditions decide both — which is what keeps this from
+  # cutting a hole in a picture that has nothing over it: the surface, the
+  # framing screens where the diver floats at the boat, and the boat itself.
+  #
+  # A cell of slack either side, because the fog is snapped out to its own grid
+  # and the clear circle can reach that much further than the radius says.
+  def fog_window
+    return nil unless FOG_OF_WAR
+    return nil if at_open_surface?
+    return nil if state.aboard
+
+    reach = fog_radius(current_world.biome) + FogOfWar::CELL
+    [state.player_x - reach, state.player_x + reach]
+  end
+
+  # Is this run of columns entirely outside that slice, and so entirely behind
+  # the fog? Always false where there is no window, which is how the surface and
+  # the framing screens keep the whole picture.
+  def behind_the_fog?(window, x, w)
+    return false unless window
+
+    x + w < window[0] || x > window[1]
+  end
+
   # Tint the fog with the biome's deep water so it blends instead of a flat blue,
   # and let it darken with depth along with the water itself.
   def fog_color(biome)
@@ -114,11 +144,12 @@ class Game
     # side, which is exactly what watching a boat pass behind a headland looks
     # like.
     render_home_boat
+    window = fog_window
     visible_world_indices.each do |index|
       world = world_at(index)
       dx = chunk_offset_x(index)
-      outputs.sprites << world_floor(world, dx) if submerged_visible?
-      outputs.sprites << world_roof(world, dx)
+      outputs.sprites << world_floor(world, dx, window) if submerged_visible?
+      outputs.sprites << world_roof(world, dx, window)
       outputs.sprites << world_air(world, dx) if submerged_visible?
       outputs.sprites << world_decorations(world, dx)
     end
@@ -289,7 +320,7 @@ class Game
   # as chunky pixel steps. Tinting follows the height (like strata) rather than
   # the column, which keeps a terrace one flat colour, and everything darkens
   # with depth.
-  def world_floor(world, dx)
+  def world_floor(world, dx, window = nil)
     body = world.biome.floor_colors[1].map { |c| c - 14 }
     cap = world.biome.floor_colors[0]
     tiles = []
@@ -299,6 +330,8 @@ class Game
 
       x = first_col * World::COLUMN_WIDTH + dx
       w = width * World::COLUMN_WIDTH + 1
+      next if behind_the_fog?(window, x, w)
+
       shade = (top.idiv(WorldGenerator::FLOOR_STEP) % 5 - 2) * 4 # strata, not stripes
       dim = light_at(top)
       tiles << sand({ x: x, y: y - FLOOR_FILL_DEPTH, w: w, h: FLOOR_FILL_DEPTH }, body, shade, dim)
@@ -343,12 +376,14 @@ class Game
   # the top of *that*: an island's flank above the water is in daylight while the
   # same slab is pitch dark down at the tunnel. A slab that breaks the surface
   # gets earth colours and a band of green along its crown.
-  def world_roof(world, dx)
+  def world_roof(world, dx, window = nil)
     return [] unless world.roof
 
     tiles = []
     each_run(world.roof) do |slabs, first_col, width|
       next if slabs.nil? || slabs.empty?
+      next if behind_the_fog?(window, first_col * World::COLUMN_WIDTH + dx,
+                              width * World::COLUMN_WIDTH + 1)
 
       slabs.each { |rock| roof_slab(tiles, world, rock, first_col, width, dx) }
     end
