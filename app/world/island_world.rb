@@ -563,6 +563,9 @@ class IslandWorld
   # game down at boot, the same trap app/world/gear.rb documents.)
   MARKET_SPAN = 460
   MARKET_RISE = 190 # how high the market terrace stands over the water
+  MARKET_TREAD = 64 # ... and how far along the ground each step off it runs.
+                    # CROWN_STEP down per tread is a third of a stride, so the
+                    # way off the terrace is also the way back onto it
 
   def market_top
     WATERLINE_Y + MARKET_RISE
@@ -583,8 +586,39 @@ class IslandWorld
       y = shelf_ceiling if !crossable? && y > shelf_ceiling
     end
     y = (y / CROWN_STEP).floor * CROWN_STEP
+    # Read at the true x, not the terrace's: market_ground? is, and a skirt that
+    # disagreed with the flat about where the flat ends left the 78 px step
+    # standing in the terrace that straddles the edge.
+    y = market_skirt(world_x, y)
     y = WATERLINE_Y + CROWN_MAX if y > WATERLINE_Y + CROWN_MAX
     y
+  end
+
+  # The ground stepping down off the market terrace.
+  #
+  # Without it the flat was simply stamped in at market_top with nothing joining
+  # it to the rock on either side. On the eastern side the island's own crown
+  # stands 78 px lower, and 78 px is past a stride and past a hop — so walking
+  # east off the market was a one-way trip, with water beyond it deeper than the
+  # suit is rated for. A playtester walked out there and lost the roll he was
+  # carrying (#16). Note which side broke: the western edge happened to roll
+  # within a stride, so the terrace could be climbed *onto* from one side and not
+  # the other, which is precisely the shape of a trap.
+  #
+  # A staircase rather than a ramp, because the island steps in plateaus
+  # everywhere else — and because a staircase is what makes the guarantee
+  # checkable: CROWN_STEP down per MARKET_TREAD across is a step he can always
+  # take back up. It is a floor under the island's own crown rather than a
+  # replacement for it, so it stops mattering the moment the rock stands higher
+  # than the stairs, and it has died away to the waterline long before the shore.
+  def market_skirt(world_x, y)
+    return y unless @sector == SHOP_SECTOR
+
+    over = (world_x - self.class.centre_x(SHOP_SECTOR)).abs.to_i - MARKET_SPAN / 2
+    return y if over <= 0
+
+    stair = market_top - (over.idiv(MARKET_TREAD) + 1) * CROWN_STEP
+    y > stair ? y : stair
   end
 
   # The flat the market stands on — only on the shop's own island, and only
